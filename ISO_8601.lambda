@@ -44,6 +44,11 @@
 # FORMAT_WEEK_DATE       Returns a week date as text in the ISO 8601 format.                          #
 # FORMAT_DATE_TIME       Returns a date and time as text in the ISO 8601 format.                      #
 #                                                                                                     #
+# Conversion Functions                                                                                #
+# --------------------------------------------------------------------------------------------------- #
+# ISO_TO_DATE            Converts text in ISO format to an Excel date.                                #
+# DATE_TO_ISO            Converts an Excel date to ISO formatted text.                                #
+#                                                                                                     #
 #####################################################################################################*/
 
 /*-----------------------------------------------------------------------------------------------------
@@ -79,8 +84,7 @@ Parameters
 YearCE      : Year in common era.
 Month       : Month of year.
 Day         : Day of month.
-[NoNulls]   : Disallow short forms:  Year
-                                     Year and month
+[NoNulls]   : Disallow short forms:  Year, Year and month
 -----------------------------------------------------------------------------------------------------*/
 IS_VALID_DATE = LAMBDA(
     YearCE,
@@ -144,8 +148,7 @@ Parameters
 Hour
 Minute
 Second
-[NoNulls] : Disallow short forms:  Hour
-                                   Hour and minute
+[NoNulls] : Disallow short forms:  Hour, Hour and minute
 -----------------------------------------------------------------------------------------------------*/
 IS_VALID_TIME = LAMBDA(
     Hour,
@@ -267,8 +270,7 @@ Parameters
 YearCE     : Year in common era
 Week       : ISO defined week number of the year
 DayOfWeek  : Day of the week where 1..7 -> Mon..Sun
-[NoNulls]  : Disallow short forms:  Hour
-                                    Hour and minute
+[NoNulls]  : Disallow short forms:  Hour, Hour and minute
 -----------------------------------------------------------------------------------------------------*/
 IS_VALID_WEEK_DATE = LAMBDA(
     YearCE,
@@ -1214,10 +1216,11 @@ Text         : ISO8601 formatted date.
              :   YYYY-MM-DDThh:mm-hh
              :   YYYY-MM-DDThh:mmZ
              :   YYYY-Www-DThh:mm
+[Permissive] : Allow mixed use of basic and extended formats
 -----------------------------------------------------------------------------------------------------*/
 PARSE_DATE_TIME = LAMBDA(
     Text,
-    [Permisive],
+    [Permissive],
     IF(
         Text = "",
         HSTACK("", "", "", "", "", "", "", "", "", "", ""),
@@ -1368,7 +1371,7 @@ PARSE_DATE_TIME = LAMBDA(
                     )
                 )
             ),
-            _strict, N(Permisive) = 0,
+            _strict, N(Permissive) = 0,
             _parts, fnSplit(Text),
             IF(
                 ISERROR(INDEX(_parts, 1, 1)),
@@ -1566,7 +1569,7 @@ OffsetMinutes : Time zone offset from UTC in minutes.
               :   1 - hours
               :   2 - minutes
               :   3 - seconds
-[NoZulu]      : Supress using Z
+[NoZulu]      : Use +00:00 instead of Z for UTC time zone.
 -----------------------------------------------------------------------------------------------------*/
 FORMAT_TIME_ZONE = LAMBDA(
     OffsetMinutes,
@@ -1731,8 +1734,8 @@ Parameters
                  :   5 - Minute
                  :   6 - Second
                  :   7 - Fractional
-[NoTimezone]     :
-[NoZulu]         :
+[NoTimezone]     : Drop tim zone from output.
+[NoZulu]         : Use +00:00 instead of Z for UTC time zone.
 -----------------------------------------------------------------------------------------------------*/
 FORMAT_DATE_TIME = LAMBDA(
     DateType,
@@ -1810,6 +1813,16 @@ FORMAT_DATE_TIME = LAMBDA(
 );
 
 
+/*-----------------------------------------------------------------------------------------------------
+ISO_TO_DATE
+
+Converts text in ISO format to an Excel date. 
+
+Parameters
+-------------------------------------------------------------------------------------------------------
+Text                  : ISO 8601 formatted date, time, time zone.
+[ReturnTimeZoneOffset : Include another column to eturn time zone offset in minutes.
+-----------------------------------------------------------------------------------------------------*/
 ISO_TO_DATE = LAMBDA(
     Text,
     [ReturnTimeZoneOffset],
@@ -1858,7 +1871,28 @@ ISO_TO_DATE = LAMBDA(
     )
 );
 
+/*-----------------------------------------------------------------------------------------------------
+DATE_TO_ISO
 
+Converts an Excel date to ISO formatted text.
+
+Parameters
+-------------------------------------------------------------------------------------------------------
+Date             : An Excel date and/or time.
+[TimeZoneOffset] : Time zone offset in minutes from UTC 
+[Basic]          : Return in basic format eg YYYYMMDDT1045+0930
+[Precision]      : Precision level to use
+                 :   0 - Automatic
+                 :   1 - Year
+                 :   2 - Month/Week
+                 :   3 - Day/Ordinal
+                 :   4 - Hour
+                 :   5 - Minute
+                 :   6 - Second
+                 :   7 - Fractional
+[NoTimezone]     : Drop tim zone from output.
+[NoZulu]         : Use +00:00 instead of Z for UTC time zone.
+-----------------------------------------------------------------------------------------------------*/
 DATE_TO_ISO = LAMBDA(
     Date,
     [TimeZoneOffset],
