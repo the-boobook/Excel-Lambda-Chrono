@@ -7,14 +7,18 @@
 #                                                                                                     #
 # Module Dependencies: None                                                                           #
 #                                                                                                     #
-# General Functions                                                                                   #
+# Logical Functions                                                                                   #
 # --------------------------------------------------------------------------------------------------- #
+# IS_VALID_YEAR          Tests if a year is valid for ISO 8601.                                       # 
 # IS_LEAP_YEAR           Tests if a year includes a leap day in the Gregorian calendar.               #
 # IS_VALID_DATE          Tests if a date is valid for the Gregorian calendar.                         # 
 # IS_VALID_TIME          Tests if a time is valid for the 24 hour timekeeping system.                 # 
 # IS_VALID_TIME_ZONE     Tests if time zone offset in minutes is in valid range.                      #
 # IS_VALID_ORDINAL_DATE  Tests if an ordinal date is valid for the Gregorian calendar.                #
 # IS_VALID_WEEK_DATE     Tests if a week date is valid for the Gregorian calendar.                    # 
+#                                                                                                     #
+# Date Functions                                                                                      #
+# --------------------------------------------------------------------------------------------------- #
 # DAY_ORDINAL            Returns the ordinal day number of a date.                                    #
 # DAY_OF_WEEK            Returns the ISO defined day of week number for a given date.                 #
 # YEAR_WEEK_COUNT        Returns the count of ISO defined weeks in a given year.                      #
@@ -52,19 +56,33 @@
 #####################################################################################################*/
 
 /*-----------------------------------------------------------------------------------------------------
-IS_LEAP_YEAR
+IS_VALID_YEAR
 
-Tests if a year includes a leap day in the Gregorian calendar.
+Tests if a year is valid for ISO 8601.
+Note that 1 BC = 0 CE, 2 BC = -1 CE
+Returns a boolean.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE : Year in common era
+YearCE    | integer | Year in Common Era -99999..+99999
 -----------------------------------------------------------------------------------------------------*/
-IS_LEAP_YEAR = LAMBDA(
-    YearCE,
+IS_VALID_YEAR = LAMBDA(YearCE, IF(NOT(ISNUMBER(YearCE)), FALSE, ABS(INT(YearCE)) <= 99999));
+
+/*-----------------------------------------------------------------------------------------------------
+IS_LEAP_YEAR
+
+Tests if a year includes a leap day in the Gregorian calendar.
+Returns a boolean.
+#VALUE! if not a valid year.
+
+Parameters
+-------------------------------------------------------------------------------------------------------
+YearCE    | integer | Year in Common Era -99999..+99999
+-----------------------------------------------------------------------------------------------------*/
+IS_LEAP_YEAR = LAMBDA(YearCE,
     IF(
-        YearCE = "",
-        "",
+        NOT(IS_VALID_YEAR(YearCE)),
+        #VALUE!,
         LET(
             _y, INT(YearCE),
             IF(MOD(_y, 400) = 0, TRUE, IF(MOD(_y, 100) = 0, FALSE, MOD(_y, 4) = 0))
@@ -78,56 +96,46 @@ IS_VALID_DATE
 Tests if a date is valid for the Gregorian calendar.
 If month and day missing, considered a year only date.
 If only day is missing, considered a year and month date.
+Returns a boolean.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE      : Year in common era.
-Month       : Month of year.
-Day         : Day of month.
-[NoNulls]   : Disallow short forms:  Year, Year and month
+YearCE         | integer | Year in Common Era -99999..+99999
+Month          | integer | Month of year
+Day            | integer | Day of month
+[AllMandatory] | switch  | Disallow short forms: Year, Year and Month
 -----------------------------------------------------------------------------------------------------*/
-IS_VALID_DATE = LAMBDA(
-    YearCE,
-    Month,
-    Day,
-    [NoNulls],
+IS_VALID_DATE = LAMBDA(YearCE, Month, Day, [AllMandatory],
     IF(
-        YearCE = "",
+        NOT(IS_VALID_YEAR(YearCE)),
         FALSE, // Year mandatory
         IF(
-            (N(NoNulls) <> 0) * ((Month = "") + (Day = "")),
-            FALSE, // NoNulls set and either Month or Day is Null
-            LET(
-                _y, INT(N(YearCE)),
+            (N(AllMandatory) <> 0) * (NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day))),
+            FALSE, // NoNulls set and either Month or Day is not a number
+            IF(
+                NOT(ISNUMBER(Month)),
                 IF(
-                    ABS(_y) > 99999,
-                    FALSE, // Year out of range
+                    NOT(ISNUMBER(Day)),
+                    TRUE, // Year only date
+                    FALSE // day without month
+                ),
+                LET(
+                    _m, INT(Month),
                     IF(
-                        Month = "",
+                        ((_m >= 1) * (_m <= 12)) = 0,
+                        FALSE, // Month out of range
                         IF(
-                            Day = "",
-                            TRUE, // Year only date
-                            FALSE // day without month
-                        ),
-                        LET(
-                            _m, INT(N(Month)),
-                            IF(
-                                ((_m >= 1) * (_m <= 12)) = 0,
-                                FALSE, // Month out of range
-                                IF(
-                                    Day = "",
-                                    TRUE, // Year and month date
-                                    LET(
-                                        _d, INT(N(Day)),
-                                        IFS(
-                                            (_m = 2), // Feb
-                                            ((_d >= 1) * (_d <= (28 + N(IS_LEAP_YEAR(_y))))) <> 0,
-                                            (_m < 8), // Jan, Mar, Apr, May, Jun, Jul
-                                            ((_d >= 1) * (_d <= (30 + MOD(_m, 2)))) <> 0,
-                                            (_m >= 8), // Aug, Sep, Oct, Nov, Dec
-                                            (_d >= 1) * (_d <= (31 - MOD(_m, 2))) <> 0
-                                        )
-                                    )
+                            NOT(ISNUMBER(Day)),
+                            TRUE, // Year and month date
+                            LET(
+                                _d, INT(Day),
+                                IFS(
+                                    (_m = 2), // Feb
+                                    ((_d >= 1) * (_d <= (28 + N(IS_LEAP_YEAR(YearCE))))) <> 0,
+                                    (_m < 8), // Jan, Mar, Apr, May, Jun, Jul
+                                    ((_d >= 1) * (_d <= (30 + MOD(_m, 2)))) <> 0,
+                                    (_m >= 8), // Aug, Sep, Oct, Nov, Dec
+                                    (_d >= 1) * (_d <= (31 - MOD(_m, 2))) <> 0
                                 )
                             )
                         )
@@ -142,37 +150,36 @@ IS_VALID_DATE = LAMBDA(
 IS_VALID_TIME
 
 Tests if a time is valid for the 24 hour timekeeping system.
+Returns a boolean.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-Hour
-Minute
-Second
-[NoNulls] : Disallow short forms:  Hour, Hour and minute
+Hour           | integer | 0..24
+Minute         | integer | 0..59
+Second         | decimal | 0..59.999
+[AllMandatory] | switch  | Disallow short forms: Hour, Hour and Minute
 -----------------------------------------------------------------------------------------------------*/
-IS_VALID_TIME = LAMBDA(
-    Hour,
-    Minute,
-    Second,
-    [NoNulls],
+IS_VALID_TIME = LAMBDA(Hour, Minute, Second, [AllMandatory],
     IF(
-        Hour = "",
+        NOT(ISNUMBER(Hour)),
         FALSE, // Hour mandatory
         IFS(
-            (N(NoNulls) <> 0) * ((Minute = "") + (Second = "")),
-            FALSE, // NoNulls set and either Minute or Second is Null
-            (Minute = "") * (Second <> ""),
+            (N(AllMandatory) <> 0) * (NOT(ISNUMBER(Minute)) + NOT(ISNUMBER(Second))),
+            FALSE, // NoNulls set and either Minute or Second is not a number
+            NOT(ISNUMBER(Minute)) * ISNUMBER(Second),
             FALSE, // Second provided with no Minute
-            (Minute = "") * (Second = ""),
+            NOT(ISNUMBER(Minute)) * NOT(ISNUMBER(Second)),
+            // Hour provided with no Second nor Minute
             LET(
                 //test for valid hour
-                _h, INT(N(Hour)),
+                _h, INT(Hour),
                 (_h >= 0) * (_h <= 24) <> 0
             ),
-            (Minute <> "") * (Second = ""),
+            ISNUMBER(Minute) * NOT(ISNUMBER(Second)),
+            // Minute provided with no Second
             LET(
-                _h, INT(N(Hour)),
-                _m, INT(N(Minute)),
+                _h, INT(Hour),
+                _m, INT(Minute),
                 IF(
                     _h = 24,
                     // no remainder minute at 24 hour
@@ -182,11 +189,12 @@ IS_VALID_TIME = LAMBDA(
                     ((_h >= 0) * (_h < 24) * (_m >= 0) * (_m <= 59)) <> 0
                 )
             ),
-            (Minute <> "") * (Second <> ""),
+            TRUE,
+            // Hour, Minute and Second provided
             LET(
-                _h, INT(N(Hour)),
-                _m, INT(N(Minute)),
-                _s, ROUNDDOWN(N(Second), 3),
+                _h, INT(Hour),
+                _m, INT(Minute),
+                _s, ROUNDDOWN(Second, 3),
                 IF(
                     _h = 24,
                     // no remainder minute or second at 24 hour
@@ -204,53 +212,44 @@ IS_VALID_TIME = LAMBDA(
 IS_VALID_TIME_ZONE
 
 Tests if time zone offset in minutes is in valid range.
+Returns a boolean.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-OffsetMinutes : Range is -900..+900 which corresponds to -15:00..+15:00
+OffsetMinutes | integer | Range is -900..+900 -> -15:00..+15:00
 -----------------------------------------------------------------------------------------------------*/
-IS_VALID_TIME_ZONE = LAMBDA(
-    OffsetMinutes,
-    IF(OffsetMinutes = "", FALSE, LET(_tzo, N(OffsetMinutes), (_tzo >= -900) * (_tzo <= 900) <> 0))
+IS_VALID_TIME_ZONE = LAMBDA(OffsetMinutes,
+    IF(NOT(ISNUMBER(OffsetMinutes)), FALSE, ((OffsetMinutes >= -900) * (OffsetMinutes <= 900)) <> 0)
 );
 
 /*-----------------------------------------------------------------------------------------------------
 IS_VALID_ORDINAL_DATE
 
 Tests if an ordinal date is valid for the Gregorian calendar.
+Returns a boolean.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE    : Year in common era.
-Ordinal   : Day of year.
-[NoNulls] : Disallow short form: Year
+YearCE             | integer | Year in Common Era -99999..+99999
+Ordinal            | integer | Ordinal day of year
+[OrdinalMandatory] | switch  | Ordinal must be provided
 -----------------------------------------------------------------------------------------------------*/
-IS_VALID_ORDINAL_DATE = LAMBDA(
-    YearCE,
-    Ordinal,
-    [NoNulls],
+IS_VALID_ORDINAL_DATE = LAMBDA(YearCE, Ordinal, [OrdinalMandatory],
     IF(
-        YearCE = "",
+        NOT(IS_VALID_YEAR(YearCE)),
         FALSE, // Year mandatory
         IF(
-            (N(NoNulls) <> 0) * (Ordinal = ""),
-            FALSE, // NoNulls set and Ordinal is Null
-            LET(
-                _y, INT(N(YearCE)),
-                IF(
-                    ABS(_y) > 99999,
-                    FALSE, // Year out of range
-                    IF(
-                        Ordinal = "",
-                        TRUE, // Year only date
-                        LET(
-                            _o, INT(N(Ordinal)),
-                            _leapDay, N(IS_LEAP_YEAR(_y)),
-                            
-                            // test for valid ordinal date
-                            ((_o >= 1) * (_o <= (365 + _leapDay))) <> 0
-                        )
-                    )
+            (N(OrdinalMandatory) <> 0) * NOT(ISNUMBER(Ordinal)),
+            FALSE, // OrdinalMandatory set and Ordinal is not a number
+            IF(
+                NOT(ISNUMBER(Ordinal)),
+                TRUE, // Year only date
+                LET(
+                    _o, INT(Ordinal),
+                    _leapDay, N(IS_LEAP_YEAR(YearCE)),
+                    
+                    // test for valid ordinal date
+                    ((_o >= 1) * (_o <= (365 + _leapDay))) <> 0
                 )
             )
         )
@@ -261,50 +260,33 @@ IS_VALID_ORDINAL_DATE = LAMBDA(
 IS_VALID_WEEK_DATE
 
 Tests if a week date is valid for the Gregorian calendar.
-Required: Year
-          Year and Week
-          Year, Week and DayOfWeek
+Returns a boolean.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE     : Year in common era
-Week       : ISO defined week number of the year
-DayOfWeek  : Day of the week where 1..7 -> Mon..Sun
-[NoNulls]  : Disallow short forms:  Hour, Hour and minute
+YearCE               | integer | Year in Common Era -99999..+99999
+Week                 | integer | ISO defined week number of the year
+DayOfWeek            | integer | Day of the week where 1..7 -> Mon..Sun
+[DayOfWeekMandatory] | switch  | DayOfWeek must be provided
 -----------------------------------------------------------------------------------------------------*/
-IS_VALID_WEEK_DATE = LAMBDA(
-    YearCE,
-    Week,
-    DayOfWeek,
-    [NoNulls],
+IS_VALID_WEEK_DATE = LAMBDA(YearCE, Week, DayOfWeek, [DayOfWeekMandatory],
     IF(
-        YearCE = "",
-        FALSE, // Year mandatory
+        NOT(IS_VALID_YEAR(YearCE)) + NOT(ISNUMBER(Week)),
+        FALSE, // Year and Week mandatory
         IF(
-            (N(NoNulls) <> 0) * ((Week = "") + (DayOfWeek = "")),
-            FALSE, // NoNulls set and either Week or DayOfWeek is Null
+            (N(DayOfWeekMandatory) <> 0) * NOT(ISNUMBER(DayOfWeek)),
+            FALSE, // DayOfWeekMandatory set and DayOfWeek is not a number
             LET(
-                _y, INT(N(YearCE)),
+                _w, INT(Week),
                 IF(
-                    ABS(_y) > 99999,
-                    FALSE, // Year out of range
+                    ((_w >= 1) * (_w <= YEAR_WEEK_COUNT(YearCE))) = 0,
+                    FALSE, // Week out of range
                     IF(
-                        Week = "",
-                        (DayOfWeek = ""), // Test for Year only date
+                        NOT(ISNUMBER(DayOfWeek)),
+                        TRUE, // Year and week date
                         LET(
-                            _w, INT(N(Week)),
-                            IF(
-                                ((_w >= 1) * (_w <= YEAR_WEEK_COUNT(_y))) = 0,
-                                FALSE, // Week out of range
-                                IF(
-                                    DayOfWeek = "",
-                                    TRUE, // Year and week date
-                                    LET(
-                                        _dow, INT(N(DayOfWeek)),
-                                        ((_dow >= 1) * (_dow <= 7)) <> 0 // Test for DayOfWeek 1..7
-                                    )
-                                )
-                            )
+                            _dow, INT(DayOfWeek),
+                            ((_dow >= 1) * (_dow <= 7)) <> 0 // Test for DayOfWeek 1..7
                         )
                     )
                 )
@@ -317,52 +299,53 @@ IS_VALID_WEEK_DATE = LAMBDA(
 DAY_ORDINAL
 
 Returns the ordinal day number of a date.
+Integer with range 1..366
+#VALUE! if not a valid date.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE : Year in common era
-Month  : Month of year
-Day    : Day of month
+YearCE | integer | Year in Common Era -99999..+99999
+Month  | integer | Month of year
+Day    | integer | Day of month
 -----------------------------------------------------------------------------------------------------*/
-DAY_ORDINAL = LAMBDA(
-    YearCE,
-    Month,
-    Day,
+DAY_ORDINAL = LAMBDA(YearCE, Month, Day,
     IF(
-        NOT(IS_VALID_DATE(YearCE, Month, Day, 1)), #NUM!,
+        NOT(IS_VALID_DATE(YearCE, Month, Day, 1)),
+        #VALUE!,
         LET(
-            _y, INT(N(YearCE)),
-            _m, INT(N(Month)),
-            _d, INT(N(Day)),
-            IFS(
+            _m, INT(Month),
+            _d, INT(Day),
+            IF(
                 _m = 1,
                 _d,
-                _m = 2,
-                31 + _d,
-                TRUE,
-                LET(
-                    _leapDay, N(IS_LEAP_YEAR(_y)),
-                    IFS(
-                        _m = 3,
-                        59 + _leapDay + _d,
-                        _m = 4,
-                        90 + _leapDay + _d,
-                        _m = 5,
-                        120 + _leapDay + _d,
-                        _m = 6,
-                        151 + _leapDay + _d,
-                        _m = 7,
-                        181 + _leapDay + _d,
-                        _m = 8,
-                        212 + _leapDay + _d,
-                        _m = 9,
-                        243 + _leapDay + _d,
-                        _m = 10,
-                        273 + _leapDay + _d,
-                        _m = 11,
-                        304 + _leapDay + _d,
-                        _m = 12,
-                        334 + _leapDay + _d
+                IF(
+                    _m = 2,
+                    31 + _d,
+                    LET(
+                        _leapDay, N(IS_LEAP_YEAR(YearCE)),
+                        _d + _leapDay +
+                            IFS(
+                                _m = 3,
+                                59,
+                                _m = 4,
+                                90,
+                                _m = 5,
+                                120,
+                                _m = 6,
+                                151,
+                                _m = 7,
+                                181,
+                                _m = 8,
+                                212,
+                                _m = 9,
+                                243,
+                                _m = 10,
+                                273,
+                                _m = 11,
+                                304,
+                                _m = 12,
+                                334
+                            )
                     )
                 )
             )
@@ -381,40 +364,34 @@ Returns the ISO defined day of week number for a given date.
   5 - Friday
   6 - Saturday
   7 - Sunday
+#VALUE! if not a valid date.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE : Year in common era
-Month  : Month of year
-Day    : Day of month
+YearCE | integer | Year in Common Era -99999..+99999
+Month  | integer | Month of year
+Day    | integer | Day of month
 -----------------------------------------------------------------------------------------------------*/
-DAY_OF_WEEK = LAMBDA(
-    YearCE,
-    Month,
-    Day,
+DAY_OF_WEEK = LAMBDA(YearCE, Month, Day,
     IF(
         NOT(IS_VALID_DATE(YearCE, Month, Day, 1)),
-        #NUM!,
+        #VALUE!,
         LET(
-            _y, INT(N(YearCE)),
-            _m, INT(N(Month)),
-            _d, INT(N(Day)),
-            
             // Using Zeller Congruence, cf. https://en.wikipedia.org/wiki/Zeller%27s_congruence
             
             // Map months Mar..Feb -> 3..14
-            _zellerMonth, MOD(_m - 3, 12) + 3,
+            _zellerMonth, MOD(INT(Month) - 3, 12) + 3,
             
             // Jan, Feb considered belonging to previous year
-            _zellerYear, _y - QUOTIENT(_zellerMonth, 13),
+            _zellerYear, INT(YearCE) - INT(_zellerMonth / 13),
             _yearOfCent, MOD(_zellerYear, 100),
-            _zeroBasedCent, QUOTIENT(_zellerYear, 100),
+            _zeroBasedCent, INT(_zellerYear / 100),
             
             // Zeller Congruence for Gregorian calender
             // returns weekdays 0..6 -> Sat..Fri
             _zellerWeekDay, MOD(
-                _d + QUOTIENT(13 * (_zellerMonth + 1), 5) + _yearOfCent + QUOTIENT(_yearOfCent, 4) +
-                    QUOTIENT(_zeroBasedCent, 4) - 2 * _zeroBasedCent,
+                INT(Day) + INT(13 * (_zellerMonth + 1) / 5) + _yearOfCent + INT(_yearOfCent / 4) +
+                    INT(_zeroBasedCent / 4) - 2 * _zeroBasedCent,
                 7
             ),
             
@@ -428,38 +405,37 @@ DAY_OF_WEEK = LAMBDA(
 YEAR_WEEK_COUNT
 
 Returns the count of ISO defined weeks in a given year.
+Integer with range 52..53
+#VALUE! if not a valid year.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE : Year in common era
+YearCE | integer | Year in Common Era -99999..+99999
 -----------------------------------------------------------------------------------------------------*/
-YEAR_WEEK_COUNT = LAMBDA(
-    YearCE,
-    LET(
-        _y, INT(N(YearCE)),
-        IF(
-            (ABS(_y) > 99999),
-            #NUM!,
-            LET(
-                _dowLastDay, MOD(_y + QUOTIENT(_y, 4) - QUOTIENT(_y, 100) + QUOTIENT(_y, 400), 7),
-                IF(
-                    _dowLastDay = 4,
-                    // if last day of year is a Thursday, then has an extra week
-                    53,
-                    LET(
-                        _lastYear, _y - 1,
-                        _dowLastDayPrev, MOD(
-                            _lastYear + QUOTIENT(_lastYear, 4) - QUOTIENT(_lastYear, 100) +
-                                QUOTIENT(_lastYear, 400),
-                            7
-                        ),
-                        IF(
-                            _dowLastDayPrev = 3,
-                            // if last day of previous year is a Wednesday, then has an extra week
-                            53,
-                            // otherwize
-                            52
-                        )
+YEAR_WEEK_COUNT = LAMBDA(YearCE,
+    IF(
+        NOT(IS_VALID_YEAR(YearCE)),
+        #VALUE!,
+        LET(
+            _y, INT(YearCE),
+            _dowLastDay, MOD(_y + INT(_y / 4) - INT(_y / 100) + INT(_y / 400), 7),
+            IF(
+                _dowLastDay = 4,
+                // if last day of year is a Thursday, then has an extra week
+                53,
+                LET(
+                    _lastYear, _y - 1,
+                    _dowLastDayPrev, MOD(
+                        _lastYear + INT(_lastYear / 4) - INT(_lastYear / 100) +
+                            INT(_lastYear / 400),
+                        7
+                    ),
+                    IF(
+                        _dowLastDayPrev = 3,
+                        // if last day of previous year is a Wednesday, then has an extra week
+                        53,
+                        // otherwize
+                        52
                     )
                 )
             )
@@ -471,27 +447,23 @@ YEAR_WEEK_COUNT = LAMBDA(
 WEEK_NUMBER
 
 Returns the ISO defined week number of a given date.
+Integer with range 1..53
+#VALUE! if not a valid date.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE : Year in common era
-Month  : Month of year
-Day    : Day of month
+YearCE | integer | Year in Common Era -99999..+99999
+Month  | integer | Month of year
+Day    | integer | Day of month
 -----------------------------------------------------------------------------------------------------*/
-WEEK_NUMBER = LAMBDA(
-    YearCE,
-    Month,
-    Day,
+WEEK_NUMBER = LAMBDA(YearCE, Month, Day,
     IF(
         NOT(IS_VALID_DATE(YearCE, Month, Day, 1)),
-        #NUM!,
+        #VALUE!,
         LET(
-            _y, INT(YearCE),
-            _m, INT(Month),
-            _d, INT(Day),
-            _ordinal, DAY_ORDINAL(_y, _m, _d),
-            _dayOfWeek, DAY_OF_WEEK(_y, _m, _d),
-            QUOTIENT(_ordinal - _dayOfWeek + 10, 7)
+            _ordinal, DAY_ORDINAL(YearCE, Month, Day),
+            _dayOfWeek, DAY_OF_WEEK(YearCE, Month, Day),
+            INT((_ordinal - _dayOfWeek + 10) / 7)
         )
     )
 );
@@ -500,57 +472,51 @@ WEEK_NUMBER = LAMBDA(
 FROM_ORDINAL_DATE
 
 Returns the Gregorian calendar date from a given ordinal date.
+#VALUE! if not valid ordinal date.
+
 Columns:
-  1 - Year CE
-  2 - Month
-  3 - Day
+  1 | Year CE | integer | -99999..+99999
+  2 | Month   | integer | 1..12
+  3 | Day     | integer | 1..31
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE  : Year in common era
-Ordinal : Ordinal day of year
+YearCE  | integer | Year in Common Era -99999..+99999
+Ordinal | integer | Ordinal day of year
 -----------------------------------------------------------------------------------------------------*/
-FROM_ORDINAL_DATE = LAMBDA(
-    YearCE,
-    Ordinal,
-    LET(
-        _y, INT(N(YearCE)),
-        _o, INT(N(Ordinal)),
-        IF(
-            (ABS(_y) > 99999),
-            #NUM!,
-            LET(
-                _leapDay, N(IS_LEAP_YEAR(_y)),
-                IF(
-                    (_o < 1) + (_o > (365 + _leapDay)),
-                    #NUM!,
-                    IFS(
-                        _o <= 31,
-                        HSTACK(_y, 1, _o),
-                        _o <= 59 + _leapday,
-                        HSTACK(_y, 2, _o - 31),
-                        _o <= 90 + _leapday,
-                        HSTACK(_y, 3, _o - 59 - _leapDay),
-                        _o <= 120 + _leapday,
-                        HSTACK(_y, 4, _o - 90 - _leapDay),
-                        _o <= 151 + _leapday,
-                        HSTACK(_y, 5, _o - 120 - _leapDay),
-                        _o <= 181 + _leapday,
-                        HSTACK(_y, 6, _o - 151 - _leapDay),
-                        _o <= 212 + _leapday,
-                        HSTACK(_y, 7, _o - 181 - _leapDay),
-                        _o <= 243 + _leapday,
-                        HSTACK(_y, 8, _o - 212 - _leapDay),
-                        _o <= 273 + _leapday,
-                        HSTACK(_y, 9, _o - 243 - _leapDay),
-                        _o <= 304 + _leapday,
-                        HSTACK(_y, 10, _o - 273 - _leapDay),
-                        _o <= 334 + _leapday,
-                        HSTACK(_y, 11, _o - 304 - _leapDay),
-                        TRUE,
-                        HSTACK(_y, 12, _o - 334 - _leapDay)
-                    )
-                )
+FROM_ORDINAL_DATE = LAMBDA(YearCE, Ordinal,
+    IF(
+        NOT(IS_VALID_ORDINAL_DATE(YearCE, Ordinal, 1)),
+        #VALUE!,
+        LET(
+            _y, INT(YearCE),
+            _o, INT(Ordinal),
+            _leapDay, N(IS_LEAP_YEAR(_y)),
+            IFS(
+                _o <= 31,
+                HSTACK(_y, 1, _o),
+                _o <= 59 + _leapday,
+                HSTACK(_y, 2, _o - 31),
+                _o <= 90 + _leapday,
+                HSTACK(_y, 3, _o - 59 - _leapDay),
+                _o <= 120 + _leapday,
+                HSTACK(_y, 4, _o - 90 - _leapDay),
+                _o <= 151 + _leapday,
+                HSTACK(_y, 5, _o - 120 - _leapDay),
+                _o <= 181 + _leapday,
+                HSTACK(_y, 6, _o - 151 - _leapDay),
+                _o <= 212 + _leapday,
+                HSTACK(_y, 7, _o - 181 - _leapDay),
+                _o <= 243 + _leapday,
+                HSTACK(_y, 8, _o - 212 - _leapDay),
+                _o <= 273 + _leapday,
+                HSTACK(_y, 9, _o - 243 - _leapDay),
+                _o <= 304 + _leapday,
+                HSTACK(_y, 10, _o - 273 - _leapDay),
+                _o <= 334 + _leapday,
+                HSTACK(_y, 11, _o - 304 - _leapDay),
+                TRUE,
+                HSTACK(_y, 12, _o - 334 - _leapDay)
             )
         )
     )
@@ -560,24 +526,23 @@ FROM_ORDINAL_DATE = LAMBDA(
 WEEK_FROM_ORDINAL
 
 Returns the ISO defined week number of a given ordinal date.
+Integer with range 1..53
+#VALUE! if not a valid ordinal date.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE  : Year in common era
-Ordinal : Ordinal day of year
+YearCE  | integer | Year in Common Era -99999..+99999
+Ordinal | integer | Ordinal day of year
 -----------------------------------------------------------------------------------------------------*/
-WEEK_FROM_ORDINAL = LAMBDA(
-    YearCE,
-    Ordinal,
+WEEK_FROM_ORDINAL = LAMBDA(YearCE, Ordinal,
     IF(
         NOT(IS_VALID_ORDINAL_DATE(YearCE, Ordinal, 1)),
-        #NUM!,
+        #VALUE!,
         LET(
-            _y, INT(N(YearCE)),
-            _o, INT(N(Ordinal)),
-            _date, FROM_ORDINAL_DATE(_y, _o),
-            _dayOfWeek, DAY_OF_WEEK(_y, INDEX(_date, 1, 2), INDEX(_date, 1, 3)),
-            QUOTIENT(_o - _dayOfWeek + 10, 7)
+            _o, INT(Ordinal),
+            _date, FROM_ORDINAL_DATE(YearCE, _o),
+            _dayOfWeek, DAY_OF_WEEK(INDEX(_date, 1, 1), INDEX(_date, 1, 2), INDEX(_date, 1, 3)),
+            INT((_o - _dayOfWeek + 10) / 7)
         )
     )
 );
@@ -587,43 +552,45 @@ TO_WEEK_DATE
 
 Returns the ISO defined week number and day of week from a given date. The provided date can implicitly
 be either a calendar date or ordininal date.
+#VALUE! if not a valid date.
+
 Columns:
-  1 - Year CE
-  2 - Week
-  3 - Day of week
+  1 | Year CE     | integer | -99999..+99999
+  2 | Week        | integer | 1..53
+  3 | Day of week | integer | 1..7 Mon..sun
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE        : Year in common era
-Month         : Month of the year. If ommitted, day is assumed to be ordinal.
-Day           : Day of the month when month provided, otherwize ordinal day of the year.
+YearCE  | integer | Year in Common Era -99999..+99999
+Month   | integer | Month of the year. If ommitted, day is assumed to be ordinal.
+Day     | integer | Day of the month when month provided, otherwise ordinal day of the year.
 -----------------------------------------------------------------------------------------------------*/
-TO_WEEK_DATE = LAMBDA(
-    YearCE,
-    Month,
-    Day,
+TO_WEEK_DATE = LAMBDA(YearCE, Month, Day,
     IF(
-        NOT(IS_VALID_DATE(YearCE, Month, Day, 1)),
-        #NUM!,
-        LET(
-            _dayIsOrdinal, (Month = ""),
-            _y, INT(N(YearCE)),
-            _m, INT(N(Month)),
-            _d, INT(N(Day)),
-            _yCorrection, DAY_OF_WEEK(_y, 1, 4) + 3,
-            IF(
-                _dayIsOrdinal,
-                LET(
-                    _w, WEEK_FROM_ORDINAL(_y, _d),
-                    _dow, MOD(_d + _yCorrection, 7),
-                    HSTACK(_y, _w, _dow)
-                ),
-                LET(
-                    _o, DAY_ORDINAL(_y, _m, _d),
-                    _w, WEEK_FROM_ORDINAL(_y, _o),
-                    _dow, MOD(_o + _yCorrection, 7),
-                    HSTACK(_y, _w, _dow)
-                )
+        ISNUMBER(Month),
+        
+        // parameters are a date
+        IF(
+            NOT(IS_VALID_DATE(YearCE, Month, Day, 1)),
+            #VALUE!,
+            LET(
+                _yCorrection, DAY_OF_WEEK(YearCE, 1, 4) + 3,
+                _o, DAY_ORDINAL(YearCE, Month, Day),
+                _w, WEEK_FROM_ORDINAL(YearCE, _o),
+                _dow, MOD(_o + _yCorrection, 7),
+                HSTACK(YearCE, _w, _dow)
+            )
+        ),
+        
+        // parameters are an ordinal date
+        IF(
+            NOT(IS_VALID_ORDINAL_DATE(YearCE, Day, 1)),
+            #VALUE!,
+            LET(
+                _yCorrection, DAY_OF_WEEK(YearCE, 1, 4) + 3,
+                _w, WEEK_FROM_ORDINAL(YearCE, Day),
+                _dow, MOD(Day + _yCorrection, 7),
+                HSTACK(YearCE, _w, _dow)
             )
         )
     )
@@ -633,33 +600,33 @@ TO_WEEK_DATE = LAMBDA(
 FROM_WEEK_DATE
 
 Returns the either a Gregorian calendar date or ordinal date from a given week and day of week.                                                                #
-Columns (ReturnOrdinal = FALSE):
-  1 - Year CE
-  2 - Month
-  3 - Day
+#VALUE! if not a valid week date.
+
+Columns:
+ReturnOrdinal = FALSE
+  1 | Year CE | integer | -99999..+99999
+  2 | Month   | integer | 1..12
+  3 | Day     | integer | 1..31
+ReturnOrdinal = TRUE
+  1 | Ordinal | integer | 1..366
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE          : Year in common era
-Week            : ISO defined week number of the year
-DayOfWeek       : Day of the week where 1..7 -> Mon..Sun 
-[ReturnOrdinal] : Flag to return result as an ordinal date
+YearCE          | integer | Year in Common Era -99999..+99999
+Week            | integer | ISO defined week number of the year
+DayOfWeek       | integer | Day of the week where 1..7 -> Mon..Sun 
+[ReturnOrdinal] | switch  | Return result as an ordinal date
 -----------------------------------------------------------------------------------------------------*/
-FROM_WEEK_DATE = LAMBDA(
-    YearCE,
-    Week,
-    DayOfWeek,
-    [ReturnOrdinal],
+FROM_WEEK_DATE = LAMBDA(YearCE, Week, DayOfWeek, [ReturnOrdinal],
     IF(
         NOT(IS_VALID_WEEK_DATE(YearCE, Week, DayOfWeek, 1)),
-        #NUM!,
+        #VALUE!,
         LET(
-            _y, INT(N(YearCE)),
             _w, INT(N(Week)),
             _d, INT(N(DayOfWeek)),
-            _yCorrection, DAY_OF_WEEK(_y, 1, 4) + 3,
-            _ordinalDay, _w * 7 + _d - _yCorrection,
-            IF(N(ReturnOrdinal) <> 0, _ordinalDay, FROM_ORDINAL_DATE(_y, _ordinalDay))
+            _yCorrection, DAY_OF_WEEK(YearCE, 1, 4) + 3,
+            _ordinalDay, INT(Week) * 7 + INT(DayOfWeek) - _yCorrection,
+            IF(N(ReturnOrdinal) <> 0, _ordinalDay, FROM_ORDINAL_DATE(YearCE, _ordinalDay))
         )
     )
 );
@@ -668,129 +635,240 @@ FROM_WEEK_DATE = LAMBDA(
 VALIDATE_CHARACTERS
 
 Tests if text contains only characters that are valid for ISO 8601.
+Returns a boolean. An empty string returns null.
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text : ISO 8601 formatted text.
-       Valid charset: +-0123456789:TWZ
+Text     | string  | ISO 8601 formatted text.
+[Subset] | integer | Subset format to match
+         |         |   0 - date, time and timezone  +,-.0123456789:TWZ− (default)
+         |         |   1 - date                     +-0123456789W−
+         |         |   2 - time                     ,.0123456789:T
+         |         |   3 - time zone                +-0123456789:Z−
+         |         |   4 - date and time            +,-.0123456789:TW−
+         |         |   5 - time and time zone       +,-.0123456789:TZ−
+         |         |   6 - duration                 ,-.0123456789:DHMPSTWY
+         |         |   7 - interval                 +,-./0123456789:DHMPSTWYZ−
+         |         |   8 - full                     +,-./0123456789:DHMPRSTWYZ−
 -----------------------------------------------------------------------------------------------------*/
-VALIDATE_CHARACTERS = LAMBDA(
-    Text,
+VALIDATE_CHARACTERS = LAMBDA(Text, [Subset],
     IF(
-        Text = "",
-        "",
+        Text = "", "",
         LET(
-            _xml, "<t><s>" & Text & "</s></t>",
-            _xpath, "//s[translate(.,'+-.0123456789:TWZ','')='']",
+            _idx, INT(N(Subset)),
+            _charSet, IFS(
+                _idx <= 0, 
+                    // date, time and time zone
+                    "+,-.0123456789:TWZ" & UNICHAR(8722),
+                
+                _idx = 1,
+                    // date
+                    "+-0123456789W" & UNICHAR(8722),
+                
+                _idx = 2,
+                    // time
+                    ",.0123456789:T",
+                
+                _idx = 3,
+                    // time zone
+                    "+-0123456789:Z" & UNICHAR(8722),
+                
+                _idx = 4,
+                    // date and time
+                    "+,-.0123456789:TW" & UNICHAR(8722),
+                
+                _idx = 5, 
+                    // time and time zone
+                    "+,-.0123456789:TZ" & UNICHAR(8722),
+                
+                _idx = 6, 
+                    // duration
+                    ",-.0123456789:DHMPSTWY",
+                
+                _idx = 7, 
+                    // interval
+                    "+,-./0123456789:DHMPSTWYZ" & UNICHAR(8722),
+                
+                _idx >= 8, 
+                    // full
+                    "+,-./0123456789:DHMPRSTWYZ" & UNICHAR(8722)
+            ),
+            
+            _escapeText, SUBSTITUTE(SUBSTITUTE(Text, "&", "&amp;"), "<", "&lt;"),
+            _xml, "<t><s>" & _escapeText & "</s></t>",
+            _xpath, "//s[translate(.,'" & _charSet & "','')='']",
             NOT(ISERROR(FILTERXML(_xml, _xpath)))
         )
     )
 );
 
+
+
+
+
 /*-----------------------------------------------------------------------------------------------------
 PARSE_DATE
 
 Returns the year, month and day of a date from text in the ISO 8601 format.
+Note YYYYMM is invalid, due to collision with truncated format YYMMDD in earlier versions of the
+ISO 8601 standard.
+#VALUE! if an invalid date.
+#N/A if not parsable.
+
 Columns:
-  1 - Year CE
-  2 - Month
-  3 - Day
-  4 - Format (optional, toggled by ReturnFormat parameter)
-        0 - no date
-        1 - basic
-        2 - extended
-        3 - consistent with basic or extended
+  1 | Year CE | integer | -99999..+99999
+  2 | Month   | integer | 1..12
+  3 | Day     | integer | 1..31
+  4 | Format  | integer | Optional, toggled by ReturnFormat parameter.
+    |         |         |   0 - no date
+    |         |         |   1 - basic
+    |         |         |   2 - extended
+    |         |         |   3 - consistent with basic or extended
         
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text           : ISO 8601 formatted date.
-               : Example formats (not exhaustive):
-               : +YYYYY-MM-DD
-               : -YYYY-MM-DD
-               : YYYY-MM-DD
-               : YYYY-MM
-               : YYYYMMDD
-               : YYYY
-               :
-               : Note YYYYMM is invalid, due to collision with truncated format YYMMDD in earlier
-               : versions of the ISO 8601 standard.
-[ReturnFormat] : Sets whether to return from which format the date was parsed
+Text           | string | ISO 8601 formatted date.
+               |        | Example formats (not exhaustive):
+               |        | +YYYYY-MM-DD, -YYYY-MM-DD, YYYY-MM-DD, YYYY-MM, YYYYMMDD, YYYY
+[ReturnFormat] | switch | Return from which format the date was parsed
 -----------------------------------------------------------------------------------------------------*/
-PARSE_DATE = LAMBDA(
-    Text,
-    [ReturnFormat],
+PARSE_DATE = LAMBDA(Text, [ReturnFormat],
     LET(
-        _flgFmt, N(ReturnFormat) <> 0,
-        IF(Text = "",
-            IF(_flgFmt, HSTACK("", "", "", 0), HSTACK("", "", "")),
-            LET(
-                fnValidDate, LAMBDA(_y, _m, _d, _f, _x,
-                    IF(IS_VALID_DATE(_y, _m, _d),
-                        IF(_f, HSTACK(_y, _m, _d, _x), HSTACK(_y, _m, _d)),
-                        #NUM!
-                    )
-                ),
-                _yearSign, IF(LEFT(Text, 1) = "-", -1, 1),
-                _sDate, IFS(
-                    _yearSign = -1,
-                    RIGHT(Text, LEN(Text) - 1),
-                    LEFT(Text, 1) = "+",
-                    RIGHT(Text, LEN(Text) - 1),
-                    TRUE,
-                    Text
-                ),
-                _basic, IFERROR(FIND("-", _sDate), 0) = 0,
-                IF(
-                    _basic,
-                    LET(
-                        // basic format, positional elements
-                        _cLen, LEN(_sDate),
-                        IF(
-                            (_cLen < 4) + (_cLen > 9),
-                            #VALUE!,
-                            LET(
-                                _yLen, 4 + MOD(_cLen, 2),
-                                _yearCE, _yearSign * VALUE(LEFT(_sDate, _yLen)),
-                                _month, IF(_cLen > _yLen, VALUE(MID(_sDate, _yLEn + 1, 2)), ""),
-                                _day, IF(_cLen > _yLen + 2, VALUE(MID(_sDate, _yLEn + 3, 2)), ""),
-                                _x, IF(_cLen = _yLen, 3, 1),
-                                fnValidDate(_yearCE, _month, _day, _flgFmt, _x)
-                            )
+        DATE_FMT_HASH, {
+            1024, 1, 3, 4, 0, 0, 0, 0;
+            1280, 1, 3, 5, 0, 0, 0, 0;
+            1792, 2, 1, 4, 0, 0, 6, 3;
+            1797, 3, 1, 4, 6, 2, 0, 0;
+            1872, 1, 2, 4, 6, 2, 0, 0;
+            2048, 1, 1, 4, 5, 2, 7, 2;
+            2053, 3, 1, 4, 6, 2, 8, 1;
+            2054, 3, 1, 5, 7, 2, 0, 0;
+            2128, 2, 2, 4, 0, 0, 6, 3;
+            2134, 3, 2, 4, 7, 2, 0, 0;
+            2144, 1, 2, 5, 7, 2, 0, 0;
+            2304, 1, 1, 5, 6, 2, 8, 2;
+            2310, 3, 1, 5, 7, 2, 9, 1;
+            2400, 2, 2, 5, 0, 0, 7, 3;
+            2407, 3, 2, 5, 8, 2, 0, 0;
+            2688, 1, 2, 4, 6, 2, 9, 2;
+            2710, 3, 2, 4, 7, 2, 10, 1;
+            2960, 1, 2, 5, 7, 2, 10, 2;
+            2983, 3, 2, 5, 8, 2, 11, 1
+        },
+
+        fnCountChars, LAMBDA(CharArray, Text,
+            IF(Text = "", 0,
+                LET(
+                    _removed, REDUCE(Text, CharArray,
+                        LAMBDA(_acc, _curr,
+                            SUBSTITUTE(_acc, _curr, "")
                         )
                     ),
+                    LEN(Text) - LEN(_removed)
+                )
+            )
+        ),
+
+        fnFindNthCharPos, LAMBDA(Chars, Text, N,
+            LET(
+                _charCount, LEN(Chars),
+                _n, INT(N(N)),
+                IF((_charCount = 0) + (_n = 0), 0,
                     LET(
-                        // expanded format, delimited elements
-                        _cDate, TEXTSPLIT(_sDate, "-"),
-                        _cols, COLUMNS(_cDate),
-                        IFS(
-                            _cols = 2,
-                            IF(
-                                (LEN(INDEX(_cDate, 1, 1)) < 4) + (LEN(INDEX(_cDate, 1, 1)) > 5) +
-                                    (LEN(INDEX(_cDate, 1, 2)) <> 2),
-                                #VALUE!,
-                                LET(
-                                    _yearCE, _yearSign * VALUE(INDEX(_cDate, 1, 1)),
-                                    _month, VALUE(INDEX(_cDate, 1, 2)),
-                                    _day, "",
-                                    fnValidDate(_yearCE, _month, _day, _flgFmt, 2)
-                                )
+                        _chars, MID(Chars,SEQUENCE(1, _charCount), 1),
+                        _findCount, fnCountChars(_chars, Text),
+                        IF(_findCount < ABS(_n), 0,
+                            LET(
+                                // nth can count from end backwards
+                                _nth, IF(_n > 0, _n, _findCount + _n + 1), 
+                                _nthPos, REDUCE(0, SEQUENCE(1, _nth),
+                                    LAMBDA(_acc, _curr,
+                                        IF(_acc < 0, -1,
+                                            LET(
+                                                _nextPosChars, IFERROR(FIND(_chars, Text, _acc + 1), 0),
+                                                _nextPos, MIN(FILTER(_nextPosChars, _nextPosChars > 0, 0)),
+                                                IF(_nextPos = 0, -1, _nextPos)
+                                            )
+                                        )
+                                    )
+                                ),
+                                MAX(_nthPos, 0)
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        fnException, LAMBDA(_exception, _dateType, _retFmt, [_fmt],
+            IFS(
+                ISNA(_exception),
+                    IF(_retFmt, HSTACK(_dateType, {#N/A, #N/A, #N/A}, ""), HSTACK(_dateType, {#N/A, #N/A, #N/A})),
+                ISERR(_exception),
+                    IF(_retFmt, HSTACK(_dateType, {#VALUE!, #VALUE!, #VALUE!}, _fmt), HSTACK(_dateType, {#VALUE!, #VALUE!, #VALUE!})),
+                _exception = "",
+                    IF(_retFmt, HSTACK(_dateType, "", "", "", ""), HSTACK(_dateType, "", "", ""))
+            )
+        ),
+        
+        _retFmt, N(ReturnFormat) <> 0,
+        IF(Text = "", fnException("", 0, _retFmt),
+            IF(NOT(VALIDATE_CHARACTERS(Text, 1)), fnException(#N/A, 0, _retFmt),
+                LET(
+                    _hasSign, IFS(
+                        LEFT(Text, 1) = "+", TRUE,
+                        LEFT(Text, 1) = "-", TRUE,
+                        UNICODE(LEFT(Text, 1)) = 8722, TRUE,
+                        TRUE, FALSE
+                    ),
+                    _yearSign, IFS(
+                        LEFT(Text, 1) = "-", -1,
+                        UNICODE(LEFT(Text, 1)) = 8722, -1,
+                        TRUE, 1
+                    ),
+                    _len, LEN(Text) - N(_hasSign),
+                    _sDate, IF(_hasSign, RIGHT(Text, _len), Text),
+                    _lastHyphPos, fnFindNthCharPos("-", _sDate, -1),
+                    _Wpos, IFERROR(FIND("W", _sDate), 0),
+                    _hash, (((_len * 16) + _lastHyphPos) * 16) +_Wpos,
+                    _hashLkup, IFNA(XMATCH(_hash, CHOOSECOLS(DATE_FMT_HASH, 1), 0), 0),
+                    IF(_hashLkup = 0, fnException(#N/A, 0, _retFmt),
+                        LET(
+                            _defn, CHOOSEROWS(DATE_FMT_HASH, _hashLkup),
+                            _dateType, INDEX(_defn, 1 , 2),
+                            _fmtType, INDEX(_defn, 1 , 3),
+                            _yearCE, _yearSign * VALUE(LEFT(_sDate, INDEX(_defn, 1 , 4))),
+                            _dArg1, IF(INDEX(_defn, 1 , 5) = 0, "",
+                                VALUE(MID(_sDate, INDEX(_defn, 1 , 5), INDEX(_defn, 1 , 6)))
                             ),
-                            _cols = 3,
-                            IF(
-                                (LEN(INDEX(_cDate, 1, 1)) < 4) + (LEN(INDEX(_cDate, 1, 1)) > 5) +
-                                    (LEN(INDEX(_cDate, 1, 2)) <> 2) + (LEN(INDEX(_cDate, 1, 3)) <> 2),
-                                #VALUE!,
-                                LET(
-                                    _yearCE, _yearSign * VALUE(INDEX(_cDate, 1, 1)),
-                                    _month, VALUE(INDEX(_cDate, 1, 2)),
-                                    _day, VALUE(INDEX(_cDate, 1, 3)),
-                                    fnValidDate(_yearCE, _month, _day, _flgFmt, 2)
-                                )
+                            _dArg2, IF(INDEX(_defn, 1 , 7) = 0, "",
+                                VALUE(MID(_sDate, INDEX(_defn, 1 , 7), INDEX(_defn, 1 , 8)))
                             ),
                             
-                            // _cols = 1 or > 3
-                            TRUE,
-                            #VALUE!
+                            IFS(
+                                (_dateType = 1) * NOT(IS_VALID_DATE(_yearCE,_dArg1, _dArg2)),
+                                    fnException(#VALUE!, 1, _retFmt, _fmtType),
+                                (_dateType = 2) * NOT(IS_VALID_ORDINAL_DATE(_yearCE, _dArg2, 1)),
+                                    fnException(#VALUE!, 2, _retFmt, _fmtType),
+                                (_dateType = 3) * NOT(IS_VALID_WEEK_DATE(_yearCE, _dArg1, _dArg2)),
+                                    fnException(#VALUE!, 3, _retFmt, _fmtType),
+                                TRUE,
+                                    IF(_retFmt,
+                                        HSTACK(
+                                            _dateType,
+                                            _yearCE,
+                                            _dArg1,
+                                            _dArg2,
+                                            _fmtType
+                                        ),
+                                        HSTACK(
+                                            _dateType,
+                                            _yearCE,
+                                            _dArg1,
+                                            _dArg2,
+                                        )
+                                    )
+                            )
                         )
                     )
                 )
@@ -798,57 +876,76 @@ PARSE_DATE = LAMBDA(
         )
     )
 );
+                             
 
 /*-----------------------------------------------------------------------------------------------------
 PARSE_TIME
 
 Returns the hour, minute and second of time from text in the ISO 8601 format.
-Columns:
-  1 - Hour
-  2 - Minute
-  3 - Second
+#VALUE! if an invalid time.
+#N/A if not parsable.
 
+Columns:
+  1 | Hour    | integer | 0..24
+  2 | Minute  | integer | 0..59
+  3 | Second  | decimal | 0..59.999
+  4 | Format  | integer | Optional, toggled by ReturnFormat parameter.
+    |         |         |   0 - no time
+    |         |         |   1 - basic
+    |         |         |   2 - extended
+    |         |         |   3 - consistent with basic or extended
+        
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text           : ISO 8601 formatted time.
-               : Example formats (not exhaustive):
-               : Thh:mm:ss.sss
-               : Thh:mm:ss
-               : Thhmm
-[ReturnFormat] : Sets whether to return from which format the time was parsed
+Text           | string | ISO 8601 formatted time.
+               |        | Example formats (not exhaustive):
+               |        | Thh:mm:ss.sss, Thh:mm:ss, Thhmm, Thh
+[ReturnFormat] | switch | Return from which format the time was parsed
 -----------------------------------------------------------------------------------------------------*/
-PARSE_TIME = LAMBDA(
-    Text,
-    [ReturnFormat],
+PARSE_TIME = LAMBDA(Text, [ReturnFormat],
     LET(
+        fnException, LAMBDA(_e, _f,
+            IFS(
+                ISNA(_e),
+                IF(_f, {#N/A, #N/A, #N/A, 0}, {#N/A, #N/A, #N/A}),
+                ISERR(_e),
+                IF(_f, {#VALUE!, #VALUE!, #VALUE!, 0}, {#VALUE!, #VALUE!, #VALUE!}),
+                _e = "",
+                IF(_f, HSTACK("", "", "", 0), HSTACK("", "", ""))
+            )
+        ),
+        fnReturnTime, LAMBDA(_h, _m, _s, _f, _x,
+            IF(
+                NOT(IS_VALID_TIME(_h, _m, _s)),
+                fnException(#VALUE!, _f),
+                IF(_f, HSTACK(_h, _m, _s, _x), HSTACK(_h, _m, _s))
+            )
+        ),
         _flgFmt, N(ReturnFormat) <> 0,
-        IF(Text = "",
-            IF(_flgFmt, HSTACK("", "", "", 0), HSTACK("", "", "")),
-            // LEFT(Text, 1) <> "T" (case-sensitive)
-            IF(CODE(LEFT(Text, 1)) <> 84,
-                #VALUE!,
+        IF(
+            Text = "",
+            fnException("", _flgFmt),
+            IF(
+                // LEFT(Text, 1) <> "T" (case-sensitive)
+                CODE(LEFT(Text, 1)) <> 84,
+                fnException(#N/A, _flgFmt),
                 LET(
-                    fnValidTime, LAMBDA(_h, _m, _s, _f, _x,
-                        IF(IS_VALID_TIME(_h, _m, _s),
-                            IF(_f, HSTACK(_h, _m, _s, _x), HSTACK(_h, _m, _s)),
-                            #NUM!
-                        )
-                    ),
                     _sTime, RIGHT(Text, LEN(Text) - 1),
                     _basic, IFERROR(FIND(":", _sTime), 0) = 0,
-                    IF(_basic,
+                    IF(
+                        _basic,
                         LET(
                             // basic format, positional elements
                             _cLen, LEN(_sTime),
                             IF(
                                 ((_cLen = 2) + (_cLen = 4) + (_cLen = 6) + (_cLen = 10)) = 0,
-                                #VALUE!,
+                                fnException(#N/A, _flgFmt),
                                 LET(
                                     _hour, VALUE(LEFT(_sTime, 2)),
                                     _minute, IF(_cLen >= 4, VALUE(MID(_sTime, 3, 2)), ""),
                                     _second, IF(_cLen > 4, VALUE(RIGHT(_sTime, _cLen - 4)), ""),
                                     _x, IF(_cLen = 2, 3, 1),
-                                    fnValidTime(_hour, _minute, _second, _flgFmt, _x)
+                                    fnReturnTime(_hour, _minute, _second, _flgFmt, _x)
                                 )
                             )
                         ),
@@ -861,9 +958,11 @@ PARSE_TIME = LAMBDA(
                                 1,
                                 IF(
                                     _cols = 2,
-                                    (LEN(INDEX(_cTime, 1, 1)) <> 2) + (LEN(INDEX(_cTime, 1, 2)) <> 2),
+                                    (LEN(INDEX(_cTime, 1, 1)) <> 2) +
+                                        (LEN(INDEX(_cTime, 1, 2)) <> 2),
                                     // _cols = 3
-                                    (LEN(INDEX(_cTime, 1, 1)) <> 2) + (LEN(INDEX(_cTime, 1, 2)) <> 2) +
+                                    (LEN(INDEX(_cTime, 1, 1)) <> 2) +
+                                        (LEN(INDEX(_cTime, 1, 2)) <> 2) +
                                         (
                                             (LEN(INDEX(_cTime, 1, 3)) <> 2) *
                                                 (LEN(INDEX(_cTime, 1, 3)) <> 6)
@@ -872,12 +971,12 @@ PARSE_TIME = LAMBDA(
                             ),
                             IF(
                                 _parseErr,
-                                #VALUE!,
+                                fnException(#N/A, _flgFmt),
                                 LET(
                                     _hour, VALUE(INDEX(_cTime, 1, 1)),
                                     _minute, VALUE(INDEX(_cTime, 1, 2)),
                                     _second, IF(_cols = 3, VALUE(INDEX(_cTime, 1, 3)), ""),
-                                    fnValidTime(_hour, _minute, _second, _flgFmt, 2)
+                                    fnReturnTime(_hour, _minute, _second, _flgFmt, 2)
                                 )
                             )
                         )
@@ -888,66 +987,83 @@ PARSE_TIME = LAMBDA(
     )
 );
 
-
 /*-----------------------------------------------------------------------------------------------------
 PARSE_TIME_ZONE
 
 Returns the time zone offset in minutes from text in the ISO 8601 format.
+#VALUE! if an invalid time zone.
+#N/A if not parsable.
 
+Columns:
+  1 | Minutes Offset | decimal | -900..+900
+  2 | Format         | integer | Optional, toggled by ReturnFormat parameter.
+    |                |         |   0 - no time zone
+    |                |         |   1 - basic
+    |                |         |   2 - extended
+    |                |         |   3 - consistent with basic or extended
+        
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text :         : ISO 8601 formatted time zone.
-               : Example formats (not exhaustive):
-               : +hh:mm:ss
-               : -hh:mm
-               : +hh
-               : Z
-[ReturnFormat] : Sets whether to return from which format the time zone was parsed
+Text           | string | ISO 8601 formatted time zone.
+               |        | Example formats (not exhaustive):
+               |        | +hh:mm:ss, -hh:mm, +hh, Z
+[ReturnFormat] | switch | Return from which format the time zone was parsed
 -----------------------------------------------------------------------------------------------------*/
-PARSE_TIME_ZONE = LAMBDA(
-    Text,
-    [ReturnFormat],
+PARSE_TIME_ZONE = LAMBDA(Text, [ReturnFormat],
     LET(
+        fnException, LAMBDA(_e, _f,
+            IFS(
+                ISNA(_e),
+                IF(_f, {#N/A, 0}, #N/A),
+                ISERR(_e),
+                IF(_f, {#VALUE!, 0}, #VALUE!),
+                _e = "",
+                IF(_f, HSTACK("", 0), "")
+            )
+        ),
+        fnReturnTZO, LAMBDA(_sg, _h, _m, _s, _f, _x,
+            IF(
+                (_m >= 60) + (_s >= 60),
+                fnException(#VALUE!, _f),
+                LET(
+                    _tzoMinutes, _sg * (_h * 60 + _m + _s / 60),
+                    IF(
+                        NOT(IS_VALID_TIME_ZONE(_tzoMinutes)),
+                        fnException(#VALUE!, _f),
+                        IF(_f, HSTACK(_tzoMinutes, _x), _tzoMinutes)
+                    )
+                )
+            )
+        ),
         _flgFmt, N(ReturnFormat) <> 0,
         IF(
-            Text = "", IF(_flgFmt, HSTACK("", 0), ""),
-            // Text = "Z" (case-sensitive)
+            Text = "",
+            fnException("", _flgFmt),
             IF(
                 (CODE(Text) = 90) * (LEN(Text) = 1),
-                IF(_flgFmt, HSTACK(0, 3), 0),
+                // Text = "Z" (case-sensitive)
+                fnReturnTZO(0, 0, 0, 0, _flgFmt, 3),
                 IF(
                     (LEFT(Text, 1) = "+") + (LEFT(Text, 1) = "-") = 0,
-                    #VALUE!,
+                    fnException(#N/A, _flgFmt),
                     LET(
-                        fnValidTZO, LAMBDA(_sg, _h, _m, _s, _f, _x,
-                            IF(
-                                (_m >= 60) + (_s >= 60),
-                                #NUM!,
-                                LET(
-                                    _tzoMinutes, _sg * (_h * 60 + _m + _s / 60),
-                                    IF(IS_VALID_TIME_ZONE(_tzoMinutes),
-                                        IF(_f, HSTACK(_tzoMinutes, _x), _tzoMinutes),
-                                        #NUM!
-                                    )
-                                )
-                            )
-                        ),
                         _sign, IF(LEFT(Text, 1) = "-", -1, 1),
                         _sTZO, RIGHT(Text, LEN(Text) - 1),
                         _basic, IFERROR(FIND(":", _sTZO), 0) = 0,
-                        IF(_basic,
+                        IF(
+                            _basic,
                             LET(
                                 // basic format, positional elements
                                 _cLen, LEN(_sTZO),
                                 IF(
                                     ((_cLen = 2) + (_cLen = 4) + (_cLen = 6)) = 0,
-                                    #VALUE!,
+                                    fnException(#N/A, _flgFmt),
                                     LET(
                                         _hour, VALUE(LEFT(_sTZO, 2)),
                                         _minute, IF(_cLen >= 4, VALUE(MID(_sTZO, 3, 2)), 0),
                                         _second, IF(_cLen > 4, VALUE(RIGHT(_sTZO, _cLen - 4)), 0),
                                         _x, IF(_cLen = 2, 3, 1),
-                                        fnValidTZO(_sign, _hour, _minute, _second, _flgFmt, _x)
+                                        fnReturnTZO(_sign, _hour, _minute, _second, _flgFmt, _x)
                                     )
                                 )
                             ),
@@ -960,7 +1076,8 @@ PARSE_TIME_ZONE = LAMBDA(
                                     1,
                                     IF(
                                         _cols = 2,
-                                        (LEN(INDEX(_cTZO, 1, 1)) <> 2) + (LEN(INDEX(_cTZO, 1, 2)) <> 2),
+                                        (LEN(INDEX(_cTZO, 1, 1)) <> 2) +
+                                            (LEN(INDEX(_cTZO, 1, 2)) <> 2),
                                         // _cols = 3
                                         (LEN(INDEX(_cTZO, 1, 1)) <> 2) +
                                             (LEN(INDEX(_cTZO, 1, 2)) <> 2) +
@@ -969,12 +1086,12 @@ PARSE_TIME_ZONE = LAMBDA(
                                 ),
                                 IF(
                                     _parseErr,
-                                    #VALUE!,
+                                    fnException(#N/A, _flgFmt),
                                     LET(
                                         _hour, VALUE(INDEX(_cTZO, 1, 1)),
                                         _minute, VALUE(INDEX(_cTZO, 1, 2)),
                                         _second, IF(_cols = 3, VALUE(INDEX(_cTZO, 1, 3)), 0),
-                                        fnValidTZO(_sign, _hour, _minute, _second, _flgFmt, 2)
+                                        fnReturnTZO(_sign, _hour, _minute, _second, _flgFmt, 2)
                                     )
                                 )
                             )
@@ -986,42 +1103,54 @@ PARSE_TIME_ZONE = LAMBDA(
     )
 );
 
-
 /*-----------------------------------------------------------------------------------------------------
 PARSE_ORDINAL_DATE
 
 Returns the year and ordinal day from text in the ISO 8601 format.
-Columns:
-  1 - Year CE
-  2 - Ordinal Day
+Note YYYYYDDD is invalid, due to collision with format YYYYMMDD
+#VALUE! if an invalid ordinal date.
+#N/A if not parsable.
 
+Columns:
+  1 | YearCE  | integer | -99999..+99999
+  2 | Ordinal | integer | 1..366
+  3 | Format  | integer | Optional, toggled by ReturnFormat parameter.
+    |         |         |   0 - no date
+    |         |         |   1 - basic
+    |         |         |   2 - extended
+    |         |         |   3 - consistent with basic or extended
+        
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text           : ISO8601 formatted year and ordinal day.
-               : Example formats (not exhaustive):
-               : +YYYYY-DDD
-               : -YYYY-DDD
-               : YYYY-DDD
-               : YYYYDDD
-               :
-               : Note YYYYYDDD is invalid, due to collision with format YYYYMMDD
-
-[ReturnFormat] : Sets whether to return from which format the ordinal date was parsed
+Text           | string | ISO 8601 formatted year and ordinal day.
+               |        | Example formats (not exhaustive):
+               |        | +YYYYY-DDD, -YYYY-DDD, YYYY-DDD, YYYYDDD
+[ReturnFormat] | switch | Return from which format the date was parsed
 -----------------------------------------------------------------------------------------------------*/
-PARSE_ORDINAL_DATE = LAMBDA(
-    Text,
-    [ReturnFormat],
+PARSE_ORDINAL_DATE = LAMBDA(Text, [ReturnFormat],
     LET(
+        fnException, LAMBDA(_e, _f,
+            IFS(
+                ISNA(_e),
+                IF(_f, {#N/A, #N/A, 0}, {#N/A, #N/A}),
+                ISERR(_e),
+                IF(_f, {#VALUE!, #VALUE!, 0}, {#VALUE!, #VALUE!}),
+                _e = "",
+                IF(_f, HSTACK("", "", 0), HSTACK("", ""))
+            )
+        ),
+        fnReturnOrdinalDate, LAMBDA(_y, _o, _f, _x,
+            IF(
+                NOT(IS_VALID_ORDINAL_DATE(_y, _o)),
+                fnException(#VALUE!, _f),
+                IF(_f, HSTACK(_y, _o, _x), HSTACK(_y, _o))
+            )
+        ),
         _flgFmt, N(ReturnFormat) <> 0,
-        IF(Text = "",
-            IF(_flgFmt, HSTACK("", "", 0), HSTACK("", "")),
+        IF(
+            Text = "",
+            fnException("", _flgFmt),
             LET(
-                fnValidOrdinalDate, LAMBDA(_y, _o, _f, _x,
-                    IF(IS_VALID_ORDINAL_DATE(_y, _o),
-                        IF(_f, HSTACK(_y, _o, _x), HSTACK(_y, _o)),
-                        #NUM!
-                    )
-                ),
                 _yearSign, IF(LEFT(Text, 1) = "-", -1, 1),
                 _sDate, IFS(
                     _yearSign = -1,
@@ -1040,29 +1169,29 @@ PARSE_ORDINAL_DATE = LAMBDA(
                         _cLen, LEN(_sDate),
                         IFS(
                             (_cLen >= 4) * (_cLen <= 5),
-                                fnValidOrdinalDate(_yearSign * VALUE(_sDate), "", _flgFmt, 3),
+                            fnReturnOrdinalDate(_yearSign * VALUE(_sDate), "", _flgFmt, 3),
                             _cLen = 7,
                             LET(
                                 _yearCE, _yearSign * VALUE(LEFT(_sDate, _cLen - 3)),
                                 _ordinal, VALUE(RIGHT(_sDate, 3)),
-                                fnValidOrdinalDate(_yearCE, _ordinal, _flgFmt, 1)
+                                fnReturnOrdinalDate(_yearCE, _ordinal, _flgFmt, 1)
                             ),
                             TRUE,
-                            #VALUE!
+                            fnException(#N/A, _flgFmt)
                         )
                     ),
                     IF(
                         _cols > 2,
-                        #VALUE!,
+                        fnException(#N/A, _flgFmt),
                         // expanded format, delimited elements
                         IF(
                             (LEN(INDEX(_cDate, 1, 1)) < 4) + (LEN(INDEX(_cDate, 1, 1)) > 5) +
                                 (LEN(INDEX(_cDate, 1, 2)) <> 3),
-                            #VALUE!,
+                            fnException(#N/A, _flgFmt),
                             LET(
                                 _yearCE, _yearSign * VALUE(INDEX(_cDate, 1, 1)),
                                 _ordinal, VALUE(INDEX(_cDate, 1, 2)),
-                                fnValidOrdinalDate(_yearCE, _ordinal, _flgFmt, 2)
+                                fnReturnOrdinalDate(_yearCE, _ordinal, _flgFmt, 2)
                             )
                         )
                     )
@@ -1072,40 +1201,54 @@ PARSE_ORDINAL_DATE = LAMBDA(
     )
 );
 
-
 /*-----------------------------------------------------------------------------------------------------
 PARSE_WEEK_DATE
 
 Returns the year, week and day of week from text in the ISO 8601 format.
+#VALUE! if an invalid week date.
+#N/A if not parsable.
+
 Columns:
-  1 - Year CE
-  2 - Week
-  3 - Weekday
+  1 | YearCE    | integer | -99999..+99999
+  2 | Week      | integer | 1..53
+  3 | DayOfWeek | integer | 1..7 -> Mon..Sun
+  4 | Format    | integer | Optional, toggled by ReturnFormat parameter.
+    |           |         |   0 - no date
+    |           |         |   1 - basic
+    |           |         |   2 - extended
+    |           |         |   3 - consistent with basic or extended
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text           : ISO8601 formatted year and ordinal week.
-               : Example formats (not exhaustive):
-               : +YYYYY-Www
-               : -YYYY-Www
-               : YYYY-Www-D
-               : YYYYWwwD
-[ReturnFormat] : Sets whether to return from which format the week date was parsed
+Text           | string | ISO 8601 formatted year, week and day of week.
+               |        | Example formats (not exhaustive):
+               |        | +YYYYY-Www, -YYYY-Www, YYYY-Www-D, YYYYWwwD
+[ReturnFormat] | switch | Return from which format the date was parsed
 -----------------------------------------------------------------------------------------------------*/
-PARSE_WEEK_DATE = LAMBDA(
-    Text,
-    [ReturnFormat],
+PARSE_WEEK_DATE = LAMBDA(Text, [ReturnFormat],
     LET(
+        fnException, LAMBDA(_e, _f,
+            IFS(
+                ISNA(_e),
+                IF(_f, {#N/A, #N/A, #N/A, 0}, {#N/A, #N/A, #N/A}),
+                ISERR(_e),
+                IF(_f, {#VALUE!, #VALUE!, #VALUE!, 0}, {#VALUE!, #VALUE!, #VALUE!}),
+                _e = "",
+                IF(_f, HSTACK("", "", "", 0), HSTACK("", "", ""))
+            )
+        ),
+        fnReturnWeekDate, LAMBDA(_y, _w, _dow, _f, _x,
+            IF(
+                NOT(IS_VALID_WEEK_DATE(_y, _w, _dow)),
+                fnException(#VALUE!, _f),
+                IF(_f, HSTACK(_y, _w, _dow, _x), HSTACK(_y, _w, _dow))
+            )
+        ),
         _flgFmt, N(ReturnFormat) <> 0,
-        IF(Text = "",
-            IF(_flgFmt, HSTACK("", "", "", 0), HSTACK("", "", "")),
+        IF(
+            Text = "",
+            fnException("", _flgFmt),
             LET(
-                fnValidWeekDate, LAMBDA(_y, _w, _dow, _f, _x,
-                    IF(IS_VALID_WEEK_DATE(_y, _w, _dow),
-                        IF(_f, HSTACK(_y, _w, _dow, _x), HSTACK(_y, _w, _dow)),
-                        #NUM!
-                    )
-                ),
                 _yearSign, IF(LEFT(Text, 1) = "-", -1, 1),
                 _sWeekDate, IFS(
                     _yearSign = -1,
@@ -1132,7 +1275,7 @@ PARSE_WEEK_DATE = LAMBDA(
                         ),
                         IF(
                             _parseErr,
-                            #VALUE!,
+                            fnException(#N/A, _flgFmt),
                             LET(
                                 _yearCE, _yearSign * VALUE(INDEX(_cBasic, 1, 1)),
                                 _week, VALUE(LEFT(INDEX(_cBasic, 1, 2), 2)),
@@ -1141,7 +1284,7 @@ PARSE_WEEK_DATE = LAMBDA(
                                     "",
                                     VALUE(RIGHT(INDEX(_cBasic, 1, 2), 1))
                                 ),
-                                fnValidWeekDate(_yearCE, _week, _dow, _flgFmt, 1)
+                                fnReturnWeekDate(_yearCE, _week, _dow, _flgFmt, 1)
                             )
                         )
                     ),
@@ -1175,12 +1318,12 @@ PARSE_WEEK_DATE = LAMBDA(
                         ),
                         IF(
                             _parseErr,
-                            #VALUE!,
+                            fnException(#N/A, _flgFmt),
                             LET(
                                 _yearCE, _yearSign * VALUE(INDEX(_cExpanded, 1, 1)),
                                 _week, VALUE(RIGHT(INDEX(_cExpanded, 1, 2), 2)),
                                 _dow, IF(_cols = 2, "", VALUE(INDEX(_cExpanded, 1, 3))),
-                                fnValidWeekDate(_yearCE, _week, _dow, _flgFMt, 2)
+                                fnReturnWeekDate(_yearCE, _week, _dow, _flgFMt, 2)
                             )
                         )
                     )
@@ -1194,274 +1337,308 @@ PARSE_WEEK_DATE = LAMBDA(
 PARSE_DATE_TIME
 
 Returns the date and time of text in the ISO8601 format.
-With columns:
-  1 - Date Type : 0 - no date present
-                  1 - Calendar date
-                  2 - Ordinal date
-                  3 - Week date
-  2 - Year 
-  3 - Month/Week
-  4 - Day/Ordinal
-  5 - Hour
-  6 - Minute
-  7 - Second
-  8 - Time zone offset in minutes
+#VALUE! if an invalid date, time or time zone
+#N/A if not parsable
+
+Columns:
+  1 | Date Type      | integer |    0 - no date present
+    |                |         |    1 - calendar date
+    |                |         |    2 - ordinal date
+    |                |         |    3 - week date
+    |                |         | #N/A - conflicting formats
+  2 | Year CE        | integer | -99999..+99999
+  3 | Month          | integer | 1..12
+    | Week           | integer | 1..53
+  4 | Day            | integer | 1..31
+    | Ordinal        | integer | 1..366
+    | Day of Week    | integer | 1..7 -> Mon..Sun
+  5 | Hour           | integer | 0..24
+  6 | Minute         | integer | 0..59
+  7 | Second         | decimal | 0..59.999
+  8 | Minutes Offset | decimal | -900..+900
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text         : ISO8601 formatted date.
-             : Example formats (not exhaustive):
-             :   +YYYYY-MM-DDThh:mm:ss.sss+hh:mm:ss
-             :   -YYYY-MM-DDThh:mm:ss+hh:mm
-             :   YYYY-MM-DDThh:mm-hh
-             :   YYYY-MM-DDThh:mmZ
-             :   YYYY-Www-DThh:mm
-[Permissive] : Allow mixed use of basic and extended formats
+Text           | string | ISO 8601 formatted date and time.
+               |        | Example formats (not exhaustive):
+               |        | +YYYYY-MM-DDThh:mm:ss.sss+hh:mm:ss, YYYY-MM-DDThh:mm-hh, YYYY-Www-DThh:mmZ
+[Permissive]   | switch | Allow mixed use of basic and extended formats, and allow not fully expressed
+               |        | date with a time component.
 -----------------------------------------------------------------------------------------------------*/
-PARSE_DATE_TIME = LAMBDA(
-    Text,
-    [Permissive],
-    IF(
-        Text = "",
-        HSTACK("", "", "", "", "", "", "", "", "", "", ""),
-        LET(
-            fnSplit, LAMBDA(Text,
-                IF(
-                    Text = "",
-                    HSTACK("", "", ""),
-                    // Text = "Z" (case-sensitive)
-                    IF(
-                        (CODE(Text) = 90) * (LEN(Text) = 1),
-                        HSTACK("", "", "Z"),
+PARSE_DATE_TIME = LAMBDA(Text, [Permissive],
+    LET(
+        fnException, LAMBDA(_e,
+            IFS(
+                ISNA(_e),
+                HSTACK({#N/A}, "", "", "", "", "", "", ""),
+                ISERR(_e),
+                HSTACK({#VALUE!}, "", "", "", "", "", "", ""),
+                _e = "",
+                HSTACK(0, "", "", "", "", "", "", "")
+            )
+        ),
+        fnSplit, LAMBDA(Text,
+            IF(
+                (CODE(Text) = 90) * (LEN(Text) = 1),
+                // Text = "Z" (case-sensitive)
+                HSTACK("", "", "Z"),
+                LET(
+                    _dSplit, TEXTSPLIT(Text, "T"),
+                    _cols, COLUMNS(_dSplit),
+                    IFS(
+                        _cols = 2,
                         LET(
-                            _dSplit, TEXTSPLIT(Text, "T"),
-                            _cols, COLUMNS(_dSplit),
-                            IFS(
-                                _cols = 2,
+                            // has a time part
+                            _sDate, INDEX(_dSplit, 1, 1),
+                            _sTimePart, "T" & INDEX(_dSplit, 1, 2),
+                            _tSplit, TEXTSPLIT(_sTimePart, {"+", "-", "Z"}),
+                            IF(
+                                COLUMNS(_tSplit) <= 1,
+                                // time value with no TZ
+                                HSTACK(_sDate, _sTimePart, ""),
                                 LET(
-                                    // has a time part
-                                    _sDate, INDEX(_dSplit, 1, 1),
-                                    _sTimePart, "T" & INDEX(_dSplit, 1, 2),
-                                    _tSplit, TEXTSPLIT(_sTimePart, {"+", "-", "Z"}),
-                                    IF(
-                                        COLUMNS(_tSplit) <= 1,
-                                        // time value with no TZ
-                                        HSTACK(_sDate, _sTimePart, ""),
-                                        LET(
-                                            // has time zone
-                                            _sTime, INDEX(_tSplit, 1, 1),
-                                            _sTZ, RIGHT(_sTimePart, LEN(_sTimePart) - LEN(_sTime)),
-                                            HSTACK(_sDate, _sTime, _sTZ)
-                                        )
-                                    )
-                                ),
-                                _cols = 1,
-                                LET(
-                                    // hint this should be a date value
-                                    _colonPos, IFERROR(FIND(":", Text), 0),
-                                    IF(
-                                        _colonPos > 0,
-                                        IF(
-                                            (LEFT(Text, 1) = "+") + (LEFT(Text, 1) = "-"),
-                                            
-                                            // assume a timezone
-                                            HSTACK("", "", Text),
-                                            
-                                            // indeterminate
-                                            #VALUE!
-                                        ),
-                                        
-                                        // _colonPos = 0
-                                        IF(
-                                            LEN(Text) >= 6,
-                                            // assume a date value
-                                            HSTACK(Text, "", ""),
-                                            
-                                            // indeterminate
-                                            #VALUE!
-                                        )
-                                    )
-                                ),
-                                // _cols = 0 or > 2
-                                TRUE,
-                                #VALUE!
-                            )
-                        )
-                    )
-                )
-            ),
-            fnDetectDateType, LAMBDA(_text,
-                
-                // no date type
-                IF(
-                    _text = "",
-                    0,
-                    IF(
-                        IFERROR(FIND("W", _text), 0) <> 0,
-                        // Y W DoW date type (basic or extended formats)
-                        3,
-                        LET(
-                            _unsignedDate, IFS(
-                                LEFT(_text, 1) = "+",
-                                RIGHT(_text, LEN(_text) - 1),
-                                LEFT(_text, 1) = "-",
-                                RIGHT(_text, LEN(_text) - 1),
-                                TRUE,
-                                _text
-                            ),
-                            _dateLen, LEN(_unsignedDate),
-                            _countMinus, _dateLen - LEN(SUBSTITUTE(_unsignedDate, "-", "")),
-                            IFS(
-                                // Y M D date type (extended format)
-                                _countMinus = 2,
-                                1,
-                                _countMinus = 1,
-                                LET(
-                                    _minusPosFromEnd, LEN(_unsignedDate) -
-                                        IFERROR(FIND("-", _unsignedDate), 0),
-                                    IF(
-                                        _minusPosFromEnd = 3,
-                                        // Y O date type (extended format)
-                                        2,
-                                        
-                                        // Y M date type (extended format)
-                                        1
-                                    )
-                                ),
-                                _countMinus = 0,
-                                IF(
-                                    // Y O date type (basic format)
-                                    _dateLen = 7,
-                                    2,
-                                    
-                                    // Y M D date type (basic format)
-                                    1
+                                    // has time zone
+                                    _sTime, INDEX(_tSplit, 1, 1),
+                                    _sTZ, RIGHT(_sTimePart, LEN(_sTimePart) - LEN(_sTime)),
+                                    HSTACK(_sDate, _sTime, _sTZ)
                                 )
                             )
-                        )
-                    )
-                )
-            ),
-            fnCheckStrictness, LAMBDA(_cDate,_hms,_tzo,
-                LET(
-                    _dateFmt, INDEX(_cDate, 1, 4),
-                    _timeFmt, INDEX(_hms, 1, 4),
-                    _tzoFmt, INDEX(_tzo, 1, 2),
-                    
-                    _allFmt, IFS(
-                        (_dateFmt <> 2) * (_timeFmt <> 2) * (_tzoFmt <> 2),
-                            // all basic format where present
-                            1,
-                        (_dateFmt <> 1) * (_timeFmt <> 1) * (_tzoFmt <> 1),
-                            // all extended format where present 
-                            2,
-                        TRUE,
-                            // mixed format
-                            0
-                    ),
-                    IF(N(_allFmt) = 0, 0,
+                        ),
+                        _cols = 1,
                         LET(
-                            _hasDate, _dateFmt <> 0,
-                            _hasTime, _timeFmt <> 0,
-                            _hasTZO, _tzoFmt <> 0,
-                            _fullDate, INDEX(_cDate, 1, 3) <> "",
-                            _passTest, (_hasDate * _hasTime * _fullDate) + (N(_hasDate) = 0),
-                            N(_passTest)
-                        )
-                    )
-                )
-            ),
-            _strict, N(Permissive) = 0,
-            _parts, fnSplit(Text),
-            IF(
-                ISERROR(INDEX(_parts, 1, 1)),
-                #VALUE!,
-                LET(
-                    _sDate, INDEX(_parts, 1, 1),
-                    _isDateType, fnDetectDateType(_sDate),
-                    _cDate, IFS(
-                        _isDateType <= 1,
-                            PARSE_DATE(_sDate, _strict),
-
-                        _isDateType = 2,
-                            LET(
-                                _o, PARSE_ORDINAL_DATE(_sDate, _strict),
-                                HSTACK(INDEX(_o, 1, 1), "", DROP(_o, , 1))
-                            ),
-
-                        _isDateType = 3,
-                            PARSE_WEEK_DATE(_sDate, _strict)
-                    ),
-
-                    _hms, PARSE_TIME(INDEX(_parts, 1, 2), _strict),
-                    _tzo, PARSE_TIME_ZONE(INDEX(_parts, 1, 3), _strict),
-
-                    if(_strict,
-                        LET(
-                            _passTest, fnCheckStrictness(_cDate, _hms, _tzo),
-                            IF(_passTest, 
-                                HSTACK(_isDateType,
-                                    DROP(_cDate, , -1),
-                                    DROP(_hms, , -1),
-                                    DROP(_tzo, , -1)
+                            // hint this should be a date value
+                            _colonPos, IFERROR(FIND(":", Text), 0),
+                            IF(
+                                _colonPos > 0,
+                                IF(
+                                    (LEFT(Text, 1) = "+") + (LEFT(Text, 1) = "-"),
+                                    
+                                    // assume a timezone
+                                    HSTACK("", "", Text),
+                                    
+                                    // indeterminate
+                                    #N/A
                                 ),
-                                #VALUE!
+                                
+                                // _colonPos = 0
+                                LET(
+                                    _hasSign, ((LEFT(Text, 1) = "+") + (LEFT(Text, 1) = "-")) <> 0,
+                                    _unsignedLen, LEN(Text) - N(_hasSign),
+                                    _hyphenPos, IFERROR(FIND("-", RIGHT(Text, _unsignedLen)), 0),
+                                    IFS(
+                                        _hyphenPos > 0,
+                                            // assume a date value
+                                            HSTACK(Text, "", ""),
+
+                                        _unsignedLen > 9,
+                                            // indeterminate
+                                            #N/A,
+                                    
+                                        _unsignedLen >= 4,
+                                            // assume a date value
+                                            HSTACK(Text, "", ""),
+
+                                        _unsignedLen = 2,
+                                            // assume a time zone
+                                            HSTACK("", "", Text),
+                                    
+                                        TRUE,
+                                            // indeterminate
+                                            #N/A
+                                    )
+                                )
                             )
                         ),
-                        HSTACK(_isDateType, _cDate, _hms, _tzo)
+                        // _cols = 0 or > 2
+                        TRUE,
+                        #N/A
+                    )
+                )
+            )
+        ),
+        fnDetectDateType, LAMBDA(_text,
+            
+            // no date type
+            IF(
+                _text = "",
+                0,
+                IF(
+                    IFERROR(FIND("W", _text), 0) <> 0,
+                    // Y W DoW date type (basic or extended formats)
+                    3,
+                    LET(
+                        _unsignedDate, IFS(
+                            LEFT(_text, 1) = "+",
+                            RIGHT(_text, LEN(_text) - 1),
+                            LEFT(_text, 1) = "-",
+                            RIGHT(_text, LEN(_text) - 1),
+                            TRUE,
+                            _text
+                        ),
+                        _dateLen, LEN(_unsignedDate),
+                        _countMinus, _dateLen - LEN(SUBSTITUTE(_unsignedDate, "-", "")),
+                        IFS(
+                            // Y M D date type (extended format)
+                            _countMinus = 2,
+                            1,
+                            _countMinus = 1,
+                            LET(
+                                _minusPosFromEnd, LEN(_unsignedDate) -
+                                    IFERROR(FIND("-", _unsignedDate), 0),
+                                IF(
+                                    _minusPosFromEnd = 3,
+                                    // Y O date type (extended format)
+                                    2,
+                                    
+                                    // Y M date type (extended format)
+                                    1
+                                )
+                            ),
+                            _countMinus = 0,
+                            IF(
+                                // Y O date type (basic format)
+                                _dateLen = 7,
+                                2,
+                                
+                                // Y M D date type (basic format)
+                                1
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+        fnCheckStrictness, LAMBDA(_cDate, _hms, _tzo,
+            LET(
+                _dateFmt, INDEX(_cDate, 1, 4),
+                _timeFmt, INDEX(_hms, 1, 4),
+                _tzoFmt, INDEX(_tzo, 1, 2),
+                _allFmt, IFS(
+                    (_dateFmt <> 2) * (_timeFmt <> 2) * (_tzoFmt <> 2),
+                    // all basic format where present
+                    1,
+                    (_dateFmt <> 1) * (_timeFmt <> 1) * (_tzoFmt <> 1),
+                    // all extended format where present 
+                    2,
+                    TRUE,
+                    // mixed format
+                    0
+                ),
+                IF(_allFmt = 0, FALSE,
+                    LET(
+                        _hasDate, _dateFmt <> 0,
+                        _hasTime, _timeFmt <> 0,
+                        _hasTZO, _tzoFmt <> 0,
+                        _fullDate, IFERROR(ISNUMBER(INDEX(_cDate, 1, 3)),0),
+                        IFS(
+                            (_hasDate * _hasTime * NOT(_fullDate)), FALSE,
+                            (_hasDate * NOT(_hasTime) * _hasTZO), FALSE,
+                            TRUE, TRUE
+                        )
+                    )
+                )
+            )
+        ),
+        IF(
+            Text = "",
+            fnException(""),
+            LET(
+                _strict, N(Permissive) = 0,
+                _parts, fnSplit(Text),
+                IF(
+                    ISNA(INDEX(_parts, 1, 1)),
+                    fnException(#N/A),
+                    LET(
+                        _sDate, INDEX(_parts, 1, 1),
+                        _detectDateType, fnDetectDateType(_sDate),
+                        _cDate, IFS(
+                            _detectDateType <= 1,
+                            PARSE_DATE(_sDate, _strict),
+                            _detectDateType = 2,
+                            LET(
+                                _o, PARSE_ORDINAL_DATE(_sDate, _strict),
+                                HSTACK(DROP(_o, , -2), "", DROP(_o, , 1))
+                            ),
+                            TRUE,
+                            //_detectDateType = 3,
+                            PARSE_WEEK_DATE(_sDate, _strict)
+                        ),
+                        _resolvedDateType, IFS(
+                             _detectDateType = 0, 0,
+                             ISERROR(INDEX(_cDate, 1, 1)), 0,
+                             TRUE, _detectDateType
+                        ),
+                        _hms, PARSE_TIME(INDEX(_parts, 1, 2), _strict),
+                        _tzo, PARSE_TIME_ZONE(INDEX(_parts, 1, 3), _strict),
+                        IF(_strict,
+                            LET(
+                                _passTest, fnCheckStrictness(_cDate, _hms, _tzo),
+                                IF(_passTest,
+                                    HSTACK(
+                                        _resolvedDateType,
+                                        DROP(_cDate, , -1),
+                                        DROP(_hms, , -1),
+                                        DROP(_tzo, , -1)
+                                    ),
+                                    fnException(#N/A)
+                                )
+                            ),
+                            HSTACK(_resolvedDateType, _cDate, _hms, _tzo)
+                        )
                     )
                 )
             )
         )
     )
 );
-
 
 /*-----------------------------------------------------------------------------------------------------
 FORMAT_DATE
 
 Returns a date as text in the ISO 8601 format.
-Example formats (not exhaustive):
-+YYYYY-MM-DD
--YYYY-MM-DD
-YYYY-MM-DD
-YYYY-MM
-YYYYMMDD
-YYYY
+Example formats (not exhaustive): +YYYYY-MM-DD, YYYY-MM-DD, YYYY-MM, +YYYYMM, YYYY
+#VALUE! if an invalid date
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE  : Year in common era
-[Month] : Month of year
-[Day]   : Day of month
-[Basic] : Return in basic format eg YYYYMMDD. Note YYYYMM is not permissable.
+YearCE  | integer | Year in Common Era -99999..+99999
+[Month] | integer | Month of the year
+[Day]   | integer | Day of the month
+[Basic] | switch  | Return in basic format eg YYYYMMDD
 -----------------------------------------------------------------------------------------------------*/
-FORMAT_DATE = LAMBDA(
-    YearCE,
-    [Month],
-    [Day],
-    [Basic],
-    IF((YearCE = "") * (Month = "") * (Day = ""), "",
-        IF(NOT(IS_VALID_DATE(YearCE, Month, Day)), #NUM!,
+FORMAT_DATE = LAMBDA(YearCE, [Month], [Day], [Basic],
+    IF(
+        NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Month)) * NOT(ISNUMBER(Day)),
+        "",
+        IF(
+            NOT(IS_VALID_DATE(YearCE, Month, Day)),
+            #VALUE!,
             LET(
                 _basicFormat, N(Basic) <> 0,
-                IF((Day = "") * _basicFormat, #VALUE!,
+                _y, INT(YearCE),
+                _yFmt, IFS(
+                    ABS(_y) >= 10000,
+                    "+00000;-00000",
+                    NOT(ISNUMBER(Day)) * _basicFormat,
+                    "+0000;-0000;+0000",
+                    TRUE,
+                    "0000;-0000;0000"
+                ),
+                _sYear, TEXT(_y, _yFmt),
+                IF(
+                    NOT(ISNUMBER(Month)),
+                    _sYear,
                     LET(
-                        _y, INT(VALUE(YearCE)),
-                        _sYear, IF(ABS(_y) >= 10000,
-                            TEXT(_y, "+00000;-00000"),
-                            TEXT(_y, "0000;-0000;0000")
-                        ),
-                        IF(Month = "",
-                            _sYear,
+                        _sMonth, TEXT(INT(Month), "00"),
+                        IF(
+                            NOT(ISNUMBER(Day)),
+                            IF(_basicFormat, _sYear & _sMonth, _sYear & "-" & _sMonth),
                             LET(
-                                _sMonth, TEXT(INT(VALUE(Month)), "00"), 
-                                IF(Day = "",
-                                    IF(_basicFormat, _sYear & _sMonth, _sYear & "-" & _sMonth),
-                                    LET(
-                                        _sDay, TEXT(INT(VALUE(Day)), "00"),
-                                        IF(_basicFormat, _sYear & _sMonth & _sDay, _sYear & "-" & _sMonth & "-" & _sDay)
-                                    )
+                                _sDay, TEXT(INT(Day), "00"),
+                                IF(
+                                    _basicFormat,
+                                    _sYear & _sMonth & _sDay,
+                                    _sYear & "-" & _sMonth & "-" & _sDay
                                 )
                             )
                         )
@@ -1472,72 +1649,64 @@ FORMAT_DATE = LAMBDA(
     )
 );
 
-
 /*-----------------------------------------------------------------------------------------------------
 FORMAT_TIME
 
 Returns a time as text in the ISO 8601 format.
-Example formats (not exhaustive):
-Thh:mm:ss.sss
-Thh:mm:ss
-Thh:mm
-Thhmmss
-Thh
+Example formats (not exhaustive): Thh:mm:ss.sss, Thh:mm:ss, Thh:mm, Thhmmss, Thh
+#VALUE! if an invalid time
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-Hour        :
-Minute      :
-Second      :
-[Basic]     : Return in basic format
-[Precision] : Select precision level
-            :   0 - automatic
-            :   1 - hours
-            :   2 - minutes
-            :   3 - integer seconds
-            :   4 - fractional seconds
+Hour        | integer | 0..24
+Minute      | integer | 0..59
+Second      | decimal | 0..59.999
+[Basic]     | switch  | Return in basic format
+[Precision] | integer | Select precision level
+            |         |   0 - automatic
+            |         |   1 - hours
+            |         |   2 - minutes
+            |         |   3 - integer seconds
+            |         |   4 - fractional seconds
 -----------------------------------------------------------------------------------------------------*/
-FORMAT_TIME = LAMBDA(
-    Hour,
-    Minute,
-    Second,
-    [Basic],
-    [Precision],
-    IF((Hour = "") * (Minute = "") * (Second = ""), "",
-        IF(NOT(IS_VALID_TIME(Hour, Minute, Second)), #NUM!,
+FORMAT_TIME = LAMBDA(Hour, Minute, Second, [Basic], [Precision],
+    IF(
+        NOT(ISNUMBER(Hour)) * NOT(ISNUMBER(Minute)) * NOT(ISNUMBER(Second)),
+        "",
+        IF(
+            NOT(IS_VALID_TIME(Hour, Minute, Second)),
+            #VALUE!,
             LET(
                 _basicFormat, N(Basic) <> 0,
-                _s, ROUNDDOWN(VALUE(Second), 3),
-                _m, INT(VALUE(Minute)),
-                _h, INT(VALUE(Hour)),
-                _precision, IF(N(Precision) <> 0,
-                    N(Precision),
-                    IFS(
-                        Second <> "",
-                            IF(_s = INT(_s), 3, 4),
-                        Minute <> "",
-                            2,
-                        TRUE,
-                            1
-                    )
+                _s, ROUNDDOWN(N(Second), 3),
+                _m, INT(N(Minute)),
+                _h, INT(N(Hour)),
+                _precision, MAX(INT(N(Precision)), 0),
+                _usePrecision, IF(
+                    _precision > 0,
+                    _precision,
+                    IFS(ISNUMBER(Second), IF(_s = INT(_s), 3, 4), ISNUMBER(Minute), 2, TRUE, 1)
                 ),
                 IFS(
-                    _precision = 1,
-                        "T" & TEXT(_h, "00"),
-                    _precision = 2,
-                        IF(_basicFormat,
-                            "T" & TEXT(_h, "00") & TEXT(_m, "00"),
-                            "T" & TEXT(_h, "00") & ":" & TEXT(_m, "00")
-                        ),
-                    _precision = 3,
-                        IF(_basicFormat,
-                            "T" & TEXT(_h, "00") & TEXT(_m, "00") & TEXT(_s, "00"),
-                            "T" & TEXT(_h, "00") & ":" & TEXT(_m, "00") & ":" & TEXT(_s, "00")
-                        ),
-                
-                    //_precision = 4
+                    _usePrecision = 1,
+                    "T" & TEXT(_h, "00"),
+                    _usePrecision = 2,
+                    IF(
+                        _basicFormat,
+                        "T" & TEXT(_h, "00") & TEXT(_m, "00"),
+                        "T" & TEXT(_h, "00") & ":" & TEXT(_m, "00")
+                    ),
+                    _usePrecision = 3,
+                    IF(
+                        _basicFormat,
+                        "T" & TEXT(_h, "00") & TEXT(_m, "00") & TEXT(_s, "00"),
+                        "T" & TEXT(_h, "00") & ":" & TEXT(_m, "00") & ":" & TEXT(_s, "00")
+                    ),
+                    
+                    //_usePrecision = 4
                     TRUE,
-                    IF(_basicFormat,
+                    IF(
+                        _basicFormat,
                         "T" & TEXT(_h, "00") & TEXT(_m, "00") & TEXT(_s, "00.000"),
                         "T" & TEXT(_h, "00") & ":" & TEXT(_m, "00") & ":" & TEXT(_s, "00.000")
                     )
@@ -1547,62 +1716,58 @@ FORMAT_TIME = LAMBDA(
     )
 );
 
-
 /*-----------------------------------------------------------------------------------------------------
 FORMAT_TIME_ZONE
 
 Returns a time zone as text in the ISO 8601 format.
-Example formats (not exhaustive):
-+hh:mm:ss
-+hh:mm
--hh:mm
-+hh
-Z
+Example formats (not exhaustive): +hh:mm:ss, -hh:mm, +hh, Z
+#VALUE! if an invalid time zone
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-OffsetMinutes : Time zone offset from UTC in minutes.
-              : Valid range -900..+900
-[Basic]       : Return in basic format
-[Precision]   : Select precision level
-              :   0 - automatic
-              :   1 - hours
-              :   2 - minutes
-              :   3 - seconds
-[NoZulu]      : Use +00:00 instead of Z for UTC time zone.
+OffsetMinutes | decimal | Time zone offset from UTC in minutes -900..+900
+[Basic]       | switch  | Return in basic format
+[Precision]   | integer | Select precision level
+              |         |   0 - automatic
+              |         |   1 - hours
+              |         |   2 - minutes
+              |         |   3 - seconds
+[NoZulu]      | switch  | Use +00:00 instead of Z for UTC time zone.
 -----------------------------------------------------------------------------------------------------*/
-FORMAT_TIME_ZONE = LAMBDA(
-    OffsetMinutes,
-    [Basic],
-    [Precision],
-    [NoZulu],
-    IF(OffsetMinutes = "", "",
+FORMAT_TIME_ZONE = LAMBDA(OffsetMinutes, [Basic], [Precision], [NoZulu],
+    IF(
+        NOT(ISNUMBER(OffsetMinutes)),
+        "",
         LET(
             _basicFormat, N(Basic) <> 0,
-            _precision, N(Precision),
-            _offsetMins, VALUE(OffsetMinutes),
-            _nearZero, ROUNDDOWN(_offsetMins * 60, 0) = 0,
-            IF((N(NoZulu) = 0) * _nearZero, "Z",
-                IF(NOT(IS_VALID_TIME_ZONE(_offsetMins)), #NUM!,
+            _precision, MAX(INT(N(Precision)), 0),
+            _nearZero, ROUNDDOWN(OffsetMinutes * 60, 0) = 0,
+            IF(
+                (N(NoZulu) = 0) * _nearZero,
+                "Z",
+                IF(
+                    NOT(IS_VALID_TIME_ZONE(OffsetMinutes)),
+                    #VALUE!,
                     LET(
-                        _hasSecs, ROUNDDOWN(MOD(_offsetMins, 1) * 60, 0) > 0,
+                        _hasSecs, ROUNDDOWN(MOD(OffsetMinutes, 1) * 60, 0) > 0,
                         _sFmt, IFS(
                             _precision = 0,
-                                IF(_hasSecs,
-                                    IF(_basicFormat, "hhmmss", "hh:mm:ss"),
-                                    IF(_basicFormat, "hhmm", "hh:mm")
-                                ),
+                            IF(
+                                _hasSecs,
+                                IF(_basicFormat, "hhmmss", "hh:mm:ss"),
+                                IF(_basicFormat, "hhmm", "hh:mm")
+                            ),
                             _precision = 1,
-                                "hh",
+                            "hh",
                             _precision = 2,
-                                IF(_basicFormat, "hhmm", "hh:mm"),
+                            IF(_basicFormat, "hhmm", "hh:mm"),
                             
                             // _precision = 3
                             TRUE,
-                                IF(_basicFormat, "hhmmss", "hh:mm:ss")
+                            IF(_basicFormat, "hhmmss", "hh:mm:ss")
                         ),
-                        _sign, IF(SIGN(_offsetMins) < 0, "-", "+"),
-                        _timeZoneOffset, ABS(_offsetMins) / 1440,
+                        _sign, IF(SIGN(OffsetMinutes) < 0, "-", "+"),
+                        _timeZoneOffset, ABS(OffsetMinutes) / 1440,
                         _sign & TEXT(_timeZoneOffset, _sFmt)
                     )
                 )
@@ -1611,43 +1776,72 @@ FORMAT_TIME_ZONE = LAMBDA(
     )
 );
 
-
 /*-----------------------------------------------------------------------------------------------------
 FORMAT_ORDINAL_DATE
 
 Returns an ordinal date as text in the ISO 8601 format.
-Example formats (not exhaustive):
-YYYY-DDD
-YYYYDDD
+Example formats (not exhaustive): YYYY-DDD, YYYYDDD
+#VALUE! if an invalid ordinal date
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-YearCE  : Year in common era
-Ordinal : Ordinal day of year
-[Basic] : Return in basic format eg YYYYDDD.
+YearCE  | integer | Year in Common Era -99999..+99999
+Ordinal | integer | Ordinal day of year
+[Basic] | switch  | Return in basic format eg YYYYDDD
 -----------------------------------------------------------------------------------------------------*/
-FORMAT_ORDINAL_DATE = LAMBDA(
-    YearCE,
-    Ordinal,
-    [Basic],
-    IF((YearCE = "") * (Ordinal = ""), "",
-        IF(NOT(IS_VALID_ORDINAL_DATE(YearCE, Ordinal)), #NUM!,
+FORMAT_ORDINAL_DATE = LAMBDA(YearCE, Ordinal, [Basic],
+    IF(
+        NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Ordinal)),
+        "",
+        IF(
+            NOT(IS_VALID_ORDINAL_DATE(YearCE, Ordinal, 1)),
+            #VALUE!,
             LET(
                 _basicFormat, N(Basic) <> 0,
-                _y, INT(VALUE(YearCE)),
-                _o, INT(VALUE(Ordinal)),
-                _sYear, IF(
-                    ABS(_y) >= 10000,
-                    TEXT(_y, "+00000;-00000"),
-                    TEXT(_y, "0000;-0000;0000")
-                ),
-                IF(Ordinal = "", _sYear,
-                    LET(
-                        _sOrdinal, TEXT(_o, "000"),
-                        IF(_basicFormat,
-                            _sYear & _sOrdinal,
-                            _sYear & "-" & _sOrdinal
-                        )
+                _y, INT(YearCE),
+                _yFmt, IF(ABS(_y) >= 10000, "+00000;-00000", "0000;-0000;0000"),
+                _sYear, TEXT(_y, _yFmt),
+                _sOrdinal, TEXT(INT(Ordinal), "000"),
+                IF(_basicFormat, _sYear & _sOrdinal, _sYear & "-" & _sOrdinal)
+            )
+        )
+    )
+);
+
+/*-----------------------------------------------------------------------------------------------------
+FORMAT_WEEK_DATE
+
+Returns a week date as text in the ISO 8601 format.
+Example formats (not exhaustive): YYYY-Www-D, YYYY-Www, YYYYWwwD, YYYYWww
+#VALUE! if an invalid week date
+
+Parameters
+-------------------------------------------------------------------------------------------------------
+YearCE    | integer | Year in Common Era -99999..+99999
+Week      | integer | ISO defined week number of the year
+DayOfWeek | integer | Day of the week where 1..7 -> Mon..Sun 
+[Basic]   | switch  | Return in basic format eg YYYYWwwD
+-----------------------------------------------------------------------------------------------------*/
+FORMAT_WEEK_DATE = LAMBDA(YearCE, Week, DayOfWeek, [Basic],
+    IF(
+        NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Week)) * NOT(ISNUMBER(DayOfWeek)),
+        "",
+        IF(
+            NOT(IS_VALID_WEEK_DATE(YearCE, Week, DayOfWeek)),
+            #VALUE!,
+            LET(
+                _basicFormat, N(Basic) <> 0,
+                _y, INT(YearCE),
+                _yFmt, IF(ABS(_y) >= 10000, "+00000;-00000", "0000;-0000;0000"),
+                _sYear, TEXT(_y, _yFmt),
+                _sWeek, TEXT(INT(Week), "W00"),
+                IF(
+                    NOT(ISNUMBER(DayOfWeek)),
+                    IF(_basicFormat, _sYear & _sWeek, _sYear & "-" & _sWeek),
+                    IF(
+                        _basicFormat,
+                        _sYear & _sWeek & INT(DayOfWeek),
+                        _sYear & "-" & _sWeek & "-" & INT(DayOfWeek)
                     )
                 )
             )
@@ -1655,87 +1849,42 @@ FORMAT_ORDINAL_DATE = LAMBDA(
     )
 );
 
-
-/*-----------------------------------------------------------------------------------------------------
-FORMAT_WEEK_DATE
-
-Returns a week date as text in the ISO 8601 format.
-Example formats (not exhaustive):
-YYYY-Www-D
-YYYY-Www
-YYYYWwwD
-YYYYWww
-
-Parameters
--------------------------------------------------------------------------------------------------------
-YearCE      : Year in common era
-Week        : ISO defined week number of the year
-[DayOfWeek] : Day of the week where 1..7 -> Mon..Sun 
-[Basic]     : Return in basic format eg YYYYWwwD.
------------------------------------------------------------------------------------------------------*/
-FORMAT_WEEK_DATE = LAMBDA(
-    YearCE,
-    Week,
-    DayOfWeek,
-    [Basic],
-    IF((YearCE = "") * (Week = "") * (DayOfWeek = ""), "",
-        IF(NOT(IS_VALID_WEEK_DATE(YearCE, Week, DayOfWeek, 1)), #NUM!,
-            LET(
-                _basicFormat, N(Basic) <> 0,
-                _y, INT(VALUE(YearCE)),
-                _w, INT(VALUE(Week)),
-                _dow, IF(DayOfWeek = "", "", INT(VALUE(DayOfWeek))),
-                _sYear, IF(
-                    ABS(_y) >= 10000,
-                    TEXT(_y, "+00000;-00000"),
-                    TEXT(_y, "0000;-0000;0000")
-                ),
-                _sWeek, TEXT(_w, "W00"),
-                IF(
-                    DayOfWeek = "",
-                    IF(_basicFormat, _sYear & _sWeek, _sYear & "-" & _sWeek),
-                    IF(_basicFormat, _sYear & _sWeek & _dow, _sYear & "-" & _sWeek & "-" & _dow)
-                )
-            )
-        )
-    )
-);
-
-
 /*-----------------------------------------------------------------------------------------------------
 FORMAT_DATE_TIME
 
 Returns a date and time as text in the ISO 8601 format.
-Example formats (not exhaustive):
-YYYY-MM-DDThh:mm:ss.sss+hh:mm:ss
-YYYY-MM-DDThh:mm:ssZ
-Thh:mm:ss
+Example formats (not exhaustive): YYYY-MM-DDThh:mm:ss.sss+hh:mm:ss, YYYY-Www-DThh:mmZ, Thhmmss
+#VALUE! if an invalid date, time or time zone
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-[DateType]       : Date type represented in DateArg1 and DateArg2
-                 :   0 - Calendar date
-                 :   1 - Ordinal date
-                 :   2 - Week date 
-[YearCE]         : Year in common era
-[DateArg1]       : Month or Week
-[DateArg2]       : Day or Ordinal
-[Hour]           :
-[Minute]         :
-[Second]         :
-[TimeZoneOffset] : Time zone offset in minutes from UTC 
-[Basic]          : Return in basic format eg YYYYMMDDT1045+0930
-[Precision]      : Precision level to use
-                 :   0 - Automatic
-                 :   1 - Year
-                 :   2 - Month/Week
-                 :   3 - Day/Ordinal
-                 :   4 - Hour
-                 :   5 - Minute
-                 :   6 - Second
-                 :   7 - Fractional
-[NoTimezone]     : Drop tim zone from output.
-[NoZulu]         : Use +00:00 instead of Z for UTC time zone.
+DateType         | integer | Date type represented in DateArg1 and DateArg2
+                 |         |   0 - no date
+                 |         |   1 - calendar date
+                 |         |   2 - ordinal date
+                 |         |   3 - week date
+YearCE           | integer | Year in Common Era -99999..+99999
+[DateArg1]       | integer | Month of year when DateType = 1         1..12
+                 |         | Week of year when DateType = 3          1..53
+[DateArg2]       | integer | Day of month when DateType = 1          1..31
+                 |         | Ordinal day of year when DateType = 2   1..366
+                 |         | Day of week when DateType = 3           1..7
+[Hour]           | integer | 0..24
+[Minute]         | integer | 0..59
+[Second]         | decimal | 0..59.999
+[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC -900..+900
+[Basic]          | switch  | Return in basic format eg YYYYMMDDT1045+0930
+[Precision]      | integer | Select precision level
+                 |         |   0 - Automatic
+                 |         |   1 - Year
+                 |         |   2 - Month/Week
+                 |         |   3 - Day/Ordinal
+                 |         |   4 - Hour
+                 |         |   5 - Minute
+                 |         |   6 - Second
+                 |         |   7 - Fractional
+[NoTimeZone]     | switch  | Drop time zone from output.
+[NoZulu]         | switch  | Use +00:00 instead of Z for UTC time zone.
 -----------------------------------------------------------------------------------------------------*/
 FORMAT_DATE_TIME = LAMBDA(
     DateType,
@@ -1751,57 +1900,71 @@ FORMAT_DATE_TIME = LAMBDA(
     [NoTimeZone],
     [NoZulu],
     LET(
-        _hasDate, (YearCE <> "") + (DateArg1 <> "") + (DateArg2 <> "") <> 0,
-        _hasTime, (Hour <> "") + (Minute <> "") + (Second <> "") <> 0,
-        _hasTimeZone, (TimeZoneOffset <> ""),
-        _showTimeZone, N(NoTimeZone) = 0, 
+        _dateType, MAX(INT(N(DateType)), 0),
+        _hasDate, IF(
+            _dateType = 0,
+            FALSE,
+            (ISNUMBER(YearCE) + ISNUMBER(DateArg1) + ISNUMBER(DateArg2)) <> 0
+        ),
+        _hasTime, (ISNUMBER(Hour) + ISNUMBER(Minute) + ISNUMBER(Second)) <> 0,
+        _hasTimeZone, ISNUMBER(TimeZoneOffset),
+        _showTimeZone, N(NoTimeZone) = 0,
         _isEmpty, _hasDate + _hasTime + (_hasTimeZone * _showTimeZone) = 0,
-        IF(_isEmpty, "",
-            IF((_hasDate * _hasTimeZone * _showTimeZone) * NOT(_hasTime), #VALUE!,
+        IF(
+            _isEmpty,
+            "",
+            IF(
+                (_hasDate * _hasTimeZone * _showTimeZone) * NOT(_hasTime),
+                #VALUE!,
                 LET(
-                    _dateType, N(DateType),
-                    _precision, MAX(N(Precision), 0),
+                    _precision, MAX(INT(N(Precision)), 0),
                     _sDate, IFS(
                         _dateType = 1,
-                            IFS(
-                                (_precision = 0) + (_precision >= 3), 
-                                    FORMAT_DATE(YearCE, DateArg1, DateArg2, Basic),
-                                _precision = 1, 
-                                    FORMAT_DATE(YearCE, "", "", Basic),
-                                _precision = 2, 
-                                    FORMAT_DATE(YearCE, DateArg1, "", Basic)
-                            ),
-
+                        IFS(
+                            (_precision = 0) + (_precision >= 3),
+                            FORMAT_DATE(YearCE, DateArg1, DateArg2, Basic),
+                            _precision = 1,
+                            FORMAT_DATE(YearCE, "", "", Basic),
+                            _precision = 2,
+                            FORMAT_DATE(YearCE, DateArg1, "", Basic)
+                        ),
                         _dateType = 2,
-                            IF((_precision = 0) + (_precision >= 3), 
-                                FORMAT_ORDINAL_DATE(YearCE, DateArg2, Basic),
-                                FORMAT_ORDINAL_DATE(YearCE, "", Basic)
-                            ),
-                            
+                        IF(
+                            (_precision = 0) + (_precision >= 3),
+                            FORMAT_ORDINAL_DATE(YearCE, DateArg2, Basic),
+                            FORMAT_ORDINAL_DATE(YearCE, "", Basic)
+                        ),
                         _dateType = 3,
-                            IFS(
-                                (_precision = 0) + (_precision >= 3), 
-                                    FORMAT_WEEK_DATE(YearCE, DateArg1, DateArg2, Basic),
-                                _precision = 1, 
-                                    FORMAT_WEEK_DATE(YearCE, "", "", Basic),
-                                _precision = 2, 
-                                    FORMAT_WEEK_DATE(YearCE, DateArg1, "", Basic)
-                            ),
-                        
+                        IFS(
+                            (_precision = 0) + (_precision >= 3),
+                            FORMAT_WEEK_DATE(YearCE, DateArg1, DateArg2, Basic),
+                            _precision = 1,
+                            FORMAT_WEEK_DATE(YearCE, "", "", Basic),
+                            _precision = 2,
+                            FORMAT_WEEK_DATE(YearCE, DateArg1, "", Basic)
+                        ),
                         TRUE, //_dateType = 0,
-                            ""
+                        ""
                     ),
-                    _sTime, IF((_precision = 0) + (_precision >= 4),
+                    _sTime, IF(
+                        (_precision = 0) + (_precision >= 4),
                         FORMAT_TIME(Hour, Minute, Second, Basic, MAX(_precision - 3, 0)),
                         ""
                     ),
-                    _sTZO, IF(((_precision = 0) + (_precision >= 4)) * _hasTimeZone * _showTimeZone,
-                        IFS(_precision = 0,
-                                FORMAT_TIME_ZONE(TimeZoneOffset, Basic, 0, NoZulu),
-                            _precision >= 6,
-                                FORMAT_TIME_ZONE(TimeZoneOffset, Basic, 3, NoZulu),
-                            TRUE, //_precision >= 4
-                                FORMAT_TIME_ZONE(TimeZoneOffset, Basic, MAX(_precision - 3, 0), NoZulu)
+                    _sTZO, IF(
+                        ((_precision = 0) + (_precision >= 4)) * _hasTimeZone * _showTimeZone,
+                        LET(
+                            _TZprecision, IFS(
+                                _precision = 4,
+                                1,
+                                _precision = 5,
+                                2,
+                                _precision >= 6,
+                                3,
+                                TRUE,
+                                0
+                            ),
+                            FORMAT_TIME_ZONE(TimeZoneOffset, Basic, _TZprecision, NoZulu)
                         ),
                         ""
                     ),
@@ -1812,59 +1975,103 @@ FORMAT_DATE_TIME = LAMBDA(
     )
 );
 
-
 /*-----------------------------------------------------------------------------------------------------
 ISO_TO_DATE
 
 Converts text in ISO format to an Excel date. 
+Columns:
+  1 | Excel Date     | date    | 1900-01-01T00:00..9999-12-31T24:00
+  2 | Minutes offset | decimal | -900..+900 Optional, toggled by ReturnTimeZoneOffset
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-Text                  : ISO 8601 formatted date, time, time zone.
-[ReturnTimeZoneOffset : Include another column to eturn time zone offset in minutes.
+Text                   | string | ISO 8601 formatted date and time.
+[ReturnTimeZoneOffset] | switch | Include another column to return time zone offset in minutes.
 -----------------------------------------------------------------------------------------------------*/
-ISO_TO_DATE = LAMBDA(
-    Text,
-    [ReturnTimeZoneOffset],
+ISO_TO_DATE = LAMBDA(Text, [ReturnTimeZoneOffset],
     LET(
-        _elements, PARSE_DATE_TIME(Text),
-        _dateType, INDEX(_elements, 1, 1),
-        _hasTime, (INDEX(_elements, 1, 5) <> "") + (INDEX(_elements, 1, 6) <> "") + (INDEX(_elements, 1, 7) <> "") <> 0,
-        _hasTimeZone, (INDEX(_elements, 1, 8) <> ""),
-        _retTZO, N(ReturnTimeZoneOffset) <> 0,
-        _year, N(INDEX(_elements, 1, 2)),
-        IF((_year < 1900) + (_year >= 10000), #NUM!,
-            LET(
-                _date, IFS(_dateType = 0, "",
-                    _dateType = 1,
-                        DATE(_year, N(INDEX(_elements, 1, 3)), N(INDEX(_elements, 1, 4))),
-
-                    _dateType = 2,
-                        LET(
-                            _cDate, FROM_ORDINAL_DATE(_year, N(INDEX(_elements, 1, 4))),
-                            DATE(INDEX(_cDate, 1, 1), INDEX(_cDate, 1, 2), INDEX(_cDate, 1, 3))
-                        ),
-                    
-                    _dateType = 3,
-                        LET(
-                            _cDate, FROM_WEEK_DATE(_year, N(INDEX(_elements, 1, 3)), N(INDEX(_elements, 1, 4))),
-                            DATE(INDEX(_cDate, 1, 1), INDEX(_cDate, 1, 2), INDEX(_cDate, 1, 3))
-                        )
-                ),
-                _time, IF(_hasTime,
-                    TIME(N(INDEX(_elements, 1, 5)), N(INDEX(_elements, 1, 6)), N(INDEX(_elements, 1, 7))),
-                    ""
-                ),
-                _dt, N(_date) + N(_time),
-                IF(_retTZO,
-                    LET(
-                        _tzo, IF(_hasTimeZone,
-                            INDEX(_elements, 1, 8),
-                            ""
-                        ),
-                        HSTACK(_dt, _tzo)
+        fnException, LAMBDA(_e, _f,
+            IFS(
+                ISNA(_e),
+                    IF(_f,
+                        {#N/A, #N/A},
+                        #N/A
                     ),
-                    _dt
+                ISERR(_e),
+                    IF(_f,
+                        {#VALUE!, #VALUE!},
+                        #VALUE!
+                    ),
+                _e = "",
+                    IF(_f,
+                        {"", ""},
+                        ""
+                    )
+            )
+        ),
+
+        _fTZO, N(ReturnTimeZoneOffset) <> 0,
+        IF(Text = "", fnException("", _fTZO),
+            LET(
+                _elements, PARSE_DATE_TIME(Text),
+                IFS(
+                    //ISERROR(INDEX(_elements, 1 , 1)), fnException(INDEX(_elements, 1 , 1), _fTZO),
+                    //ISERROR(INDEX(_elements, 1 , 2)), fnException(INDEX(_elements, 1 , 2), _fTZO),
+                    //ISERROR(INDEX(_elements, 1 , 5)), fnException(INDEX(_elements, 1 , 5), _fTZO),
+                    TRUE, LET(
+                        _dateType, INDEX(_elements, 1, 1),
+                        _hasTime, (
+                            ISNUMBER(INDEX(_elements, 1, 5)) + ISNUMBER(INDEX(_elements, 1, 6)) +
+                                ISNUMBER(INDEX(_elements, 1, 7))
+                        ) <> 0,
+                        _hasTimeZone, ISNUMBER(INDEX(_elements, 1, 8)),
+                        _year, N(INDEX(_elements, 1, 2)),
+                        //IF(
+                          //  (_dateType > 0) * ((_year < 1900) + (_year > 9999)),
+                            //fnException(#VALUE!, _fTZO),
+                            //LET(
+                                _date, IFS(
+                                    ISERROR(_year), #VALUE!,
+                                    _dateType = 0,
+                                    0,
+                                    (_dateType > 0) * ((_year < 1900) + (_year > 9999)), #VALUE!,
+                                    _dateType = 1,
+                                        DATE(_year, N(INDEX(_elements, 1, 3)), N(INDEX(_elements, 1, 4))),
+                                    _dateType = 2,
+                                    LET(
+                                        _cDate, FROM_ORDINAL_DATE(_year, N(INDEX(_elements, 1, 4))),
+                                        DATE(INDEX(_cDate, 1, 1), INDEX(_cDate, 1, 2), INDEX(_cDate, 1, 3))
+                                    ),
+                                    _dateType = 3,
+                                    LET(
+                                        _cDate, FROM_WEEK_DATE(
+                                            _year,
+                                            N(INDEX(_elements, 1, 3)),
+                                            N(INDEX(_elements, 1, 4))
+                                        ),
+                                        DATE(INDEX(_cDate, 1, 1), INDEX(_cDate, 1, 2), INDEX(_cDate, 1, 3))
+                                    )
+                                ),
+                                _time, IF(
+                                    _hasTime,
+                                    TIME(
+                                        N(INDEX(_elements, 1, 5)),
+                                        N(INDEX(_elements, 1, 6)),
+                                        N(INDEX(_elements, 1, 7))
+                                    ),
+                                    0
+                                ),
+                                _dt, _date + _time,
+                                IF(_fTZO,
+                                    LET(
+                                        _tzo, IF(_hasTimeZone, INDEX(_elements, 1, 8), ""),
+                                        HSTACK(_dt, _tzo)
+                                    ),
+                                    _dt
+                                )
+                            //)
+                        //)
+                    )
                 )
             )
         )
@@ -1875,40 +2082,48 @@ ISO_TO_DATE = LAMBDA(
 DATE_TO_ISO
 
 Converts an Excel date to ISO formatted text.
+Example formats (not exhaustive): YYYY-MM-DDThh:mm:ss.sss+hh:mm:ss, YYYY-Www-DThh:mmZ, Thhmmss
 
 Parameters
 -------------------------------------------------------------------------------------------------------
-Date             : An Excel date and/or time.
-[TimeZoneOffset] : Time zone offset in minutes from UTC 
-[Basic]          : Return in basic format eg YYYYMMDDT1045+0930
-[Precision]      : Precision level to use
-                 :   0 - Automatic
-                 :   1 - Year
-                 :   2 - Month/Week
-                 :   3 - Day/Ordinal
-                 :   4 - Hour
-                 :   5 - Minute
-                 :   6 - Second
-                 :   7 - Fractional
-[NoTimezone]     : Drop tim zone from output.
-[NoZulu]         : Use +00:00 instead of Z for UTC time zone.
+Date             | date    | An Excel date and/or time.
+[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC -900..+900 
+[Basic]          | switch  | Return in basic format eg YYYYMMDDThhmm+hh
+[Precision]      | integer | Select precision level
+                 |         |   0 - Automatic
+                 |         |   1 - Year
+                 |         |   2 - Month/Week
+                 |         |   3 - Day/Ordinal
+                 |         |   4 - Hour
+                 |         |   5 - Minute
+                 |         |   6 - Second
+                 |         |   7 - Fractional
+[NoTimeZone]     | switch  | Drop time zone from output.
+[NoZulu]         | switch  | Use +00:00 instead of Z for UTC time zone.
 -----------------------------------------------------------------------------------------------------*/
-DATE_TO_ISO = LAMBDA(
-    Date,
-    [TimeZoneOffset],
-    [Basic],
-    [Precision],
-    [NoTimeZone],
-    [NoZulu],
-    LET(
-        _isDate, N(INT(Date) <> 0),
-        _year, IF(_isDate, YEAR(Date), ""),
-        _month, IF(_isDate, MONTH(Date), ""),
-        _day, IF(_isDate, DAY(Date), ""),
-        FORMAT_DATE_TIME(
-            _isDate, _year, _month, _day,
-             HOUR(Date), MINUTE(Date), SECOND(Date),
-            TimeZoneOffset, Basic, Precision, NoTimeZone, NoZulu
+DATE_TO_ISO = LAMBDA(Date, [TimeZoneOffset], [Basic], [Precision], [NoTimeZone], [NoZulu],
+    IF(
+        NOT(ISNUMBER(Date)),
+        "",
+        LET(
+            _hasDate, INT(N(Date) <> 0),
+            _year, IF(_hasDate, YEAR(Date), ""),
+            _month, IF(_hasDate, MONTH(Date), ""),
+            _day, IF(_hasDate, DAY(Date), ""),
+            FORMAT_DATE_TIME(
+                N(_hasDate),
+                _year,
+                _month,
+                _day,
+                HOUR(Date),
+                MINUTE(Date),
+                SECOND(Date),
+                TimeZoneOffset,
+                Basic,
+                Precision,
+                NoTimeZone,
+                NoZulu
+            )
         )
     )
 );
