@@ -39,7 +39,7 @@
 # PARSE_TIME_ZONE          Returns the time zone offset in minutes from text in the ISO 8601 format.     #
 # PARSE_PARTS              Splits ISO 8601 formatted text value into into respective parts of date,      #
 #                          time and time zone.                                                           #
-# PARSE_DATE_TIME          Returns the date and time from text in the ISO 8601 format.                   #
+# PARSE_ISO8601            Returns the date and time complications from text in the ISO 8601 format.     #
 #                                                                                                        #
 # Formatting Functions                                                                                   #
 # ------------------------------------------------------------------------------------------------------ #
@@ -48,12 +48,12 @@
 # FORMAT_TIME_ZONE         Returns a time zone as text in the ISO 8601 format.                           #
 # FORMAT_ORDINAL_DATE      Returns an ordinal date as text in the ISO 8601 format.                       #
 # FORMAT_WEEK_DATE         Returns a week date as text in the ISO 8601 format.                           #
-# FORMAT_DATE_TIME         Returns a date and time as text in the ISO 8601 format.                       #
+# FORMAT_ISO8601           Returns date and time complications as text in the ISO 8601 format.           #
 #                                                                                                        #
 # Conversion Functions                                                                                   #
 # ------------------------------------------------------------------------------------------------------ #
-# ISO_TO_DATE              Converts text in ISO format to an Excel date.                                 #
-# DATE_TO_ISO              Converts an Excel date to ISO formatted text.                                 #
+# CONVERT_TO_DATE          Converts text in ISO format to an Excel date.                                 #
+# CONVERT_FROM_DATE        Converts an Excel date to ISO formatted text.                                 #
 #                                                                                                        #
 ########################################################################################################*/
 
@@ -856,7 +856,7 @@ Columns:
 Parameters
 ----------------------------------------------------------------------------------------------------------
 Text        | string | ISO 8601 formatted date.
-            |        | Example formats (not exhaustive):
+            |        | Example formats:
             |        | +YYYYY-MM-DD, -YYYY-MM-DD, YYYY-MM-DD, YYYY-MM, YYYYMMDD, YYYY
 --------------------------------------------------------------------------------------------------------*/
 PARSE_DATE = LAMBDA(Text,
@@ -995,7 +995,7 @@ Columns:
 Parameters
 ----------------------------------------------------------------------------------------------------------
 Text        | string | ISO 8601 formatted time.
-            |        | Example formats (not exhaustive):
+            |        | Example formats:
             |        | Thh:mm:ss.sss, Thh:mm:ss, Thhmm, Thh
 --------------------------------------------------------------------------------------------------------*/
 PARSE_TIME = LAMBDA(Text,
@@ -1163,9 +1163,9 @@ Columns:
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Text        | string | ISO 8601 formatted time.
-            |        | Example formats (not exhaustive):
-            |        | Thh:mm:ss.sss, Thh:mm:ss, Thhmm, Thh
+Text        | string | ISO 8601 formatted time zone.
+            |        | Example formats:
+            |        | +hh:mm, +hhmm, -hh, Z
 --------------------------------------------------------------------------------------------------------*/
 PARSE_TIME_ZONE = LAMBDA(Text,
     LET(
@@ -1300,9 +1300,9 @@ Splits ISO 8601 formatted text value into into respective parts of date, time an
 Columns:
   1 | ISOCompliant | boolean | Flag if compliant to ISO 8601 standard
   2 | Parts        | integer | Bitflag of parts 0..7
-    |              |         | 0x01 - date
+    |              |         | 0x04 - date
     |              |         | 0x02 - time
-    |              |         | 0x04 - time zone
+    |              |         | 0x01 - time zone
   3 | Date         | string  |
   4 | Time         | string  |
   5 | Time Zone    | string  |
@@ -1313,61 +1313,13 @@ Text         | string | ISO 8601 formatted value for date, time or time zone.
 --------------------------------------------------------------------------------------------------------*/
 PARSE_PARTS = LAMBDA(Text,
     LET(
-        // Columns: Hash, ISOCompliant, PartsFlag, DateMark, TZMark
-        // where Hash = (_HasT * 128) + (_Tfirst *64 ) + (_lastSignFirstPos * 32) + (_hasZorSignAfterT * 16) + (_ZorSignFirstAfterT * 8) + (_colonAfterLastSign * 4) + (_unsignedLen2or6 * 2) + _hasZlast
-        // PartsFlag: 0 - no parts
-        //            1 - date
-        //            2 - time
-        //            3 - date and time
-        //            4 - time zone
-        //            5 - date and time zone
-        //            6 - time and time zone
-        //            7 - date, time and time zone
-        // DateMark : 0 -> null
-        //            1 -> _len
-        //            2 -> _Tpos - 1
-        //            3 -> _signLastPos - 1
-        //            4 -> _len - 1
-        //
-        // TZMark     0 -> null
-        //            1 -> 1
-        //            2 -> _len - _signLastPos + 1
-        _logicHashTable, {
-            0, 1, 1, 1, 0;
-            1, 0, 4, 0, 1;
-            32, 1, 1, 1, 0;
-            34, 0, 4, 0, 2;
-            36, 1, 4, 0, 2;
-            128, 1, 3, 2, 0;
-            132, 1, 3, 2, 0;
-            144, 1, 7, 2, 2;
-            148, 1, 7, 2, 2;
-            149, 1, 7, 2, 2;
-            152, 0, 5, 2, 2;
-            153, 0, 5, 2, 1;
-            155, 0, 5, 2, 1;
-            156, 0, 5, 2, 2;
-            160, 1, 3, 2, 0;
-            185, 0, 5, 2, 1;
-            192, 1, 2, 0, 0;
-            196, 1, 2, 0, 0;
-            198, 1, 2, 0, 0;
-            208, 1, 6, 0, 2;
-            209, 1, 6, 0, 1;
-            212, 1, 6, 0, 2;
-            213, 1, 6, 0, 1;
-            216, 0, 4, 0, 2;
-            219, 0, 4, 0, 1
-        },
-
+        
         fnException, LAMBDA(_exception,
             // _exception  | string  | null  Empty text
             //             |         | N/A   Unable to parse
-            IFS(
-                _exception = "N/A",
-                    {FALSE, 0, "", "", ""},
-                TRUE,
-                    {"", "", "", "", ""}
+            IF(_exception = "N/A",
+                {FALSE, 0, "", "", ""},
+                {"", "", "", "", ""}
             )
         ),
 
@@ -1429,45 +1381,134 @@ PARSE_PARTS = LAMBDA(Text,
                 )
             )
         ),
-    
+
+        // 1 - T first             1 = At first position
+        //                         2 = After first position
+        // 2 - TZ marker after T   0 = No sign or Z
+        //                         1 = First position following T
+        //                         2 = After first position following T
+        // 3 - Parts bit flag      0x04 - Date
+        //                         0x02 - Time
+        //                         0x01 - Time Zone
+        WithT_Logic, {
+            1, 0, 2;
+            1, 1, 1;
+            1, 2, 3;
+            2, 0, 6;
+            2, 1, 5;
+            2, 2, 7
+        },
+
+        // 1 - TZ marker first     0 = No sign or Z
+        //                         1 = First position
+        //                         2 = After first position
+        // 2 - TZ marker is Z (boolean)
+        // 3 - Has Colon (boolean)
+        // 4 - Time conditions (boolean)
+        // 5 - Parts bit flag      0x04 - Date
+        //                         0x02 - Time
+        //                         0x01 - Time Zone
+        WithoutT_Logic, {
+            0, 0, 0, 0, 4;
+            0, 0, 0, 1, 2;
+            0, 0, 1, 0, 2;
+            1, 0, 0, 0, 4;
+            1, 0, 0, 1, 1;
+            1, 0, 1, 0, 1;
+            1, 1, 0, 0, 1;
+            2, 0, 0, 0, 4;
+            2, 0, 0, 1, 3;
+            2, 0, 1, 0, 3;
+            2, 0, 1, 1, 3;
+            2, 1, 0, 1, 3;
+            2, 1, 1, 0, 3
+        },
+
+        fnWithT_PartsLen, LAMBDA(_Tpos, _Tfirst,
+            LET(
+                _len, LEN(Text),
+                _afterT, RIGHT(Text, _len - _Tpos),
+                _TZmarkerPos, fnFindNthCharPos("Z+-" & UNICHAR(8722), _afterT, 1),
+                _TZmarkFirst, IF(_TZmarkerPos > 1, 2, _TZmarkerPos),
+                _partsFlag, FILTER(CHOOSECOLS(WithT_Logic, 3), (CHOOSECOLS(WithT_Logic, 1) = _Tfirst) * (CHOOSECOLS(WithT_Logic, 2) = _TZmarkFirst), #N/A),
+                IF(ISNA(_partsFlag),
+                    HSTACK(#N/A, 0, 0, 0),
+                    LET(
+                        _dateLen, _Tpos - 1,
+                        _timeLen, IF(BITAND(_partsFlag, 2) = 2,
+                            IF(BITAND(_partsFlag, 1) = 1,
+                                _TZmarkerPos - 1,
+                                _len - _Tpos
+                            ),
+                            0
+                        ),
+                        _tzLen, _len - _Tpos - _timeLen,
+                        HSTACK(_partsFlag, _dateLen, _timeLen, _tzLen)
+                    )
+                )
+            )
+        ),
+
+        fnWithoutT_PartsLen, LAMBDA(
+            LET(
+                _len, LEN(Text),
+                _TZmarkPos, fnFindNthCharPos("Z+-" & UNICHAR(8722), Text, -1),
+                _TZmarkFirst, IF(_TZmarkPos > 1, 2, _TZmarkPos),
+                _TZmarkIsZ, IF(_TZmarkPos > 0, N(CODE(MID(Text, _TZmarkPos, 1)) = 90), 0), // CODE("Z") = 90 
+                _HasColon, N(IFERROR(FIND(":", Text), 0) > 0),
+                _lenBeforeTZ, IF(_TZmarkFirst = 0, _len, _TZmarkPos - 1),
+                _timeConditional, IF(_TZmarkFirst = 1,
+                    LET(
+                        _lenAfterTZ, _len - _TZmarkPos,
+                        IFS(_lenAfterTZ = 2, 1,
+                            _lenAfterTZ = 6, 1,
+                            TRUE, 0
+                        )
+                    ),
+                    N(_lenBeforeTZ = 2)
+                ),
+                _match, (
+                    (CHOOSECOLS(WithoutT_Logic, 1) = _TZmarkFirst)
+                    * (CHOOSECOLS(WithoutT_Logic, 2) = _TZmarkIsZ)
+                    * (CHOOSECOLS(WithoutT_Logic, 3) = _HasColon)
+                    * (CHOOSECOLS(WithoutT_Logic, 4) = _timeConditional)
+                ),
+
+                _partsFlag, FILTER(CHOOSECOLS(WithoutT_Logic, 5), _match, #N/A),
+                _dateLen, IF(BITAND(_partsFlag, 4) = 4, _len, 0),
+                _timeLen, IF(BITAND(_partsFlag, 2) = 2, _lenBeforeTZ, 0),
+                _tzLen, IF(BITAND(_partsFlag, 1) = 1, _len - _TZmarkPos + 1, 0),
+                HSTACK(_partsFlag, _dateLen, _timeLen, _tzLen)
+            )
+        ),
+
         IF(Text = "", fnException(""),
             IF(NOT(VALIDATE_CHARACTERS(Text, 0)), fnException("N/A"),
                 LET(
-                    _len, LEN(Text),
                     _Tpos, IFERROR(FIND("T", Text), 0),
-                    _signLastPos, fnFindNthCharPos("+-" & UNICHAR(8722), Text, -1),
-                    _colonLastPos, fnFindNthCharPos(":", Text, -1),
-                    _ZlastPos, fnFindNthCharPos("Z", Text, -1),
-                    _hasT, N(_Tpos > 0),
-                    _Tfirst, N(_Tpos = 1),
-                    _lastSignFirstPos, N(_signLastPos = 1),
-                    _unsignedLen, _len - _lastSignFirstPos, 
-                    _hasZorSignAfterT, (_Tpos <> 0) * (((_ZlastPos>_Tpos) + (_signLastPos > _Tpos)) <> 0),
-                    _ZorSignFirstAfterT, (_Tpos <> 0) * (((_ZlastPos = _Tpos + 1) + (_signLastPos = _Tpos + 1)) <> 0),
-                    _colonAfterLastSign, N(_colonLastPos > _signLastPos),
-                    _unsignedLen2or6, N(((_unsignedLen = 2) + (_unsignedLen = 6))<>0),
-                    _hasZlast, N(_ZlastPos = _Len),
-                    _hash, (_hasT * 128) + (_Tfirst * 64) + (_lastSignFirstPos * 32) + (_hasZorSignAfterT * 16) + (_ZorSignFirstAfterT * 8) + (_colonAfterLastSign * 4) + (_unsignedLen2or6 * 2) + _HasZlast,
-                    _hashLkup, IFNA(XMATCH(_hash, CHOOSECOLS(_logicHashTable, 1), 0), 0),
-                    IF(_hashLkup = 0, fnException("N/A"),
+                    IF(_Tpos = LEN(Text), fnException("N/A"),
                         LET(
-                            _defn, CHOOSEROWS(_logicHashTable, _hashLkup),
-                            _isoCompliant, INDEX(_defn, 1, 2) <> 0,
-                            _partsFlag, INDEX(_defn, 1, 3),
-                            _dateMark, INDEX(_defn, 1, 4),
-                            _tzMark, INDEX(_defn, 1, 5),
-                            _dateLen, IFS(_dateMark = 0, 0,
-                                _dateMark = 1, _len,
-                                _dateMark = 2, _Tpos - 1,
-                                _dateMark = 3, _signLastPos - 1,
-                                _dateMark = 4, _len - 1
+                            _hasT, IF(_Tpos > 1, 2, _Tpos),
+                            
+                            _partsLen, IF(_hasT,
+                                fnWithT_PartsLen(_Tpos, _hasT),
+                                fnWithoutT_PartsLen()
                             ),
-                            _tzLen, IF(_tzMark = 2, _len - _signLastPos + 1, _tzMark),
-                            _timeLen, _len - _dateLen - _tzLen,
-                            _sDate, IF(BITAND(_partsFlag, 1) = 0, "", LEFT(Text, _dateLen)),
-                            _sTime, IF(BITAND(_partsFlag, 2) = 0, "", MID(Text, _dateLen + 1, _timeLen)),
-                            _sTZ, IF(BITAND(_partsFlag, 4) = 0, "", RIGHT(Text, _tzLen)),
-                            HSTACK(_isoCompliant, _partsFlag, _sDate, _sTime, _sTZ)
+                            _partsFlag, INDEX(_partsLen, 1, 1),
+                            IF(ISNA(_partsFlag), fnException("N/A"),
+                                LET(
+                                    _isoCompliant, IFS(
+                                        _partsFlag = 1, FALSE,
+                                        _partsFlag = 5, FALSE,
+                                        _partsFlag = 4, TRUE,
+                                        TRUE, (_hasT > 0)
+                                    ),
+                                    _datePart, IF(BITAND(_partsFlag, 4) = 4, LEFT(Text, INDEX(_partsLen, 1, 2)), ""),
+                                    _timePart, IF(BITAND(_partsFlag, 2) = 2, "T" & MID(Text, _Tpos + 1, INDEX(_partsLen, 1, 3)), ""),
+                                    _tzPart, IF(BITAND(_partsFlag, 1) = 1, RIGHT(Text, INDEX(_partsLen, 1, 4)), ""),
+                                    HSTACK(_isoCompliant, _partsFlag, _datePart, _timePart, _tzPart)
+                                )
+                            )
                         )
                     )
                 )
@@ -1478,16 +1519,16 @@ PARSE_PARTS = LAMBDA(Text,
 
 
 /*--------------------------------------------------------------------------------------------------------
-PARSE_DATE_TIME
+PARSE_ISO8601
 
-Returns the date and time of text in the ISO8601 format.
+Returns the date and time complications of text in the ISO8601 format.
 
 Columns:
   1 | ISOCompliant   | boolean | Flag if compliant to ISO 8601 standard
   2 | Parts          | integer | Bitflag of parts 0..7
-    |                |         | 0x01 - date
+    |                |         | 0x04 - date
     |                |         | 0x02 - time
-    |                |         | 0x04 - time zone
+    |                |         | 0x01 - time zone
   3 | Precision      | integer | 1 - year
     |                |         | 2 - month/week
     |                |         | 3 - day
@@ -1519,10 +1560,10 @@ Columns:
 Parameters
 ----------------------------------------------------------------------------------------------------------
 Text            | string | ISO 8601 formatted date and time.
-                |        | Example formats (not exhaustive):
+                |        | Example formats:
                 |        | +YYYYY-MM-DDThh:mm:ss.sss+hh:mm:ss, YYYY-MM-DDThh:mm-hh, YYYY-Www-DThh:mmZ
 --------------------------------------------------------------------------------------------------------*/
-PARSE_DATE_TIME = LAMBDA(Text,
+PARSE_ISO8601 = LAMBDA(Text,
     LET(
         fnException, LAMBDA(_exception,
             // _exception   | string  | null  Empty text
@@ -1533,6 +1574,16 @@ PARSE_DATE_TIME = LAMBDA(Text,
                 {"", "", "", "", "", "", "", "", "", "", "", ""}
             )
         ),
+        
+        fnPartsFlag, LAMBDA(_pDate, _pTime, _pTZ,
+            LET(
+                _datePart, N(INDEX(_pDate, 1, 1)) * 4,
+                _timePart, N(INDEX(_pTime, 1, 1)) * 2,
+                _tzPart, N(INDEX(_pTZ, 1, 1)) * 1,
+                _datePart + _timePart + _tzPart
+            )
+        ),
+        
         fnISOValueCompliance, LAMBDA(_pDate, _pTime, _pTZ,
             LET(
                 _dateISOCompliant, IF(INDEX(_pDate, 1, 1) = "", TRUE, INDEX(_pDate, 1, 1)),
@@ -1605,18 +1656,19 @@ PARSE_DATE_TIME = LAMBDA(Text,
                 IF(N(INDEX(_parts, 1, 2)) = 0, fnException("N/A"),
                     LET(
                         _isoPartsCompliance, N(INDEX(_parts, 1, 1)),
-                        _flgParts, N(INDEX(_parts, 1, 2)),
                         _pDate, PARSE_DATE(INDEX(_parts, 1, 3)),
                         _pTime, PARSE_TIME(INDEX(_parts, 1, 4)),
                         _pTZ, PARSE_TIME_ZONE(INDEX(_parts, 1, 5)),
                         _isoValueCompliance, fnISOValueCompliance(_pDate, _pTime, _pTZ),
                         _isoFormatCompliance, fnISOFormatCompliance(_pDate, _pTime, _pTZ),
                         _isoPrecisionCompliance, fnISOPrecisionCompliance(_pDate, _pTime, _pTZ),
-                        _isoCompliance, (_isoValueCompliance * _isoPartsCompliance * INDEX(_isoFormatCompliance, 1, 1) * INDEX(_isoPrecisionCompliance, 1, 1)) <> 0,
-                        _outDate, DROP(_pDate, , 3),
+                        _outISOcompliance, (_isoValueCompliance * _isoPartsCompliance * INDEX(_isoFormatCompliance, 1, 1) * INDEX(_isoPrecisionCompliance, 1, 1)) <> 0,
+                        _outDateType, N(INDEX(_pDate, 1, 4)),
+                        _outDate, DROP(_pDate, , 4),
                         _outTime, DROP(_pTime, , 3),
                         _outTZ, DROP(_pTZ, , 3),
-                        HSTACK(_isoCompliance, _flgParts, INDEX(_isoPrecisionCompliance, 1, 2), INDEX(_isoFormatCompliance, 1, 2), _outDate, _outTime, _outTZ)
+                        _outPartsFlag, fnPartsFlag(_pDate, _pTime, _pTZ),
+                        HSTACK(_outISOcompliance, _outPartsFlag, INDEX(_isoPrecisionCompliance, 1, 2), INDEX(_isoFormatCompliance, 1, 2), _outDateType, _outDate, _outTime, _outTZ)
                     )
                 )
             )
@@ -1630,16 +1682,17 @@ FORMAT_DATE
 
 Returns a date as text in the ISO 8601 format.
 Example formats (not exhaustive): +YYYYY-MM-DD, YYYY-MM-DD, YYYY-MM, +YYYYMM, YYYY
-#VALUE! if an invalid date
+#VALUE! if an invalid date or ambiguous basic format. eg 202305
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE  | integer | Year in Common Era -99999..+99999
-[Month] | integer | Month of the year
-[Day]   | integer | Day of the month
-[Basic] | switch  | Return in basic format eg YYYYMMDD
+YearCE   | integer | Year in Common Era -99999..+99999
+[Month]  | integer | Month of the year
+[Day]    | integer | Day of the month
+[Basic]  | switch  | Return in basic format eg YYYYMMDD
+[Signed] | switch  | Always sign year value eg +YYYY-MM-DD
 --------------------------------------------------------------------------------------------------------*/
-FORMAT_DATE = LAMBDA(YearCE, [Month], [Day], [Basic],
+FORMAT_DATE = LAMBDA(YearCE, [Month], [Day], [Basic], [Signed],
     IF(
         NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Month)) * NOT(ISNUMBER(Day)),
         "",
@@ -1648,30 +1701,35 @@ FORMAT_DATE = LAMBDA(YearCE, [Month], [Day], [Basic],
             #VALUE!,
             LET(
                 _basicFormat, N(Basic) <> 0,
-                _y, INT(YearCE),
-                _yFmt, IFS(
-                    ABS(_y) >= 10000,
-                    "+00000;-00000",
-                    NOT(ISNUMBER(Day)) * _basicFormat,
-                    "+0000;-0000;+0000",
-                    TRUE,
-                    "0000;-0000;0000"
-                ),
-                _sYear, TEXT(_y, _yFmt),
-                IF(
-                    NOT(ISNUMBER(Month)),
-                    _sYear,
+                _signedYear, N(Signed) <> 0,
+                IF(NOT(ISNUMBER(Day)) * _basicFormat, #VALUE!,
                     LET(
-                        _sMonth, TEXT(INT(Month), "00"),
+                        _y, INT(YearCE),
+                        _yFmt, IFS(
+                            ABS(_y) >= 10000,
+                                "+00000;" & UNICHAR(8722) & "00000",
+                            _signedYear,
+                                "+0000;" & UNICHAR(8722) & "0000;+0000",
+                            TRUE,
+                                "0000;" & UNICHAR(8722) & "0000;0000"
+                        ),
+                        _sYear, TEXT(_y, _yFmt),
                         IF(
-                            NOT(ISNUMBER(Day)),
-                            IF(_basicFormat, _sYear & _sMonth, _sYear & "-" & _sMonth),
+                            NOT(ISNUMBER(Month)),
+                            _sYear,
                             LET(
-                                _sDay, TEXT(INT(Day), "00"),
+                                _sMonth, TEXT(INT(Month), "00"),
                                 IF(
-                                    _basicFormat,
-                                    _sYear & _sMonth & _sDay,
-                                    _sYear & "-" & _sMonth & "-" & _sDay
+                                    NOT(ISNUMBER(Day)),
+                                    IF(_basicFormat, _sYear & _sMonth, _sYear & "-" & _sMonth),
+                                    LET(
+                                        _sDay, TEXT(INT(Day), "00"),
+                                        IF(
+                                            _basicFormat,
+                                            _sYear & _sMonth & _sDay,
+                                            _sYear & "-" & _sMonth & "-" & _sDay
+                                        )
+                                    )
                                 )
                             )
                         )
@@ -1799,7 +1857,7 @@ FORMAT_TIME_ZONE = LAMBDA(OffsetMinutes, [Basic], [Precision], [NoZulu],
                             TRUE,
                             IF(_basicFormat, "hhmmss", "hh:mm:ss")
                         ),
-                        _sign, IF(SIGN(OffsetMinutes) < 0, "-", "+"),
+                        _sign, IF(SIGN(OffsetMinutes) < 0, UNICHAR(8722), "+"),
                         _timeZoneOffset, ABS(OffsetMinutes) / 1440,
                         _sign & TEXT(_timeZoneOffset, _sFmt)
                     )
@@ -1818,11 +1876,12 @@ Example formats (not exhaustive): YYYY-DDD, YYYYDDD
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE  | integer | Year in Common Era -99999..+99999
-Ordinal | integer | Ordinal day of year
-[Basic] | switch  | Return in basic format eg YYYYDDD
+YearCE   | integer | Year in Common Era -99999..+99999
+Ordinal  | integer | Ordinal day of year
+[Basic]  | switch  | Return in basic format eg YYYYDDD
+[Signed] | switch  | Always sign year value eg +YYYY-MM-DD
 --------------------------------------------------------------------------------------------------------*/
-FORMAT_ORDINAL_DATE = LAMBDA(YearCE, Ordinal, [Basic],
+FORMAT_ORDINAL_DATE = LAMBDA(YearCE, Ordinal, [Basic], [Signed],
     IF(
         NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Ordinal)),
         "",
@@ -1831,11 +1890,23 @@ FORMAT_ORDINAL_DATE = LAMBDA(YearCE, Ordinal, [Basic],
             #VALUE!,
             LET(
                 _basicFormat, N(Basic) <> 0,
+                _signedYEar, N(Signed) <> 0,
                 _y, INT(YearCE),
-                _yFmt, IF(ABS(_y) >= 10000, "+00000;-00000", "0000;-0000;0000"),
-                _sYear, TEXT(_y, _yFmt),
-                _sOrdinal, TEXT(INT(Ordinal), "000"),
-                IF(_basicFormat, _sYear & _sOrdinal, _sYear & "-" & _sOrdinal)
+                IF((ABS(_y) >= 10000) * _basicFormat, #VALUE!,
+                    LET(                
+                        _yFmt, IFS(
+                            ABS(_y) >= 10000,
+                                "+00000;" & UNICHAR(8722) & "00000",
+                            _signedYear,
+                                "+0000;" & UNICHAR(8722) & "0000;+0000",
+                            TRUE,
+                                "0000;" & UNICHAR(8722) & "0000;0000"
+                        ),
+                        _sYear, TEXT(_y, _yFmt),
+                        _sOrdinal, TEXT(INT(Ordinal), "000"),
+                        IF(_basicFormat, _sYear & _sOrdinal, _sYear & "-" & _sOrdinal)
+                    )
+                )
             )
         )
     )
@@ -1854,8 +1925,9 @@ YearCE    | integer | Year in Common Era -99999..+99999
 Week      | integer | ISO defined week number of the year
 DayOfWeek | integer | Day of the week where 1..7 -> Mon..Sun 
 [Basic]   | switch  | Return in basic format eg YYYYWwwD
+[Signed]  | switch  | Always sign year value eg +YYYY-Www-D
 --------------------------------------------------------------------------------------------------------*/
-FORMAT_WEEK_DATE = LAMBDA(YearCE, Week, DayOfWeek, [Basic],
+FORMAT_WEEK_DATE = LAMBDA(YearCE, Week, DayOfWeek, [Basic], [Signed],
     IF(
         NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Week)) * NOT(ISNUMBER(DayOfWeek)),
         "",
@@ -1864,8 +1936,16 @@ FORMAT_WEEK_DATE = LAMBDA(YearCE, Week, DayOfWeek, [Basic],
             #VALUE!,
             LET(
                 _basicFormat, N(Basic) <> 0,
+                _signedYear, N(Signed) <> 0,
                 _y, INT(YearCE),
-                _yFmt, IF(ABS(_y) >= 10000, "+00000;-00000", "0000;-0000;0000"),
+                _yFmt, IFS(
+                    ABS(_y) >= 10000,
+                        "+00000;" & UNICHAR(8722) & "00000",
+                    _signedYear,
+                        "+0000;" & UNICHAR(8722) & "0000;+0000",
+                    TRUE,
+                        "0000;" & UNICHAR(8722) & "0000;0000"
+                ),
                 _sYear, TEXT(_y, _yFmt),
                 _sWeek, TEXT(INT(Week), "W00"),
                 IF(
@@ -1883,9 +1963,9 @@ FORMAT_WEEK_DATE = LAMBDA(YearCE, Week, DayOfWeek, [Basic],
 );
 
 /*--------------------------------------------------------------------------------------------------------
-FORMAT_DATE_TIME
+FORMAT_ISO8601
 
-Returns a date and time as text in the ISO 8601 format.
+Returns date and time complications as text in the ISO 8601 format.
 Example formats (not exhaustive): YYYY-MM-DDThh:mm:ss.sss+hh:mm:ss, YYYY-Www-DThh:mmZ, Thhmmss
 #VALUE! if an invalid date, time or time zone
 
@@ -1907,6 +1987,7 @@ YearCE           | integer | Year in Common Era -99999..+99999
 [Second]         | decimal | 0..59.999
 [TimeZoneOffset] | decimal | Time zone offset in minutes from UTC -900..+900
 [Basic]          | switch  | Return in basic format eg YYYYMMDDT1045+0930
+[Signed]         | switch  | Always sign year value eg +YYYY-MM-DD
 [Precision]      | integer | Select precision level
                  |         |   0 - Automatic
                  |         |   1 - Year
@@ -1919,7 +2000,7 @@ YearCE           | integer | Year in Common Era -99999..+99999
 [NoTimeZone]     | switch  | Drop time zone from output.
 [NoZulu]         | switch  | Use +00:00 instead of Z for UTC time zone.
 --------------------------------------------------------------------------------------------------------*/
-FORMAT_DATE_TIME = LAMBDA(
+FORMAT_ISO8601 = LAMBDA(
     DateType,
     [YearCE],
     [DateArg1],
@@ -1929,11 +2010,12 @@ FORMAT_DATE_TIME = LAMBDA(
     [Second],
     [TimeZoneOffset],
     [Basic],
+    [Signed],
     [Precision],
     [NoTimeZone],
     [NoZulu],
     LET(
-        _dateType, MAX(INT(N(DateType)), 0),
+        _dateType, LET(_dt, MAX(INT(N(DateType)), 0), IF(_dt > 3, 0, _dt)),
         _hasDate, IF(
             _dateType = 0,
             FALSE,
@@ -1955,26 +2037,26 @@ FORMAT_DATE_TIME = LAMBDA(
                         _dateType = 1,
                         IFS(
                             (_precision = 0) + (_precision >= 3),
-                            FORMAT_DATE(YearCE, DateArg1, DateArg2, Basic),
+                            FORMAT_DATE(YearCE, DateArg1, DateArg2, Basic, Signed),
                             _precision = 1,
-                            FORMAT_DATE(YearCE, "", "", Basic),
+                            FORMAT_DATE(YearCE, "", "", Basic, Signed),
                             _precision = 2,
-                            FORMAT_DATE(YearCE, DateArg1, "", Basic)
+                            FORMAT_DATE(YearCE, DateArg1, "", Basic, Signed)
                         ),
                         _dateType = 2,
                         IF(
                             (_precision = 0) + (_precision >= 3),
-                            FORMAT_ORDINAL_DATE(YearCE, DateArg2, Basic),
-                            FORMAT_ORDINAL_DATE(YearCE, "", Basic)
+                            FORMAT_ORDINAL_DATE(YearCE, DateArg2, Basic, Signed),
+                            FORMAT_ORDINAL_DATE(YearCE, "", Basic, Signed)
                         ),
                         _dateType = 3,
                         IFS(
                             (_precision = 0) + (_precision >= 3),
-                            FORMAT_WEEK_DATE(YearCE, DateArg1, DateArg2, Basic),
+                            FORMAT_WEEK_DATE(YearCE, DateArg1, DateArg2, Basic, Signed),
                             _precision = 1,
-                            FORMAT_WEEK_DATE(YearCE, "", "", Basic),
+                            FORMAT_WEEK_DATE(YearCE, "", "", Basic, Signed),
                             _precision = 2,
-                            FORMAT_WEEK_DATE(YearCE, DateArg1, "", Basic)
+                            FORMAT_WEEK_DATE(YearCE, DateArg1, "", Basic, Signed)
                         ),
                         TRUE, //_dateType = 0,
                         ""
@@ -1989,15 +2071,15 @@ FORMAT_DATE_TIME = LAMBDA(
                         LET(
                             _TZprecision, IFS(
                                 _precision = 4,
-                                1,
+                                0,
                                 _precision = 5,
-                                2,
+                                0,
                                 _precision >= 6,
-                                3,
+                                0,
                                 TRUE,
                                 0
                             ),
-                            FORMAT_TIME_ZONE(TimeZoneOffset, Basic, _TZprecision, NoZulu)
+                            FORMAT_TIME_ZONE(TimeZoneOffset, Basic, 0, NoZulu)
                         ),
                         ""
                     ),
@@ -2009,98 +2091,92 @@ FORMAT_DATE_TIME = LAMBDA(
 );
 
 /*--------------------------------------------------------------------------------------------------------
-ISO_TO_DATE
+CONVERT_TO_DATE
 
 Converts text in ISO format to an Excel date. 
 Columns:
   1 | Excel Date     | date    | 1900-01-01T00:00..9999-12-31T24:00
-  2 | Minutes offset | decimal | -900..+900 Optional, toggled by ReturnTimeZoneOffset
+  2 | Minutes offset | decimal | -900..+900
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Text                   | string | ISO 8601 formatted date and time.
-[ReturnTimeZoneOffset] | switch | Include another column to return time zone offset in minutes.
+Text      | string | ISO 8601 formatted date and time.
+[Strict]  | switch | Enforce strict ISO 8601 parsing rules.
 --------------------------------------------------------------------------------------------------------*/
-ISO_TO_DATE = LAMBDA(Text, [ReturnTimeZoneOffset],
+CONVERT_TO_DATE = LAMBDA(Text, [Strict],
     LET(
-        fnException, LAMBDA(_e, _f,
+        fnException, LAMBDA(_exception,
+            // _exception   | string  | null  Empty text
+            //              |         | N/A   Unable to parse
+            //              |         | NUM   Out of Exel date range
             IFS(
-                ISNA(_e),
-                IF(_f, {#N/A, #N/A}, #N/A),
-                ISERR(_e),
-                IF(_f, {#VALUE!, #VALUE!}, #VALUE!),
-                _e = "",
-                IF(_f, {"", ""}, "")
+                _exception = "N/A", {#N/A, #N/A},
+                _exception = "NUM", {#NUM!, #NUM!},
+                TRUE, // _exception = ""
+                {"", ""}
             )
         ),
-        _fTZO, N(ReturnTimeZoneOffset) <> 0,
-        IF(
-            Text = "",
-            fnException("", _fTZO),
+        
+        IF(Text = "", fnException(""),
             LET(
-                _elements, PARSE_DATE_TIME(Text),
-                IFS(
-                    //ISERROR(INDEX(_elements, 1 , 1)), fnException(INDEX(_elements, 1 , 1), _fTZO),
-                    //ISERROR(INDEX(_elements, 1 , 2)), fnException(INDEX(_elements, 1 , 2), _fTZO),
-                    //ISERROR(INDEX(_elements, 1 , 5)), fnException(INDEX(_elements, 1 , 5), _fTZO),
-                    TRUE,
+                _strict, N(Strict) <> 0,
+                _elements, PARSE_ISO8601(Text),
+                IF(_strict * (INDEX(_elements, 1 , 1) = FALSE), fnException("N/A"),
                     LET(
-                        _dateType, INDEX(_elements, 1, 1),
-                        _hasTime, (
-                            ISNUMBER(INDEX(_elements, 1, 5)) + ISNUMBER(INDEX(_elements, 1, 6)) +
-                                ISNUMBER(INDEX(_elements, 1, 7))
-                        ) <> 0,
-                        _hasTimeZone, ISNUMBER(INDEX(_elements, 1, 8)),
-                        _year, N(INDEX(_elements, 1, 2)),
-                        //IF(
-                        //  (_dateType > 0) * ((_year < 1900) + (_year > 9999)),
-                        //fnException(#VALUE!, _fTZO),
-                        //LET(
-                        _date, IFS(
-                            ISERROR(_year),
-                            #VALUE!,
-                            _dateType = 0,
-                            0,
-                            (_dateType > 0) * ((_year < 1900) + (_year > 9999)),
-                            #VALUE!,
-                            _dateType = 1,
-                            DATE(_year, N(INDEX(_elements, 1, 3)), N(INDEX(_elements, 1, 4))),
-                            _dateType = 2,
-                            LET(
-                                _cDate, FROM_ORDINAL_DATE(_year, N(INDEX(_elements, 1, 4))),
-                                DATE(INDEX(_cDate, 1, 1), INDEX(_cDate, 1, 2), INDEX(_cDate, 1, 3))
-                            ),
-                            _dateType = 3,
-                            LET(
-                                _cDate, FROM_WEEK_DATE(
-                                    _year,
-                                    N(INDEX(_elements, 1, 3)),
-                                    N(INDEX(_elements, 1, 4))
+                        _hasDate, BITAND(INDEX(_elements, 1, 2), 4) = 4,
+                        _year, N(INDEX(_elements, 1, 6)),
+                        IF(_hasDate * ((_year < 1900) + (_year > 9999)), fnException("NUM"),
+                            LET(                       
+                                _dateType, INDEX(_elements, 1, 5),
+                                _date, IF(_hasDate,
+                                    IFS(_dateType = 1, 
+                                            DATE(
+                                                _year,
+                                                N(INDEX(_elements, 1, 7)),
+                                                N(INDEX(_elements, 1, 8))
+                                            ),
+                                        _dateType = 2,
+                                            LET(
+                                                _cDate, FROM_ORDINAL_DATE(_year, N(INDEX(_elements, 1, 8))),
+                                                DATE(
+                                                    INDEX(_cDate, 1, 1),
+                                                    INDEX(_cDate, 1, 2),
+                                                    INDEX(_cDate, 1, 3)
+                                                )
+                                            ),
+                                        _dateType = 3,
+                                            LET(
+                                                _cDate, FROM_WEEK_DATE(
+                                                    _year,
+                                                    N(INDEX(_elements, 1, 7)),
+                                                    N(INDEX(_elements, 1, 8))
+                                                ),
+                                                DATE(
+                                                    INDEX(_cDate, 1, 1),
+                                                    INDEX(_cDate, 1, 2),
+                                                    INDEX(_cDate, 1, 3)
+                                                )
+                                            )
+                                    ),
+                                    0
                                 ),
-                                DATE(INDEX(_cDate, 1, 1), INDEX(_cDate, 1, 2), INDEX(_cDate, 1, 3))
-                            )
-                        ),
-                        _time, IF(
-                            _hasTime,
-                            TIME(
-                                N(INDEX(_elements, 1, 5)),
-                                N(INDEX(_elements, 1, 6)),
-                                N(INDEX(_elements, 1, 7))
-                            ),
-                            0
-                        ),
-                        _dt, _date + _time,
-                        IF(
-                            _fTZO,
-                            LET(
-                                _tzo, IF(_hasTimeZone, INDEX(_elements, 1, 8), ""),
+
+                                _hasTime, BITAND(INDEX(_elements, 1, 2), 2) = 2,
+                                _time, IF(_hasTime,
+                                    TIME(
+                                        N(INDEX(_elements, 1, 9)),
+                                        N(INDEX(_elements, 1, 10)),
+                                        N(INDEX(_elements, 1, 11))
+                                    ),
+                                    0
+                                ),
+                                
+                                _dt, _date + _time,
+                                _hasTZ, (BITAND(INDEX(_elements, 1, 2), 1) = 1),
+                                _tzo, IF(_hasTZ, INDEX(_elements, 1, 12), ""),
                                 HSTACK(_dt, _tzo)
-                            ),
-                            _dt
+                            )
                         )
-                        //)
-                        //)
-                        
                     )
                 )
             )
@@ -2109,7 +2185,7 @@ ISO_TO_DATE = LAMBDA(Text, [ReturnTimeZoneOffset],
 );
 
 /*--------------------------------------------------------------------------------------------------------
-DATE_TO_ISO
+CONVERT_FROM_DATE
 
 Converts an Excel date to ISO formatted text.
 Example formats (not exhaustive): YYYY-MM-DDThh:mm:ss.sss+hh:mm:ss, YYYY-Www-DThh:mmZ, Thhmmss
@@ -2119,6 +2195,7 @@ Parameters
 Date             | date    | An Excel date and/or time.
 [TimeZoneOffset] | decimal | Time zone offset in minutes from UTC -900..+900 
 [Basic]          | switch  | Return in basic format eg YYYYMMDDThhmm+hh
+[Signed]         | switch  | Always sign year value eg +YYYY-MM-DD
 [Precision]      | integer | Select precision level
                  |         |   0 - Automatic
                  |         |   1 - Year
@@ -2131,7 +2208,7 @@ Date             | date    | An Excel date and/or time.
 [NoTimeZone]     | switch  | Drop time zone from output.
 [NoZulu]         | switch  | Use +00:00 instead of Z for UTC time zone.
 --------------------------------------------------------------------------------------------------------*/
-DATE_TO_ISO = LAMBDA(Date, [TimeZoneOffset], [Basic], [Precision], [NoTimeZone], [NoZulu],
+CONVERT_FROM_DATE = LAMBDA(Date, [TimeZoneOffset], [Basic], [Signed], [Precision], [NoTimeZone], [NoZulu],
     IF(
         NOT(ISNUMBER(Date)),
         "",
@@ -2140,16 +2217,22 @@ DATE_TO_ISO = LAMBDA(Date, [TimeZoneOffset], [Basic], [Precision], [NoTimeZone],
             _year, IF(_hasDate, YEAR(Date), ""),
             _month, IF(_hasDate, MONTH(Date), ""),
             _day, IF(_hasDate, DAY(Date), ""),
-            FORMAT_DATE_TIME(
+            _tSec1, ROUND((Date - INT(N(Date))) * 86400, 3),
+            _hour, INT(_tSec1 / 3600),
+            _tSec2, _tSec1 - (_hour * 3600),
+            _minute, INT(_tSec2 / 60),
+            _second, _tSec2 - (_minute * 60),
+            FORMAT_ISO8601(
                 N(_hasDate),
                 _year,
                 _month,
                 _day,
-                HOUR(Date),
-                MINUTE(Date),
-                SECOND(Date),
+                _hour,
+                _minute,
+                _second,
                 TimeZoneOffset,
                 Basic,
+                Signed,
                 Precision,
                 NoTimeZone,
                 NoZulu
