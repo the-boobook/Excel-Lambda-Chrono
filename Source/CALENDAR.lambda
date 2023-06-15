@@ -1,7 +1,8 @@
 /*########################################################################################################
 # CALENDAR v1                                                                                            #
 #                                                                                                        #
-# Module for working with dates outside the range of the Excel Date type.                                #
+# Module for working with dates in the Gregorian and Julian calendars outside the range of the Excel     #
+# Date/Time type.                                                                                        #
 #                                                                                                        #
 # Module Dependencies: None                                                                              #
 #                                                                                                        #
@@ -16,7 +17,7 @@
 # YEAR_COMMON_ERA        Returns year value relative to the Common Era.                                  #
 # DAYS_IN_YEAR           Returns number of days in the given year of the specified calendar.             #
 # DAYS_IN_MONTH          Returns number of days in the given month and year of the specified calendar.   #
-# JULIAN_DAY_NUMBER      Returns the Julian Day Number of the provided date.                             #
+# JULIAN_DAY_NUMBER      Returns the Julian Day Number of the provided date in the specified calendar.   #
 # JDN_TO_CALENDAR_DATE   Returns the date from the given Julian Day Number in the specified calendar.    #
 # JDN_TO_ORDINAL_DATE    Returns the year, ordinal day of year and days in the year from the given       #
 #                        Julian Day Number in the specified calendar.                                    #
@@ -31,18 +32,27 @@
 #                                                                                                        #
 # WEEKS                                                                                                  #
 # ------------------------------------------------------------------------------------------------------ #
-# DAY_OF_WEEK            Returns an integer for the ISO day of the week for a given Julian Day Number.   #
+# DAY_OF_WEEK            Returns an integer for the day of the week for a given Julian Day Number.       #
 # CONVERT_WEEKDAY_NUMBER Returns an integer for the day of the week from the traditonal numbering scheme #
 #                        to the ISO definition, or vice versa.                                           #
-# WEEKDAY_OF_MONTH       Returns a Julian Day Number for a given ISO day of week of a relative week for  #
-#                        a month and year of the specified calendar.                                     #
+# WEEKDAY_OF_MONTH       Returns a Julian Day Number for a given day of week, and a relative week for    #
+#                        the month and year of the specified calendar.                                   #
 # WEEKS_IN_YEAR          Returns the count of ISO defined weeks in a given year of the specified         #
 #                        calendar.                                                                       #
-# WEEK_DATE              Returns the ISO defined week number, day of the week, and weeks in the year for #
-#                        the given Julian Day Number in the specified calendar.                          #
+# WEEK_DATE_TO_JDN       Returns the Julian Day Number of the provided week date in the specified        #
+#                        calendar.                                                                       #
+# JDN_TO_WEEK_DATE       Returns the year, ISO defined week number, day of the week, and weeks in the    #
+#                        year for the given Julian Day Number in the specified calendar.                 #
 # WEEK_NUMBER            Returns the ISO defined week number for a given Julian Day Number in the        #
 #                        specified calendar.                                                             #
-# WEEK_DATE_TO_JDN       Returns the Julian Day Number of the provided week date in the specified        #
+#                                                                                                        #
+# QUARTERS                                                                                               #
+# ------------------------------------------------------------------------------------------------------ #
+# DAYS_IN_QUARTER        Returns the count of days in a quarter of a given year of the specified         #
+#                        calendar.                                                                       #
+# JDN_TO_QUARTER_DATE    Returns the year, quarter, day of quarter and days in the quarter for the given #
+#                        Julian Day Number in the specified calendar.                                    #
+# QUARTER_DATE_TO_JDN    Returns the Julian Day Number of the provided quarter date in the specified     #
 #                        calendar.                                                                       #
 #                                                                                                        #
 # DATE AND TIME                                                                                          #
@@ -55,34 +65,47 @@
 # JULIAN_DATE            Returns the Julian Date of the provided calendar date and time of day.          #
 # CALENDAR_FROM_JDATE    Returns the calendar date and local time of day for a given Julian Date and     #
 #                        time zone offset.                                                               #
+# TIME_DECIMAL_TO_HMS    Returns the 24 hour timekeeping representation of a decimal time value.         #
+# HMS_TO_TIME_DECIMAL    Returns a decimal time as a fraction of a day from a 24 hour timekeeping value  #
+#                        of time.                                                                        #
+
 # ADD_TIMESPAN           Returns the Julian Date of the addition of the provided calendar date and time  #
 #                        of day and a timespan complication.                                             #
 # RESOLVE_DATE           Returns a calendar date from provided decimal year, months, days and time.      #
 #                                                                                                        #
 # DELTA                                                                                                  #
 # ------------------------------------------------------------------------------------------------------ #
-# DELTA_DAYS             Returns the timespan difference between two dates in days.                      #
-# DELTA_WEEKS            Returns the timespan difference between two dates in weeks.                     #
-# DELTA_MONTHS           Returns the timespan difference between two dates in months.                    #
-
-
-
-
-
-
-# DIFFERENCE             Returns the timespan difference between two dates in the designated units.      #
+# DELTA_INTERVAL         Returns the timespan difference between Julian Dates in the specified units.    #
+# DELTA_HOURS            Returns the timespan difference between Julian Dates in hours.                  #
+# DELTA_MINUTES          Returns the timespan difference between Julian Dates in minutes.                #
+# DELTA_SECONDS          Returns the timespan difference between Julian Dates in seconds.                #
+# DELTA_HOUR_MIN_SEC     Returns the timespan difference between Julian Dates in hours, minutes and      #
+#                        seconds.                                                                        #
+# DELTA_DAYS             Returns the timespan difference between Julian Dates in days.                   #
+# DELTA_WEEKS            Returns the timespan difference between Julian Dates in weeks.                  #
+# DELTA_MONTHS           Returns the timespan difference between Julian Dates in months.                 #
+# DELTA_QUARTERS         Returns the timespan difference between Julian Dates in quarters.               #
+# DELTA_YEARS            Returns the timespan difference between Julian Dates in years.                  #
+# DELTA_WEEK_DAYS        Returns the timespan difference between Julian Dates in weeks and days.         #
+# DELTA_YEAR_WEEK_DAYS   Returns the timespan difference between Julian Dates in years, weeks and days.  #
+# DELTA_MONTH_DAYS       Returns the timespan difference between Julian Dates in months and days.        #
+# DELTA_QUARTER_DAYS     Returns the timespan difference between Julian Dates in quarters and days.      #
 #                                                                                                        #
+# EXTENTS                                                                                                #
+# ------------------------------------------------------------------------------------------------------ #
+# EXTENT_OF_DAYS         Returns the inclusive extent of days spanned by two Julian Dates.               #
+# EXTENT_OF_WEEKS        Returns the inclusive extent of weeks spanned by two Julian Dates.              #
+# EXTENT_OF_MONTHS       Returns the inclusive extent of months spanned by two Julian Dates.             #
+# EXTENT_OF_QUARTERS     Returns the inclusive extent of quarters spanned by two Julian Dates.           #
+# EXTENT_OF_YEARS        Returns the inclusive extent of years spanned by two Julian Dates.              #
 #                                                                                                        #
-#                                                                                                        #
-#                                                                                                        #
-#                                                                                                        #
-# Parsing Functions                                                                                      #
+# PARSING                                                                                                #
 # ------------------------------------------------------------------------------------------------------ #
 # PARSE_ISO_DATE         Parses an ISO formatted date into respective parts of year, month, day, time of #
 #                        day and time zone offset in minutes from UTC.                                   #
-# DAY_OF_WEEK_FROM_TEXT  Returns a number representing the day of the week from a given text weekday     #
+# PARSE_WEEKDAY          Returns a number representing the day of the week from a given text weekday     #
 #                        name.                                                                           #
-# MONTH_FROM_TEXT        Returns a number representing the month of year from a given month name.        #
+# PARSE_MONTH            Returns a number representing the month of year from a given month name.        #
 # PARSE_LITERARY_YEAR    Returns a number representing the year relative to the common era from a given  #
 #                        literary year.                                                                  #
 # PARSE_LITERARY_DATE    Parses a literary date into respective parts of year, month, day and time of    #
@@ -93,7 +116,7 @@
 #                        into respective parts of year, month, day, time of day and time zone offset in  #
 #                        minutes from UTC.                                                               #
 #                                                                                                        #
-# Text                                                                                                   #
+# TEXT                                                                                                   #
 # ------------------------------------------------------------------------------------------------------ #
 # WEEKDAY_NAME           Returns name of an ISO day of week number as text.                              #
 # MONTH_NAME             Returns name of month.                                                          #
@@ -140,13 +163,13 @@ Tests if a year includes a leap day in the given calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | boolean | null if empty YearCE
+ 1 | boolean | null if empty
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 YearCE           | decimal | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 IS_LEAP_YEAR = LAMBDA(YearCE, [JulianCalendar],
     IF(YearCE = "", "",
@@ -177,11 +200,11 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer | Month of year 1..12
-Day              | decimal | Day of month  1..31
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month            | integer [1..12] | Month of year
+Day              | decimal [1..32) | Day of month
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 IS_VALID_DATE = LAMBDA(YearCE, Month, Day, [JulianCalendar],
     IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day)),
@@ -215,9 +238,9 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Hour   | decimal | 0..[24] Fractional allowed if minute and second empty.
-Minute | decimal | 0..[60] Fractional allowed if second empty.
-Second | decimal | 0..[60] Fractional allowed
+Hour   | decimal [0..24) | Fractional allowed if minute and second empty.
+Minute | decimal [0..60) | Fractional allowed if second empty.
+Second | decimal [0..60) | Fractional allowed
 --------------------------------------------------------------------------------------------------------*/
 
 IS_VALID_TIME = LAMBDA(Hour, Minute, Second,
@@ -272,16 +295,16 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Year  | integer | Positive non-zero integer.
-BCE   | switch  | Before Common Era.
+Year  | integer [1..] | Positive non-zero integer.
+BCE   | switch        | Before Common Era.
 --------------------------------------------------------------------------------------------------------*/
 YEAR_COMMON_ERA = LAMBDA(Year, BCE,
     IF(Year = "", "",
-        IF(NOT(ISNUMBER(Year)), #VALUE!,
+        IF(NOT(ISNUMBER(Year)), {#VALUE!},
             LET(
                 _year, INT(Year),
-                IF(_year < 1, #NUM!,
-                    IF(N(BCE) = 0, _year, 1 - _year)
+                IF(_year < 1, {#NUM!},
+                    IF(N(BCE), 1 - _year, _year)
                 )
             )
         )
@@ -296,11 +319,11 @@ Returns number of days in the given year of the specified calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | 365,366
+ 1 | integer [365,366]
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | decimal | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
 [JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
                  |         | calendar.
 --------------------------------------------------------------------------------------------------------*/
@@ -323,23 +346,23 @@ Returns number of days in the given month and year of the specified calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | 1..31
+ 1 | integer [1..31]
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Month            | integer | Month of year 1..12
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+Month            | integer [1..12] | Month of year
+[YearCE]         | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DAYS_IN_MONTH = LAMBDA(Month, YearCE, [JulianCalendar],
+DAYS_IN_MONTH = LAMBDA(Month, [YearCE], [JulianCalendar],
     IF(Month="", "",
         IF(NOT(ISNUMBER(Month)), {#VALUE!},
             LET(
                 _month, INT(Month),
                 IFS(
-                    _month < 1, {#VALUE!},
-                    _month > 12, {#VALUE!},
+                    _month < 1, {#NUM!},
+                    _month > 12, {#NUM!},
 
                     // February
                     _month = 2,
@@ -367,7 +390,7 @@ DAYS_IN_MONTH = LAMBDA(Month, YearCE, [JulianCalendar],
 /*--------------------------------------------------------------------------------------------------------
 JULIAN_DAY_NUMBER
 
-Returns the Julian Day Number of the provided date.
+Returns the Julian Day Number of the provided date in the specified calendar.
 Note the Julian Day Number is an integer type and is an ordinal day number referenced from January 1,
 4713 BC in the proleptic Julian calendar. It does not include any value for time of day.
 
@@ -377,15 +400,15 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer | Month of year 1..12
-Day              | decimal | Day of month  1..31
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month            | integer [1..12] | Month of year
+Day              | decimal [1..32) | Day of month
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | prolptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 JULIAN_DAY_NUMBER = LAMBDA(YearCE, Month, Day, [JulianCalendar],
     IF((YearCE = "") * (Month = "") * (Day = ""), "",
-        IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), #VALUE!,
+        IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), {#VALUE!},
             LET(
                 _day, INT(Day),
                 _gregorian, N(JulianCalendar) = 0,
@@ -415,15 +438,15 @@ Returns the date from the given Julian Day Number in the specified calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer | Month
- 3 | integer | Day
+ 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 JDN              | integer | Julian Day Number for the calendar day
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 JDN_TO_CALENDAR_DATE = LAMBDA(JDN, [JulianCalendar],
     IF(JDN = "", {"", "", ""},
@@ -489,15 +512,15 @@ calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer | Ordinal day 1..366
- 3 | integer | Days in year 365,366
+ 1 | integer           | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..366]  | Ordinal day
+ 3 | integer [365,366] | Days in year
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 JDN              | integer | Julian Day Number for the calendar day
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 JDN_TO_ORDINAL_DATE = LAMBDA(JDN, [JulianCalendar],
     IF(JDN = "", {"", "", ""},
@@ -509,7 +532,11 @@ JDN_TO_ORDINAL_DATE = LAMBDA(JDN, [JulianCalendar],
                 _jdnYearStart, JULIAN_DAY_NUMBER(_yearCE, 1, 1, JulianCalendar),
                 _ordinalDay, _jdn - _jdnYearStart + 1,
                 _daysInYear, DAYS_IN_YEAR(_yearCE, JulianCalendar),
-                HSTACK(_yearCE, _ordinalDay, _daysInYear)
+                HSTACK(
+                    _yearCE,
+                    _ordinalDay,
+                    _daysInYear
+                )
             )
         )
     )
@@ -526,28 +553,18 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-OrdinalDay       | integer | Day of year 1..366
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+YearCE           | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+OrdinalDay       | decimal [1..366) | Day of year, carries if range exceeded
+[JulianCalendar] | switch           | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                  | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 ORDINAL_DATE_TO_JDN = LAMBDA(YearCE, OrdinalDay, [JulianCalendar],
     IF((YearCE = "") * (OrdinalDay = ""), "",
         IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(OrdinalDay)), {#VALUE!},
             LET(
                 _ordinalDay, INT(OrdinalDay),
-                _invalid, IFS(
-                    _ordinalDay < 1, TRUE,
-                    _ordinalDay <= 365, FALSE,
-                    _ordinalDay > 366, TRUE,
-                    TRUE, NOT(IS_LEAP_YEAR(YearCE)) // _ordinalDay = 366
-                ),
-                IF(_invalid, {#VALUE!},
-                    LET(
-                        _jdnYearStart, JULIAN_DAY_NUMBER(YearCE, 1, 1, JulianCalendar),
-                        _jdnYearStart + _ordinalDay - 1
-                    )
-                )
+                _jdnYearStart, JULIAN_DAY_NUMBER(YearCE, 1, 1, JulianCalendar),
+                _jdnYearStart + _ordinalDay - 1
             )
         )
     )
@@ -561,15 +578,15 @@ Translates a date in the Gregorian proleptic calendar to the Julian proleptic ca
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer | Month
- 3 | integer | Day
+ 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month  | integer | 
-Day    | integer | 
+YearCE | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month  | integer [1..12] | 
+Day    | decimal [1..32) | 
 --------------------------------------------------------------------------------------------------------*/
 GREGORIAN_TO_JULIAN = LAMBDA(YearCE, Month, Day,
     LET(
@@ -589,15 +606,15 @@ Translates a date in the Julian proleptic calendar to the Gregorian proleptic ca
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer | Month
- 3 | integer | Day
+ 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month  | integer | 
-Day    | integer | 
+YearCE | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month  | integer [1..12] | 
+Day    | decimal [1..32) | 
 --------------------------------------------------------------------------------------------------------*/
 JULIAN_TO_GREGORIAN = LAMBDA(YearCE, Month, Day,
     LET(
@@ -618,38 +635,42 @@ a given date.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Days difference. Negative value means Julian proleptic calender is ahead.
+ 1 | integer | Days difference. Negative values are when the Julian proleptic calender is ahead.
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE               | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month                | integer | 
-Day                  | integer | 
-[FromJulianCalendar] | switch  | Provided date is in Julian calendar. Default is the Gregorian calendar.
+YearCE               | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month                | integer [1..12] | 
+Day                  | decimal [1..32) | 
+[FromJulianCalendar] | switch          | Provided date is in Julian calendar.
+                     |                 | Default is the Gregorian calendar.
 --------------------------------------------------------------------------------------------------------*/
 SECULAR_DIFFERENCE = LAMBDA(YearCE, Month, Day, [FromJulianCalendar],
     LET(
-        _secular, N(FromJulianCalendar) = 0,
-        IF(_secular,
+        _day, INT(Day),
+        IF(N(FromJulianCalendar) = 0,
+            // From Gregorian calendar
             LET(
-                _JDN_G, JULIAN_DAY_NUMBER(YearCE, Month, Day, 0),
+                _JDN_G, JULIAN_DAY_NUMBER(YearCE, Month, _day, 0),
                 IF(ISERROR(_JDN_G), {#VALUE!},
                     IF(_JDN_G = "", "",
                         LET(
-                            _JDN_J, IF((Month = 2) * (Day = 29),
+                            _JDN_J, IF((Month = 2) * (_day = 29),
                                 IF(IS_LEAP_YEAR(YearCE, 1),
                                     JULIAN_DAY_NUMBER(YearCE, 2, 29, 1),
                                     JULIAN_DAY_NUMBER(YearCE, 2, 28, 1)
                                 ),
-                                JULIAN_DAY_NUMBER(YearCE, Month, Day, 1)
+                                JULIAN_DAY_NUMBER(YearCE, Month, _day, 1)
                             ),
                             _JDN_J - _JDN_G
                         )
                     )
                 )
             ),
+            
+            // From Julian calendar
             LET(
-                _date_G, JULIAN_TO_GREGORIAN(YearCE, Month, Day),
+                _date_G, JULIAN_TO_GREGORIAN(YearCE, Month, _day),
                 IF(ISERROR(INDEX(_date_G, 1, 1)), {#VALUE!},
                     IF(INDEX(_date_G, 1, 1) = "", "",
                         SECULAR_DIFFERENCE(
@@ -679,12 +700,12 @@ SECULAR_DIFFERENCE = LAMBDA(YearCE, Month, Day, [FromJulianCalendar],
 /*--------------------------------------------------------------------------------------------------------
 DAY_OF_WEEK
 
-Returns an integer for the ISO day of the week for a given Julian Day Number.
+Returns an integer for the day of the week for a given Julian Day Number.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | ISO day of week number
-   |         | 1..7 -> Monday..Sunday
+ 1 | integer [1..7] | ISO day of week number
+   |                | Monday..Sunday
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -705,13 +726,13 @@ DAY_OF_WEEK = LAMBDA(JDN,
 /*--------------------------------------------------------------------------------------------------------
 CONVERT_WEEKDAY_NUMBER
 
-Returns an integer for the day of the week from the traditonal numbering scheme to the ISO definintion, or
+Returns an integer for the day of the week from the traditonal numbering scheme to the ISO definition, or
 vice versa.
 
 Output
 ----------------------------------------------------------------------------------------------------------
  1 | integer | Weekday number
-   |         |    | ISO       | Traditioal
+   | [1..7]  |    | ISO       | Traditioal
    |         | ---------------------------
    |         |  1 | Monday    | Sunday 
    |         |  2 | Tuesday   | Monday 
@@ -723,11 +744,11 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-DayOfWeek          | integer | Day of week number
-[ISOtoTraditional] | switch  | Return day of week using traditional numbering scheme, assuming DayOfWeek 
-                   |         | was provided according to ISO definition.
-                   |         | Default is to return in ISO definition, assuming DayOfWeek was provided
-                   |         | according to the traditional numbering scheme.
+DayOfWeek          | integer [1..7] | Day of week number
+[ISOtoTraditional] | switch         | Return day of week using traditional numbering scheme, assuming 
+                   |                | DayOfWeek was provided according to ISO definition.
+                   |                | Default is to return in ISO definition, assuming DayOfWeek was
+                   |                | provided according to the traditional numbering scheme.
 --------------------------------------------------------------------------------------------------------*/
 CONVERT_WEEKDAY_NUMBER = LAMBDA(DayOfWeek, [ISOtoTraditional],
     IF(DayOfWeek = "", "",
@@ -746,7 +767,7 @@ CONVERT_WEEKDAY_NUMBER = LAMBDA(DayOfWeek, [ISOtoTraditional],
 /*--------------------------------------------------------------------------------------------------------
 WEEKDAY_OF_MONTH
 
-Returns a Julian Day Number for a given ISO day of week of the relative week for a month and year of the
+Returns a Julian Day Number for a given day of week, and a relative week for the month and year of the
 specified calendar.
 
 Output
@@ -755,22 +776,22 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer | Month of the year
-WeekOfMonth      | integer | Week in the month.
-                 |         | Note if the reference exceeds the bounds of the month, another month
-                 |         | will be returned.
-                 |         |  1 - first week
-                 |         |  2 - second week
-                 |         |  3 - third week
-                 |         |  4 - fourth week
-                 |         |  5 - fifth week
-                 |         |  0 - last week
-                 |         | -1 - second to last week
-                 |         | -2 - third to last week
-ISOWeekDay       | decimal | ISO day of week number 1..7 Monday..Sunday
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month            | integer [1..12] | Month of the year
+WeekOfMonth      | integer         | Week in the month.
+                 |                 | Note if the reference exceeds the bounds of the month, another month
+                 |                 | will be returned.
+                 |                 |  1 - first week
+                 |                 |  2 - second week
+                 |                 |  3 - third week
+                 |                 |  4 - fourth week
+                 |                 |  5 - fifth week
+                 |                 |  0 - last week
+                 |                 | -1 - second to last week
+                 |                 | -2 - third to last week
+ISOWeekDay       | decimal [1..7]  | ISO day of week number Monday..Sunday
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
     
 Examples
 ----------------------------------------------------------------------------------------------------------
@@ -804,13 +825,13 @@ Returns the count of ISO defined weeks in a given year of the specified calendar
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | 52,53
+ 1 | integer [52,53]
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 YearCE           | decimal | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 WEEKS_IN_YEAR = LAMBDA(YearCE, [JulianCalendar],
     IF(YearCE = "", "",
@@ -839,7 +860,7 @@ WEEKS_IN_YEAR = LAMBDA(YearCE, [JulianCalendar],
                             _dowLastDayPrev = 3,
                             // if last day of previous year is a Wednesday, then has an extra week
                             53,
-                            // otherwize
+                            // otherwise
                             52
                         )
                     )
@@ -851,25 +872,70 @@ WEEKS_IN_YEAR = LAMBDA(YearCE, [JulianCalendar],
 
 
 /*--------------------------------------------------------------------------------------------------------
-WEEK_DATE
+WEEK_DATE_TO_JDN
 
-Returns the ISO defined week number, day of the week, and weeks in the year for the given Julian Day Number
-in the specified calendar.
+Returns the Julian Day Number of the provided week date in the specified calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | YearCE
- 2 | integer | ISO week number 1..53
- 3 | integer | ISO day of week
- 4 | integer | ISO weeks in year 52,53
+ 1 | integer | Julian Day Number
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ISOWeek          | integer [1..53] | ISO defined week number of the year
+ISOWeekDay       | decimal [1..7]  | ISO defined day of week Monday..Sunday
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+--------------------------------------------------------------------------------------------------------*/
+WEEK_DATE_TO_JDN = LAMBDA(YearCE, ISOWeek, ISOWeekDay, [JulianCalendar],
+    IF((YearCE = "") * (ISOWeek = "") * (ISOWeekDay = ""), "",
+        IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(ISOWeek)) + NOT(ISNUMBER(ISOWeekDay)), {#VALUE!},
+            LET(
+                _invalid, IFS(
+                    MOD(YearCE, 1) > 0, TRUE,
+                    MOD(ISOWeek, 1) > 0, TRUE,
+                    ISOWeek < 1, TRUE,
+                    ISOWeek > 53, TRUE,
+                    ISOWeek = 53, (WEEKS_IN_YEAR(YearCE, JulianCalendar) < 53),
+                    TRUE, FALSE
+                ),
+                IF(_invalid, {#NUM!},
+                    LET(
+                        _shiftByWeeks, (ISOWeek - 1) * 7,
+                        _shiftDayOfWeek, MOD(INT(ISOWeekDay) - 1, 7),
+                        _jdnFirstDayYear, JULIAN_DAY_NUMBER(YearCE, 1, 1, JulianCalendar),
+                        _firstWeekDay, DAY_OF_WEEK(_jdnFirstDayYear),
+                        _yearCorrection, MOD(4 - _firstWeekDay, 7) - 3,
+                        _jdnFirstDayYear + _yearCorrection + _shiftByWeeks + _shiftDayOfWeek 
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+JDN_TO_WEEK_DATE
+
+Returns the year, ISO defined week number, day of the week, and weeks in the year for the given Julian Day
+Number in the specified calendar.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer         | YearCE
+ 2 | integer [1..53] | ISO week number
+ 3 | integer [1..7]  | ISO day of week Monday..Sunday
+ 4 | integer [52,53] | ISO weeks in year
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 JDN              | integer | Julian Day Number for the calendar day
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-WEEK_DATE = LAMBDA(JDN, [JulianCalendar],
+JDN_TO_WEEK_DATE = LAMBDA(JDN, [JulianCalendar],
     IF(JDN = "", {"", "", "", ""},
         IF(NOT(ISNUMBER(JDN)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
             LET(
@@ -937,69 +1003,25 @@ Returns the ISO defined week number for a given Julian Day Number in the specifi
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | ISO week number 1..53
+ 1 | integer [1..53] | ISO week number
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 JDN              | integer | Julian Day Number.
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 WEEK_NUMBER = LAMBDA(JDN, [JulianCalendar],
     IF(JDN = "", "",
         IF(NOT(ISNUMBER(JDN)), {#VALUE!},
             LET(
-                _weekDate, WEEK_DATE(JDN, JulianCalendar),
+                _weekDate, JDN_TO_WEEK_DATE(JDN, JulianCalendar),
                 CHOOSECOLS(_weekDate, 2)                
             )
         )
     )
 );
 
-
-/*--------------------------------------------------------------------------------------------------------
-WEEK_DATE_TO_JDN
-
-Returns the Julian Day Number of the provided week date in the specified calendar.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | Julian Day Number
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-ISOWeek          | integer | ISO defined week number of the year
-ISOWeekDay       | decimal | ISO defined day of week
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-WEEK_DATE_TO_JDN = LAMBDA(YearCE, ISOWeek, ISOWeekDay, [JulianCalendar],
-    IF((YearCE = "") * (ISOWeek = "") * (ISOWeekDay = ""), "",
-        IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(ISOWeek)) + NOT(ISNUMBER(ISOWeekDay)), {#VALUE!},
-            LET(
-                _inValid, IFS(
-                    MOD(YearCE, 1) > 0, TRUE,
-                    MOD(ISOWeek, 1) > 0, TRUE,
-                    ISOWeek < 1, TRUE,
-                    ISOWeek > 53, TRUE,
-                    ISOWeek = 53, (WEEKS_IN_YEAR(YearCE, JulianCalendar) < 53),
-                    TRUE, FALSE
-                ),
-                IF(_inValid, {#NUM!},
-                    LET(
-                        _shiftByWeeks, (ISOWeek - 1) * 7,
-                        _shiftDayOfWeek, MOD(INT(ISOWeekDay) - 1, 7),
-                        _jdnFirstDayYear, JULIAN_DAY_NUMBER(YearCE, 1, 1, JulianCalendar),
-                        _firstWeekDay, DAY_OF_WEEK(_jdnFirstDayYear),
-                        _yearCorrection, MOD(4 - _firstWeekDay, 7) - 3,
-                        _jdnFirstDayYear + _yearCorrection + _shiftByWeeks + _shiftDayOfWeek 
-                    )
-                )
-            )
-        )
-    )
-);
 
 
 
@@ -1014,69 +1036,51 @@ WEEK_DATE_TO_JDN = LAMBDA(YearCE, ISOWeek, ISOWeekDay, [JulianCalendar],
 /*--------------------------------------------------------------------------------------------------------
 DAYS_IN_QUARTER
 
-Returns number of days in the given quarter and year of the specified calendar.
+Returns the count of days in a quarter of a given year of the specified calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | 90..92
+ 1 | integer [89..92]
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Quarter          | integer | Quarter of year 1..4
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+Quarter          | integer [1..4]  | Quarter of the year 1..4, transitive, exceeding range will carry to year.
+[FiscalYearCE]   | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+                 |                 | When month offset is non-zero the fiscal year spans calendar years and
+                 |                 | is defined as the year where June falls.
+[MonthOffset]    | integer [-6..3] | Quarter month offset from Januaray
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+
+Examples
+----------------------------------------------------------------------------------------------------------
+DAYS_IN_QUARTER(3, 2020, -6)
+Returns: 91
+i.e. 3rd quarter starting from July 2019, namely Jan, Feb, Mar 2020 with 31, 29, 31 days respectively
 --------------------------------------------------------------------------------------------------------*/
-DAYS_IN_QUARTER = LAMBDA(Quarter, YearCE, [JulianCalendar],
+DAYS_IN_QUARTER = LAMBDA(Quarter, [FiscalYearCE], [MonthOffset], [JulianCalendar],
     IF(Quarter = "", "",
         IF(NOT(ISNUMBER(Quarter)), {#VALUE!},
-            LET(
-                _quarter, INT(Quarter),
-                IFS(
-                    _quarter = 1, 90 + N(IS_LEAP_YEAR(YearCE, JulianCalendar)),
-                    _quarter = 2, 91,
-                    TRUE, 92
-                )
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-JDN_TO_QUARTER_DATE
-
-Returns the year, quarter, day of quarter, and days in quarter from the given Julian Day Number in the
-specified calendar.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | YearCE
- 2 | integer | Quarter 1..4
- 3 | integer | Day of quarter 1..92
- 4 | integer | Days in quarter 90..92
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDN              | integer | Julian Day Number for the calendar day
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-JDN_TO_QUARTER_DATE = LAMBDA(JDN, [JulianCalendar],
-    IF(JDN = "", {"", "", "", ""},
-        IF(NOT(ISNUMBER(JDN)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
-            LET(
-                _jdn, INT(JDN),
-                _calDate, JDN_TO_CALENDAR_DATE(_jdn, JulianCalendar),
-                _yearCE, INDEX(_calDate, 1, 1),
-                _quarter, INT((INDEX(_calDate, 1, 2) - 1) / 3) + 1,
-                _dayOfQuarter, _jdn - JULIAN_DAY_NUMBER(_yearCE, ((_quarter - 1) * 3) + 1, 1, JulianCalendar) + 1,
-                _daysInQuarter, DAYS_IN_QUARTER(_quarter, _yearCE, JulianCalendar),
-                HSTACK(
-                    _yearCE,
-                    _quarter,
-                    _dayOfQuarter,
-                    _daysInQuarter
+            IF(MOD(Quarter, 1) > 0, {#NUM!},
+                LET(
+                    _monthOffset, ROUND(N(MonthOffset), 0),
+                    IF((_monthOffset < -6) + (_monthOffset > 3), {#NUM!},
+                        LET(
+                            _quarter, MOD(INT(Quarter) - 1, 4), // 0..3
+                            _daysInQuarterCyclical, {90,89,92,91,92,92,92,92,91,92,92,90},
+                            _quarterWithFeb, INT(MOD(1 - _monthOffset, 12) / 3),  // 0..3
+                            _quarterPrecession, MOD(_monthOffset + (_quarter * 3), 12) + 1,
+                            _nominalDaysInQuarter, INDEX(_daysInQuarterCyclical, 1, _quarterPrecession),
+                            _leapDay, IF(ISNUMBER(FiscalYearCE) * (_quarterWithFeb = _quarter),
+                                LET(
+                                    _yearOfFeb, INT(FiscalYearCE) + N(_quarter = 3),
+                                    N(IS_LEAP_YEAR(_yearOfFeb, JulianCalendar))
+                                ),
+                                0
+                            ),
+                            _nominalDaysInQuarter + _leapDay
+                        )
+                    )
                 )
             )
         )
@@ -1087,7 +1091,7 @@ JDN_TO_QUARTER_DATE = LAMBDA(JDN, [JulianCalendar],
 /*--------------------------------------------------------------------------------------------------------
 QUARTER_DATE_TO_JDN
 
-Returns the Julian Day Number of the provided ordinal date in the specified calendar.
+Returns the Julian Day Number of the provided quarter date in the specified calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
@@ -1095,30 +1099,83 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Quarter          | integer | Quarter of year 1..4
-DayOfQuarter     | decimal | Day of quarter 1..92
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+FiscalYearCE     | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+                 |                 | When month offset is non-zero the fiscal year spans calendar years and
+                 |                 | is defined as the year where June falls.
+Quarter          | integer [1..4]  | Quarter of the year 1..4, transitive, exceeding range will carry to year.
+DayOfQuarter     | decimal [1..92] | Ordinal day of the quarter, exceeding range will carry
+[MonthOffset]    | integer [-6..3] | Quarter month offset from January
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-QUARTER_DATE_TO_JDN = LAMBDA(YearCE, Quarter, DayOfQuarter, [JulianCalendar],
-    IF((YearCE = "") * (Quarter = "") * (DayOfQuarter = ""), "",
-        IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Quarter)) + NOT(ISNUMBER(DayOfQuarter)), {#VALUE!},
+QUARTER_DATE_TO_JDN = LAMBDA(FiscalYearCE, Quarter, DayOfQuarter, [MonthOffset], [JulianCalendar],
+    IF((FiscalYearCE = "") * (Quarter = "") * (DayOfQuarter = ""), "",
+        IF(NOT(ISNUMBER(FiscalYearCE)) + NOT(ISNUMBER(Quarter)) + NOT(ISNUMBER(DayOfQuarter)), {#VALUE!},
+            IF(MOD(Quarter, 1) > 0, {#NUM!},
+                LET(
+                    _monthOffset, ROUND(N(MonthOffset), 0),
+                    IF((_monthOffset < -6) + (_monthOffset > 3), {#NUM!},
+                        LET(
+                            _fiscalYearCE, INT(FiscalYearCE),
+                            _quarter, INT(Quarter),
+                            _shiftMonth, (_quarter - 1) * 3 + _monthOffset,
+                            _yearCE, _fiscalYearCE + INT(_shiftMonth / 12),
+                            _month, MOD(_shiftMonth, 12) + 1,
+                            _firstDayOfQuarter, JULIAN_DAY_NUMBER(_yearCE, _month, 1, JulianCalendar),
+                            _firstDayOfQuarter - 1 + INT(DayOfQuarter)
+                        )
+                    )
+                )
+            )
+        )
+    )    
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+JDN_TO_QUARTER_DATE
+
+Returns the fiscal year, quarter, day of quarter and days in the quarter for the given Julian Day Number
+in the specified calendar.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer          | FiscalYearCE
+   |                  | When month offset is non-zero the fiscal year spans calendar years and
+   |                  | is defined as the year where June falls.
+ 2 | integer [1..4]   | Quarter
+ 3 | integer [1..92]  | Day of quarter
+ 4 | integer [89..92] | Days in quarter
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDN              | integer         | Julian Day Number for the calendar day
+[MonthOffset]    | integer [-6..3] | Quarter month offset from January.
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+--------------------------------------------------------------------------------------------------------*/
+JDN_TO_QUARTER_DATE = LAMBDA(JDN, [MonthOffset], [JulianCalendar],
+    IF(JDN = "", {"", "", "", ""},
+        IF(NOT(ISNUMBER(JDN)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
             LET(
-                _inValid, IFS(
-                    MOD(YearCE, 1) > 0, TRUE,
-                    MOD(Quarter, 1) > 0, TRUE,
-                    Quarter < 1, TRUE,
-                    Quarter > 4, TRUE,
-                    DayOfQuarter < 1, TRUE,
-                    DayOfQuarter <= 90, FALSE,
-                    DayOfQuarter > DAYS_IN_QUARTER(Quarter, YearCE, JulianCalendar), TRUE,
-                    TRUE, FALSE
-                ),
-                IF(_inValid, {#NUM!},
+                _monthOffset, ROUND(N(MonthOffset), 0),
+                IF((_monthOffset < -6) + (_monthOffset > 3), {#NUM!, #NUM!, #NUM!, #NUM!},
                     LET(
-                        _jdnLastDayPrevQuarter, JULIAN_DAY_NUMBER(YearCE, ((Quarter - 1) * 3) + 1, 1, JulianCalendar) - 1,
-                        _jdnLastDayPrevQuarter + DayOfQuarter
+                        _jdn, INT(JDN),
+                        _calDate, JDN_TO_CALENDAR_DATE(_jdn, JulianCalendar),
+                        _shiftMonth, INDEX(_calDate, 1, 2) - 1 - _monthOffset,
+                        _fiscalYear, INDEX(_calDate, 1, 1) + INT(_shiftMonth / 12),
+                        _zeroBasedFiscalMonth, MOD(_shiftMonth, 12),
+                        _quarter, INT(_zeroBasedFiscalMonth / 3) + 1,
+                        _jdnFirstDayQuarter, QUARTER_DATE_TO_JDN(_fiscalYear, _quarter, 1, _monthOffset, JulianCalendar),
+                        _dayOfQuarter, _jdn - _jdnFirstDayQuarter + 1,
+                        _daysInQuarter, DAYS_IN_QUARTER(_quarter, _fiscalYear, _monthOffset, JulianCalendar),
+                        HSTACK(
+                            _fiscalYear,
+                            _quarter,
+                            _dayOfQuarter,
+                            _daysInQuarter
+                        )
                     )
                 )
             )
@@ -1129,8 +1186,13 @@ QUARTER_DATE_TO_JDN = LAMBDA(YearCE, Quarter, DayOfQuarter, [JulianCalendar],
 
 
 
+
+
+
+
+
 /*########################################################################################################
-# DATE AND TIME FUNCTIONS                                                                                #
+# DATE AND TIME                                                                                          #
 ########################################################################################################*/
 
 
@@ -1146,12 +1208,13 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDN       | integer | Julian Day Number.
-[TimeUTC] | decimal | Time of day in UTC as decimal fraction of a day or Excel Time data type.
+JDN       | integer        | Julian Day Number.
+[TimeUTC] | decimal [0..1) | Time of day in UTC as decimal fraction or Excel Date/Time type.
+          |                | Carries if range is exceeded.
 --------------------------------------------------------------------------------------------------------*/
 JDN_UTC_TO_JDATE = LAMBDA(JDN, [TimeUTC],
     IF((JDN = "") * (TimeUTC = ""), "",
-        IF(NOT(ISNUMBER(JDN)) + (NOT(ISNUMBER(TimeUTC)) * (TimeUTC <> "")), #VALUE!,
+        IF(NOT(ISNUMBER(JDN)) + (NOT(ISNUMBER(TimeUTC)) * (TimeUTC <> "")), {#VALUE!},
             IF(MOD(JDN, 1) > 0, {#NUM!},
                 JDN - 0.5 + N(TimeUTC)
             )
@@ -1171,19 +1234,27 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-LocalJDN       | integer | Local Julian Day Number.
-LocalTime      | decimal | Local time of day as decimal fraction of a day or Excel Time data type.
-TimeZoneOffset | decimal | Time zone offset in minutes from UTC.
+LocalJDN         | integer        | Local Julian Day Number.
+LocalTime        | decimal [0..1) | Local time of day as decimal fraction or Excel Date/Time type.
+                 |                | Carries is range is exceeded.
+[TimeZoneOffset] | decimal        | Time zone offset in minutes from UTC.
+                 | [-900..900]    | Assumed to be UTC if ommitted.
 --------------------------------------------------------------------------------------------------------*/
-JDN_LOCAL_TO_JDATE = LAMBDA(LocalJDN, LocalTime, TimeZoneOffset,
+JDN_LOCAL_TO_JDATE = LAMBDA(LocalJDN, LocalTime, [TimeZoneOffset],
     IF((LocalJDN = "") * (LocalTime = ""), "",
-        IF(NOT(ISNUMBER(LocalJDN)) + NOT(ISNUMBER(LocalTime)) + NOT(ISNUMBER(TimeZoneOffset)), #VALUE!,
+        IF(NOT(ISNUMBER(LocalJDN)) + (NOT(ISNUMBER(LocalTime)) * (LocalTime <> "")) + (NOT(ISNUMBER(TimeZoneOffset)) * (TimeZoneOffset <> "")), {#VALUE!},
             IF(MOD(LocalJDN, 1) > 0, {#NUM!},
-                LocalJDN - 0.5 + LocalTime - (TimeZoneOffset / 1440)
+                LET(
+                    _tzo, N(TimeZoneOffset) / 1440,
+                    IF(ABS(_tzo) > 0.625, {#NUM!},
+                        LocalJDN - 0.5 + N(LocalTime) - _tzo
+                    )
+                )
             )
         )
     )
 );
+
 
 /*--------------------------------------------------------------------------------------------------------
 JDATE_TO_JDN_UTC
@@ -1192,8 +1263,8 @@ Returns the Julian Day Number and time of day in UTC of a given Julian Date.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Julian Day Number
- 2 | decimal | Time of day in UTC. Decimal fraction of a day, implicitly converts to Excel time data type.
+ 1 | integer        | Julian Day Number
+ 2 | decimal [0..1) | Time of day in UTC. Decimal fraction, implicitly converts to Excel Date/Time type.
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -1212,6 +1283,7 @@ JDATE_TO_JDN_UTC = LAMBDA(JDate,
     )
 );
 
+
 /*--------------------------------------------------------------------------------------------------------
 JDATE_TO_JDN_LOCAL
 
@@ -1219,27 +1291,33 @@ Returns the local Julian Day Number and time of day of a given Julian Date.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Local Julian Day Number
- 2 | decimal | Local time of day. Decimal fraction of a day, implicitly converts to Excel time data type.
+ 1 | integer        | Local Julian Day Number
+ 2 | decimal [0..1) | Local time of day. Decimal fraction, implicitly converts to Excel Date/Time type.
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate          | decimal | Julian Date
-TimeZoneOffset | decimal | Time zone offset in minutes from UTC.
+JDate            | decimal     | Julian Date
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
 --------------------------------------------------------------------------------------------------------*/
-JDATE_TO_JDN_LOCAL = LAMBDA(JDate, TimeZoneOffset,
+JDATE_TO_JDN_LOCAL = LAMBDA(JDate, [TimeZoneOffset],
     IF(JDate = "", {"", ""},
-        IF(NOT(ISNUMBER(JDate)), {#VALUE!, #VALUE!},
+        IF(NOT(ISNUMBER(JDate)) + (NOT(ISNUMBER(TimeZoneOffset)) * (TimeZoneOffset <> "")), {#VALUE!, #VALUE!},
             LET(
                 _tzo, N(TimeZoneOffset) / 1440,
-                _shiftLocal, JDate + 0.5 + _tzo,
-                _localJDN, INT(_shiftLocal),
-                _localTime, _shiftLocal - _localJDN,
-                HSTACK(_localJDN, _localTime)
+                IF(ABS(_tzo) > 0.625, {#NUM!, #NUM!},
+                    LET(                    
+                        _shiftLocal, JDate + 0.5 + _tzo,
+                        _localJDN, INT(_shiftLocal),
+                        _localTime, _shiftLocal - _localJDN,
+                        HSTACK(_localJDN, _localTime)
+                    )
+                )
             )
         )
     )
 );
+
 
 /*--------------------------------------------------------------------------------------------------------
 JULIAN_DATE
@@ -1253,26 +1331,34 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer | Month
-Day              | integer | Day
-Time             | decimal | Time of day as decimal fraction of a day or Excel Time data type.
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month            | integer [1..12] | Month
+Day              | integer [1..31] | Day
+Time             | decimal [0..1)  | Time of day as decimal fraction or Excel Date/Time type.
+                 |                 | Carries if range is exceeded.
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch          | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 JULIAN_DATE = LAMBDA(YearCE, Month, Day, Time, [TimeZoneOffset], [JulianCalendar],
     IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), {#VALUE!},
-        LET(
-            _dayPart, INT(N(Time)),
-            _tod, N(Time) - _dayPart,
-            _day, INT(Day) + _dayPart,
-            _tzo, N(TimeZoneOffset),
-            _jdn, JULIAN_DAY_NUMBER(YearCE, Month, _day, JulianCalendar),
-            JDN_LOCAL_TO_JDATE(_jdn, _tod, _tzo)
+        IF(MOD(Day, 1) > 0, {#NUM!},
+            LET(
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!},
+                    LET(                    
+                        _dayPart, INT(N(Time)),
+                        _tod, N(Time) - _dayPart,
+                        _jdn, _dayPart + JULIAN_DAY_NUMBER(YearCE, Month, Day, JulianCalendar),
+                        JDN_LOCAL_TO_JDATE(_jdn, _tod, _tzo)
+                    )
+                )
+            )
         )
     )
 );
+
 
 /*--------------------------------------------------------------------------------------------------------
 CALENDAR_FROM_JDATE
@@ -1281,43 +1367,131 @@ Returns the calendar date and local time of day for a given Julian Date and time
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | YearCE
- 2 | integer | Month
- 3 | integer | Day
- 4 | decimal | Local time of day. Decimal fraction of a day, implicitly converts to Excel time data type.
+ 1 | integer         | YearCE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
+ 4 | decimal [0..1)  | Local time of day. Decimal fraction, implicitly converts to Excel Date/Time type.
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate            | decimal | Julian Date. Note Julian Dates are always in UTC.
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Precision]      | integer | Select precision level
-                 |         |   0 - Floating
-                 |         |   1 - Day
-                 |         |   2 - Hour
-                 |         |   3 - Minute
-                 |         |   4 - Second
-                 |         |   5 - Millisecond
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+JDate            | decimal     | Julian Date. Note Julian Dates are always in UTC.
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+[Precision]      | integer     | Select precision level
+                 |             |   0 - Floating
+                 |             |   1 - Day
+                 |             |   2 - Hour
+                 |             |   3 - Minute
+                 |             |   4 - Second
+                 |             |   5 - Millisecond
+[JulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |             | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 CALENDAR_FROM_JDATE = LAMBDA(JDate, [TimeZoneOffset], [Precision], [JulianCalendar],
     IF(JDate = "", {"", "", "", ""},
         IF(NOT(ISNUMBER(JDate)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
             LET(
                 _jdnLocal, JDATE_TO_JDN_LOCAL(JDate, TimeZoneOffset),
-                _precision, N(Precision),
-                _localTime, IFS(
-                    _precision <= 0, INDEX(_jdnLocal, 1, 2),
-                    _precision = 1, ROUND(INDEX(_jdnLocal, 1, 2), 0),
-                    _precision = 2, ROUND(INDEX(_jdnLocal, 1, 2) * 24, 0) / 24,
-                    _precision = 3, ROUND(INDEX(_jdnLocal, 1, 2) * 1440, 0) / 1440,
-                    _precision = 4, ROUND(INDEX(_jdnLocal, 1, 2) * 86400, 0) / 86400,
-                    TRUE, ROUND(INDEX(_jdnLocal, 1, 2) * 86400000, 0) / 86400000
-                ),
-                _rLocalTime, MOD(_localTime, 1),
-                _rJDN, INDEX(_jdnLocal, 1, 1) + INT(_localTime),
-                _localDate, JDN_TO_CALENDAR_DATE(_rJDN, JulianCalendar),
-                HSTACK(_localDate, _rLocalTime)
+                IF(ISERROR(INDEX(_jdnLocal, 1, 1)), {#NUM!, #NUM!, #NUM!, #NUM!},
+                    LET(
+                        _precision, N(Precision),
+                        _localTime, IFS(
+                            _precision <= 0, INDEX(_jdnLocal, 1, 2),
+                            _precision = 1, ROUND(INDEX(_jdnLocal, 1, 2), 0),
+                            _precision = 2, ROUND(INDEX(_jdnLocal, 1, 2) * 24, 0) / 24,
+                            _precision = 3, ROUND(INDEX(_jdnLocal, 1, 2) * 1440, 0) / 1440,
+                            _precision = 4, ROUND(INDEX(_jdnLocal, 1, 2) * 86400, 0) / 86400,
+                            TRUE, ROUND(INDEX(_jdnLocal, 1, 2) * 86400000, 0) / 86400000
+                        ),
+                        _rLocalTime, MOD(_localTime, 1),
+                        _rJDN, INDEX(_jdnLocal, 1, 1) + INT(_localTime),
+                        _localDate, JDN_TO_CALENDAR_DATE(_rJDN, JulianCalendar),
+                        HSTACK(_localDate, _rLocalTime)
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIME_DECIMAL_TO_HMS
+
+Returns the 24 hour timekeeping representation of a decimal time value.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Hours
+ 3 | integer [0..59]  | Minutes
+ 4 | decimal [0..60)  | Seconds
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+Time | decimal | Time as fraction of a day (24 hours). Implicitly converts from Excel Date/Time type for
+     |         | non-negative values. 
+--------------------------------------------------------------------------------------------------------*/
+TIME_DECIMAL_TO_HMS = LAMBDA(Time,
+    IF(Time = "", {"", "", "", ""},
+        IF(NOT(ISNUMBER(Time)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
+            LET(
+                // round to milliseconds, scale to seconds
+                _seconds, ROUND(Time * 86400, 3),
+                IF(_seconds = 0, {0, 0, 0, 0},
+                    LET(
+                        _sign, SIGN(_seconds),
+                        _absSeconds, ABS(_seconds),
+                        _secondPart, MOD(_absSeconds, 60),
+                        _minutes, INT((_absSeconds - _secondPart) / 60),
+                        _minutePart, MOD(_minutes, 60),
+                        _hourPart, INT((_minutes - _minutePart) / 60),
+                        HSTACK(
+                            _sign,
+                            _hourPart,
+                            _minutePart,
+                            _secondPart
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+HMS_TO_TIME_DECIMAL
+
+Returns a decimal time as a fraction of a day from a 24 hour timekeeping value of time.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal | Implicitly converts to Excel Date/Time type for non-negative values.
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+Sign    | integer [-1,0,1] |
+Hours   | integer [0..]    |
+Minutes | integer [0..59]  |
+Seconds | decimal [0..60)  |
+--------------------------------------------------------------------------------------------------------*/
+HMS_TO_TIME_DECIMAL = LAMBDA(Sign, Hours, Minutes, Seconds,
+    IF((Hours = "") * (Minutes = "") * (Seconds = ""), "",
+        IF((NOT(ISNUMBER(Sign)) * (Sign <> ""))
+            + (NOT(ISNUMBER(Hours)) * (Hours <> ""))
+            + (NOT(ISNUMBER(Minutes)) * (Minutes <> ""))
+            + (NOT(ISNUMBER(Seconds)) * (Seconds <> "")), {#VALUE!},
+            LET(
+                _hours, N(Hours),
+                _minutes, N(Minutes),
+                _seconds, N(Seconds),
+                IF((_hours = 0) * (_minutes = 0) * (_seconds = 0), 0,
+                    LET(
+                        _sign, IF(N(Sign) < 0, -1, 1),
+                        _sign * ((_hours / 24) + (_minutes / 1440) + (_seconds / 86400))
+                    )
+                )
             )
         )
     )
@@ -1336,38 +1510,44 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer | Month
-Day              | integer | Day
-Time             | decimal | Local time of day as decimal fraction of a day or Excel Time data type.
-AddYears         | decimal | Add years timespan. Fractional part carries to month and day.
-AddMonths        | decimal | Add months timespan. Fractional part carries to day.
-AddDays          | decimal | Add days timespan. Fractional part carries to time.
-AddTime          | decimal | Add timespan.
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month            | integer [1..12] | Month
+Day              | integer [1..31] | Day
+Time             | decimal [0..1)  | Local time of day as decimal fraction or Excel Date/Time type.
+AddYears         | decimal         | Add years timespan. Fractional part carries to month and day.
+AddMonths        | decimal         | Add months timespan. Fractional part carries to day.
+AddDays          | decimal         | Add days timespan. Fractional part carries to time.
+AddTime          | decimal         | Add timespan.
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch          | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 ADD_TIMESPAN = LAMBDA(YearCE, Month, Day, Time, AddYears, AddMonths, AddDays, AddTime, [TimeZoneOffset], [JulianCalendar],
     IF((YearCE = "") * (Month = "") * (Day = "") * (Time = ""), "",
-        IF((NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day))) <> 0, {#VALUE!},
+        IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day)), {#VALUE!},
             IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), {#VALUE!},
-                LET(
-                    _addYears, INT(N(AddYears)),
-                    _fracYears, AddYears - _addYears,
-                    _sMonths, N(AddMonths) + (_fracYears * 12),
-                    _addMonths, INT(_sMonths),
-                    _fracMonths, _sMonths - _addMonths,
-                    _zMonths, Month + _addMonths - 1,
-                    _rMonth, MOD(_zMonths, 12) + 1,
-                    _rYear, YearCE + _addYears + INT(_zMonths / 12),
-                    _mDays, IF(JulianCalendar,
-                        ROUND(_fracMonths / 12 * 365.25, 0),
-                        ROUND(_fracMonths / 12 * 365.2425, 0)
-                    ),
-                    _sDays, Day - 1 + _mDays + N(AddDays) + N(Time) + N(AddTime),
-                    _baseJDate, JULIAN_DATE(_rYear, _rMonth, 1, 0, TimeZoneOffset, JulianCalendar),
-                    _baseJDate + _sDays
+                IF(MOD(Day, 1) > 0, {#NUM!},
+                    LET(
+                        _tzo, N(TimeZoneOffset),
+                        IF(ABS(_tzo) > 900, {#NUM!},
+                            LET(
+                                _addYears, INT(N(AddYears)),
+                                _fAddYears, N(AddYears) - _addYears,
+                                _sMonths, N(AddMonths) + (_fAddYears * 12),
+                                _addMonths, INT(_sMonths),
+                                _fAddMonths, _sMonths - _addMonths,
+                                _zMonths, Month + _addMonths - 1,
+                                _rMonth, MOD(_zMonths, 12) + 1,
+                                _rYear, YearCE + _addYears + INT(_zMonths / 12),
+                                _avgDaysMonth, IF(N(JulianCalendar), 30.4375, 30.436875),
+                                _mDays, ROUND(_fAddMonths * _avgDaysMonth, 0),
+                                _baseJDate, JULIAN_DATE(_rYear, _rMonth, 1, 0, _tzo, JulianCalendar) - 1,
+                                _sDays, Day + _mDays + N(AddDays) + N(Time) + N(AddTime),
+                                _baseJDate + _sDays
+                            )
+                        )
+                    )
                 )
             )
         )
@@ -1383,17 +1563,17 @@ Note months and days are not bounded by the calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | YearCE
- 2 | integer | Month
- 3 | integer | Day
- 4 | decimal | Local time of day. Decimal fraction of a day, implicitly converts to Excel time data type.
+ 1 | integer         | YearCE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
+ 4 | decimal [0..1)] | Local time of day. Decimal fraction, implicitly converts to Excel Date/Time type.
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 YearCE           | decimal | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
 Months           | decimal | Months
 Days             | decimal | Days
-Time             | decimal | Local time of day as decimal fraction of a day or Excel Time data type.
+Time             | decimal | Local time of day as decimal fraction or Excel Date/Time type.
 [Precision]      | integer | Select precision level
                  |         |   0 - Floating
                  |         |   1 - Day
@@ -1411,7 +1591,7 @@ Returns: {2025, 2, 1, 0}
 --------------------------------------------------------------------------------------------------------*/
 RESOLVE_DATE = LAMBDA(YearCE, Months, Days, Time, [Precision], [JulianCalendar],
     IF((YearCE = "") * (Months = "") * (Days = "") * (Time = ""), {"", "", "", ""},
-        IF((NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Months)) + NOT(ISNUMBER(Days))) <> 0, {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
+        IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Months)) + NOT(ISNUMBER(Days)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
             LET(
                 _yearCE, INT(YearCE),
                 _addYears, YearCE - _yearCE,
@@ -1435,9 +1615,104 @@ RESOLVE_DATE = LAMBDA(YearCE, Months, Days, Time, [Precision], [JulianCalendar],
 
 
 /*--------------------------------------------------------------------------------------------------------
+DELTA_HOURS
+
+Returns the timespan difference between Julian Dates in hours.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal | Difference in hours
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1 | decimal | 
+JDate2 | decimal | 
+--------------------------------------------------------------------------------------------------------*/
+DELTA_HOURS = LAMBDA(JDate1, JDate2,
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            (JDate2 - JDate1) * 24
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+DELTA_MINUTES
+
+Returns the timespan difference between Julian Dates in minutes.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal | Difference in minutes
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1 | decimal | 
+JDate2 | decimal | 
+--------------------------------------------------------------------------------------------------------*/
+DELTA_MINUTES = LAMBDA(JDate1, JDate2,
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            (JDate2 - JDate1) * 1440
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+DELTA_SECONDS
+
+Returns the timespan difference between Julian Dates in seconds.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal | Difference in seconds
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1 | decimal | 
+JDate2 | decimal | 
+--------------------------------------------------------------------------------------------------------*/
+DELTA_SECONDS = LAMBDA(JDate1, JDate2,
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            (JDate2 - JDate1) * 86400
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+DELTA_HOUR_MIN_SEC
+
+Returns the timespan difference between Julian Dates in hours, minutes and seconds.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Delta hours
+ 3 | integer [0..59]  | Delta minutes
+ 4 | decimal [0..60)  | Delta seconds
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1 | decimal | 
+JDate2 | decimal | 
+--------------------------------------------------------------------------------------------------------*/
+DELTA_HOUR_MIN_SEC = LAMBDA(JDate1, JDate2,
+    IF((JDate1 = "") * (JDate2 = ""), {"","","",""},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
+            TIME_DECIMAL_TO_HMS(JDate2 - JDate1)
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
 DELTA_DAYS
 
-Returns the timespan difference between two dates in days.
+Returns the timespan difference between Julian Dates in days.
 
 Output
 ----------------------------------------------------------------------------------------------------------
@@ -1445,44 +1720,22 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of days.
-
-Examples
-----------------------------------------------------------------------------------------------------------
-DELTA_DAYS(JULIAN_DATE(2023,1,1,TIME(23,59,59)), JULIAN_DATE(2023,1,2,TIME(0,0,1)))
-= 2.3148E-05 = 2 sec / 86400   i.e. 2 seconds difference expressed as decimal days
-
-DELTA_DAYS(JULIAN_DATE(2023,1,1,TIME(23,59,59)), JULIAN_DATE(2023,1,2,TIME(0,0,1)), , 1)
-= 2  i.e. 2 days inclusive because the 2 second timespan crosses the day boundary
+JDate1 | decimal | 
+JDate2 | decimal | 
 --------------------------------------------------------------------------------------------------------*/
-DELTA_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent],
+DELTA_DAYS = LAMBDA(JDate1, JDate2,
     IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                IF(_fractional,
-                    // Round to milliseconds
-                    ROUND((JDate2 - JDate1) * 86400000, 0) / 86400000,
-                    LET(
-                        _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                        _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                        _diffDays, ABS(INDEX(_jdnLocal2, 1, 1) - INDEX(_jdnLocal1, 1, 1)),
-                        (_diffDays + 1) * _sign
-                    )
-                )
-            )
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            (JDate2 - JDate1)
         )
     )
 );
 
+
 /*--------------------------------------------------------------------------------------------------------
 DELTA_WEEKS
 
-Returns the timespan difference between two dates in weeks.
+Returns the timespan difference between Julian Dates in weeks.
 
 Output
 ----------------------------------------------------------------------------------------------------------
@@ -1490,38 +1743,13 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of ISO defined weeks.
-
-Examples
-----------------------------------------------------------------------------------------------------------
-DELTA_WEEKS(JULIAN_DATE(2023,1,2,0), JULIAN_DATE(2023,1,12,0.5))
-= 1.5   i.e. 10½ days
-
-DELTA_WEEKS(JULIAN_DATE(2023,1,8,TIME(23,59,59)), JULIAN_DATE(2023,1,9,TIME(0,0,1)), , 1)
-= 2   i.e. 2 weeks inclusive because the 2 second timespan crosses the ISO week boundary
+JDate1 | decimal |
+JDate2 | decimal |
 --------------------------------------------------------------------------------------------------------*/
-DELTA_WEEKS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent],
+DELTA_WEEKS = LAMBDA(JDate1, JDate2,
     IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                IF(_fractional,
-                    // Round to milliseconds
-                    ROUND((JDate2 - JDate1) * 86400000, 0) / 604800000,
-                    LET(
-                        _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                        _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                        _jdnMonday1, INDEX(_jdnLocal1, 1, 1) + 1 - DAY_OF_WEEK(INDEX(_jdnLocal1, 1, 1)),
-                        _jdnMonday2, INDEX(_jdnLocal2, 1, 1) + 1 - DAY_OF_WEEK(INDEX(_jdnLocal2, 1, 1)),
-                        _weekDiff, ABS(_jdnMonday2 - _jdnMonday1) / 7,
-                        (_weekDiff + 1) * _Sign
-                    )
-                )
-            )
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            (JDate2 - JDate1) / 7
         )
     )
 );
@@ -1530,9 +1758,9 @@ DELTA_WEEKS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent],
 /*--------------------------------------------------------------------------------------------------------
 DELTA_MONTHS
 
-Returns the timespan difference between two dates in months.
-Where the difference includes partial months, the fraction is calculated on the basis of average days per
-month in the calendar.
+Returns the timespan difference between Julian Dates in months.
+Where the difference includes partial months, the fraction is calculated on the basis of days in the month
+of the calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
@@ -1540,35 +1768,40 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal |
-JDate2           | decimal |
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of months.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+JDate1           | decimal     |
+JDate2           | decimal     |
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |             | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DELTA_MONTHS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
+DELTA_MONTHS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [JulianCalendar],
     IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
             LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                _date1, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal1, 1, 1), JulianCalendar),
-                _date2, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal2, 1, 1), JulianCalendar),
-                _deltaYear, INDEX(_date2, 1, 1) - INDEX(_date1, 1, 1),
-                _deltaMonth, INDEX(_date2, 1, 2) - INDEX(_date1, 1, 2),
-                _diffFullMonths, ABS((_deltaYear * 12) + _deltaMonth),
-                IF(_fractional,
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!},
                     LET(
-                        _gregorian, N(JulianCalendar) = 0,
-                        _deltaDays, _sign * (INDEX(_date2, 1, 3) - INDEX(_date1, 1, 3)
-                            + INDEX(_jdnLocal2, 1, 2) - INDEX(_jdnLocal1, 1, 2)),
-                        _avgDaysMonth, IF(_gregorian, 30.436875, 30.4375),
-                        _diffFullMonths + (_deltaDays / _avgDaysMonth)
-                    ),
-                    (_diffFullMonths + 1) * _sign
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate1, JDate2),
+                            _tzo
+                        ),
+                        _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate2, JDate1),
+                            _tzo
+                        ),
+                        _date_Start, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_Start, 1, 1), JulianCalendar),
+                        _date_End, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_End, 1, 1), JulianCalendar),
+                        _deltaYear, INDEX(_date_End, 1, 1) - INDEX(_date_Start, 1, 1),
+                        _deltaMonth, INDEX(_date_End, 1, 2) - INDEX(_date_Start, 1, 2),
+                        _diffMonths, (_deltaYear * 12) + _deltaMonth,
+                        _daysMonth_Start, DAYS_IN_MONTH(INDEX(_date_Start, 1, 2), INDEX(_date_Start, 1, 1), JulianCalendar),
+                        _daysMonth_End, DAYS_IN_MONTH(INDEX(_date_End, 1, 2), INDEX(_date_End, 1, 1), JulianCalendar),
+                        _partialMonth_Start, (INDEX(_date_Start, 1, 3) - 1 + INDEX(_jdnLocal_Start, 1, 2)) / _daysMonth_Start,
+                        _partialMonth_End, (INDEX(_date_End, 1, 3) - 1 + INDEX(_jdnLocal_End, 1, 2)) / _daysMonth_End,
+                        _sign * (_diffMonths - _partialMonth_Start + _partialMonth_End)
+                    )
                 )
             )
         )
@@ -1579,9 +1812,9 @@ DELTA_MONTHS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalenda
 /*--------------------------------------------------------------------------------------------------------
 DELTA_QUARTERS
 
-Returns the timespan difference between two dates in quarters.
-Where the difference includes partial quarters, the fraction is calculated on the basis of average days per
-quarter in the calendar.
+Returns the timespan difference between Julian Dates in quarters.
+Where the difference includes partial quarters, the fraction is calculated on the basis of days in the
+quarter of the calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
@@ -1589,39 +1822,40 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of quarters.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+JDate1           | decimal         | 
+JDate2           | decimal         | 
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[MonthOffset]    | integer [-6..3] | Quarter month offset from January.
+[JulianCalendar] | switch          | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DELTA_QUARTERS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
+DELTA_QUARTERS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [MonthOffset], [JulianCalendar],
     IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
             LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                _date1, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal1, 1, 1), JulianCalendar),
-                _date2, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal2, 1, 1), JulianCalendar),
-                _deltaYear, INDEX(_date2, 1, 1) - INDEX(_date1, 1, 1),
-                _quarter1, INT((INDEX(_date1, 1, 2) - 1) / 3),
-                _quarter2, INT((INDEX(_date2, 1, 2) - 1) / 3),
-                _deltaQuarter, _quarter2 - _quarter1,
-                _diffFullQuarters, ABS((_deltaYear * 4) + _deltaQuarter),
-                IF(_fractional,
+                _tzo, N(TimeZoneOffset),
+                _monthOffset, ROUND(N(MonthOffset), 0),
+                IF((ABS(_tzo) > 900) + (_monthOffset < -6) + (_monthOffset > 3), {#NUM!},
                     LET(
-                        _gregorian, N(JulianCalendar) = 0,
-                        _dayOfQuarter1, INDEX(_jdnLocal1, 1, 1) - JULIAN_DAY_NUMBER(INDEX(_date1, 1, 1), (_quarter1 * 3) + 1, 1, JulianCalendar),
-                        _dayOfQuarter2, INDEX(_jdnLocal2, 1, 1) - JULIAN_DAY_NUMBER(INDEX(_date2, 1, 1), (_quarter2 * 3) + 1, 1, JulianCalendar),
-                        _deltaDays, _sign * (_dayOfQuarter2 - _dayOfQuarter1
-                            + INDEX(_jdnLocal2, 1, 2) - INDEX(_jdnLocal1, 1, 2)),
-                        _avgDaysQuarter, IF(_gregorian, 91.310625, 91.3125),
-                        _diffFullQuarters + (_deltaDays / _avgDaysQuarter)
-                    ),
-                    (_diffFullQuarters + 1) * _sign
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate1, JDate2),
+                            _tzo
+                        ),
+                        _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate2, JDate1),
+                            _tzo
+                        ),
+                        _quarterDate_Start, JDN_TO_QUARTER_DATE(INDEX(_jdnLocal_Start, 1, 1), _monthOffset, JulianCalendar),
+                        _quarterDate_End, JDN_TO_QUARTER_DATE(INDEX(_jdnLocal_End, 1, 1), _monthOffset, JulianCalendar),
+                        _deltaYear, INDEX(_quarterDate_End, 1, 1) - INDEX(_quarterDate_Start, 1, 1),
+                        _deltaQuarter, INDEX(_quarterDate_End, 1, 2) - INDEX(_quarterDate_Start, 1, 2),
+                        _diffQuarters, (_deltaYear * 4) + _deltaQuarter,
+                        _partialQuarter_Start, (INDEX(_quarterDate_Start, 1, 3) - 1 + INDEX(_jdnLocal_Start, 1, 2)) / INDEX(_quarterDate_Start, 1, 4),
+                        _partialQuarter_End, (INDEX(_quarterDate_End, 1, 3) - 1 + INDEX(_jdnLocal_End, 1, 2)) / INDEX(_quarterDate_End, 1, 4),
+                        _sign * (_diffQuarters - _partialQuarter_Start + _partialQuarter_End)
+                    )
                 )
             )
         )
@@ -1632,9 +1866,9 @@ DELTA_QUARTERS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalen
 /*--------------------------------------------------------------------------------------------------------
 DELTA_YEARS
 
-Returns the timespan difference between two dates in years.
-Where the difference includes partial years, the fraction is calculated on the basis of average days for
-a year in the calendar.
+Returns the timespan difference between Julian Dates in years.
+Where the difference includes partial years, the fraction is calculated on the basis of days in the
+year of the calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
@@ -1642,85 +1876,35 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of years.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+JDate1           | decimal     | 
+JDate2           | decimal     | 
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |             | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DELTA_YEARS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
+DELTA_YEARS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [JulianCalendar],
     IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
             LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                _date1, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal1, 1, 1), JulianCalendar),
-                _date2, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal2, 1, 1), JulianCalendar),
-                _deltaYear, ABS(INDEX(_date2, 1, 1) - INDEX(_date1, 1, 1)),
-                IF(_fractional,
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!},
                     LET(
-                        _daysYear1, DAYS_IN_YEAR(INDEX(_date1, 1, 1), JulianCalendar),
-                        _daysYear2, DAYS_IN_YEAR(INDEX(_date2, 1, 1), JulianCalendar),
-                        _dayOfYear1, INDEX(_jdnLocal1, 1, 1) - JULIAN_DAY_NUMBER(INDEX(_date1, 1, 1), 1, 1),
-                        _dayOfYear2, INDEX(_jdnLocal2, 1, 1) - JULIAN_DAY_NUMBER(INDEX(_date2, 1, 1), 1, 1),
-                        _partialYears, IF(JDate2 >= JDate1,
-                            LET(
-                                _partialYear1, _daysYear1 - _dayOfYear1 - INDEX(_jdnLocal1, 1, 2),
-                                _partialYear2, _dayOfYear2 + INDEX(_jdnLocal2, 1, 2),
-                                (_partialYear1 / _daysYear1) + (_partialYear2 / _daysYear2)
-                            ),
-                            LET(
-                                _partialYear1, _dayOfYear1 + INDEX(_jdnLocal1, 1, 2),
-                                _partialYear2, _daysYear2 - _dayOfYear2 - INDEX(_jdnLocal2, 1, 2),
-                                (_partialYear1 / _daysYear1) + (_partialYear2 / _daysYear2)
-                            )
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate1, JDate2),
+                            _tzo
                         ),
-                        ((_deltaYear - 1) + _partialYears) * _sign
-                    ),
-                    (_deltaYear + 1) * _sign
-                )
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-DELTA_HOURS
-
-Returns the timespan difference between two dates in hours.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | decimal | Difference in hours
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of hours.
---------------------------------------------------------------------------------------------------------*/
-DELTA_HOURS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                IF(_fractional,
-                    ROUND((JDate2 - JDate1) * 86400000, 0) / 3600000,
-                    LET(
-                        _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                        _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                        _deltaDay, INDEX(_jdnLocal2, 1, 1) - INDEX(_jdnLocal1, 1, 1),
-                        _hour1, ROUND(INDEX(_jdnLocal1, 1, 2) * 86400, 0) / 3600,
-                        _hour2, ROUND(INDEX(_jdnLocal2, 1, 2) * 86400, 0) / 3600,
-                        _deltaHour, INT(_hour2) - INT(_hour1),
-                        _diffHours, ABS((_deltaDay * 24) + _deltaHour),
-                        (_diffHours + 1) * _sign
+                        _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate2, JDate1),
+                            _tzo
+                        ),
+                        _ordinalDate_Start, JDN_TO_ORDINAL_DATE(INDEX(_jdnLocal_Start, 1, 1), JulianCalendar),
+                        _ordinalDate_End, JDN_TO_ORDINAL_DATE(INDEX(_jdnLocal_End, 1, 1), JulianCalendar),
+                        _deltaYear, INDEX(_ordinalDate_End, 1, 1) - INDEX(_ordinalDate_Start, 1, 1),
+                        _partialYear_Start, (INDEX(_ordinalDate_Start, 1, 2) - 1 + INDEX(_jdnLocal_Start, 1, 2)) / INDEX(_ordinalDate_Start, 1, 3),
+                        _partialYear_End, (INDEX(_ordinalDate_End, 1, 2) - 1 + INDEX(_jdnLocal_End, 1, 2)) / INDEX(_ordinalDate_End, 1, 3),
+                        _sign * (_deltaYear - _partialYear_Start + _partialYear_End)
                     )
                 )
             )
@@ -1729,179 +1913,38 @@ DELTA_HOURS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent],
 );
 
 
-/*--------------------------------------------------------------------------------------------------------
-DELTA_MINUTES
 
-Returns the timespan difference between two dates in minutes.
+/*--------------------------------------------------------------------------------------------------------
+DELTA_WEEK_DAYS
+
+Returns the timespan difference between Julian Dates in weeks and days.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | decimal | Difference in minutes
+ 1 | integer [-1,0,1] | Sign
+ 3 | integer [0..]    | Delta weeks 
+ 4 | decimal [0..7)   | Delta days
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of minutes.
+JDate1 | decimal | 
+JDate2 | decimal | 
 --------------------------------------------------------------------------------------------------------*/
-DELTA_MINUTES = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
+DELTA_WEEK_DAYS = LAMBDA(JDate1, JDate2,
+    IF((JDate1 = "") * (JDate2 = ""), {"", "", ""},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!, #VALUE!, #VALUE!},
             LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                IF(_fractional,
-                    ROUND((JDate2 - JDate1) * 86400000, 0) / 60000,
+                _diffDays, (JDate2 - JDate1),
+                IF(_diffDays = 0, {0, 0, 0},
                     LET(
-                        _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                        _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                        _deltaDay, INDEX(_jdnLocal2, 1, 1) - INDEX(_jdnLocal1, 1, 1),
-                        _minute1, ROUND(INDEX(_jdnLocal1, 1, 2) * 86400, 0) / 60,
-                        _minute2, ROUND(INDEX(_jdnLocal2, 1, 2) * 86400, 0) / 60,
-                        _deltaMinute, INT(_minute2) - INT(_minute1),
-                        _diffMinutes, ABS((_deltaDay * 1440) + _deltaMinute),
-                        (_diffMinutes + 1) * _sign
-                    )
-                )
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-DELTA_SECONDS
-
-Returns the timespan difference between two dates in seconds.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | decimal | Difference in seconds
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the inclusive extent of seconds.
---------------------------------------------------------------------------------------------------------*/
-DELTA_SECONDS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                IF(_fractional,
-                    ROUND((JDate2 - JDate1) * 86400000, 0) / 1000,
-                    LET(
-                        _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                        _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                        _deltaDay, INDEX(_jdnLocal2, 1, 1) - INDEX(_jdnLocal1, 1, 1),
-                        _second1, ROUND(INDEX(_jdnLocal1, 1, 2) * 86400, 0),
-                        _second2, ROUND(INDEX(_jdnLocal2, 1, 2) * 86400, 0),
-                        _deltaSecond, INT(_second2) - INT(_second1),
-                        _diffSeconds, ABS((_deltaDay * 86400) + _deltaSecond),
-                        (_diffSeconds + 1) * _sign
-                    )
-                )
-            )
-        )
-    )
-);
-
-//   !!!!!!!!!!!!!!!!!!!!!!!
-/*--------------------------------------------------------------------------------------------------------
-DELTA_YEAR_MONTHS
-
-Returns the timespan difference between two dates in years and months.
-Where the difference includes partial months, the fraction is calculated on the basis of days in each partial
-year in the calendar.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | Delta years
- 2 | decimal | Delta months [-12]..[12]
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of months.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-DELTA_YEAR_MONTHS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), {"", ""},
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!, #VALUE!},
-            LET(
-                _diffMonths, DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-                _sign, IF(_diffMonths >= 0, 1, -1),
-                _deltaYear, INT(ABS(_diffMonths) / 12) * _sign,
-                _deltaMonth, _diffMonths - (_deltaYear * 12),
-                HSTACK(_deltaYear, _deltaMonth)
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-DELTA_YEAR_WEEKS
-
-Returns the timespan difference between two dates in years and weeks.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | Delta years
- 2 | decimal | Delta weeks [-53]..[53]
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of weeks.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-DELTA_YEAR_WEEKS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), {"", ""},
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!, #VALUE!},
-            LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                _weekDate1, WEEK_DATE(INDEX(_jdnLocal1, 1, 1), JulianCalendar),
-                _weekDate2, WEEK_DATE(INDEX(_jdnLocal2, 1, 1), JulianCalendar),
-                _deltaYear, ABS(INDEX(_weekDate2, 1, 1) - INDEX(_weekDate1, 1, 1)),
-                _deltaWeek, _sign * (INDEX(_weekDate2, 1, 2) - INDEX(_weekDate1, 1, 2)),
-                _diffYear, _deltaYear - N(_deltaWeek < 0),
-                _firstYearWeeks, IF(_sign = 1,
-                    WEEKS_IN_YEAR(INDEX(_weekDate1, 1, 1), JulianCalendar),
-                    WEEKS_IN_YEAR(INDEX(_weekDate2, 1, 1), JulianCalendar)
-                ),
-                _diffWeek, _deltaWeek + IF(_deltaWeek < 0, _firstYearWeeks, 0),
-                
-                IF(_fractional,
-                    LET(
-                        _deltaWeekDay, INDEX(_weekDate2, 1, 3) - INDEX(_weekDate1, 1, 3),
-                        _deltaTime, INDEX(_jdnLocal2, 1, 2) - INDEX(_jdnLocal1, 1, 2),
-                        _partialWeeks, (_deltaWeekDay + _deltaTime) / 7,
+                        _sign, IF(_diffDays >= 0, 1, -1),
+                        _absDiffDays, _sign * _diffDays,
+                        _deltaWeek, INT(_absDiffDays / 7),
+                        _deltaDay, MOD(_absDiffDays, 7),
                         HSTACK(
-                            _sign * _diffYear,
-                            (_sign * _diffWeek) + _partialWeeks
-                        )
-                    ),
-                    LET(
-                        _carryYear, N((_diffWeek + 1) >= _firstYearWeeks),
-                        _extentYear, _diffYear + _carryYear,
-                        _extentWeek, _diffWeek + 1 - IF(_carryYear, _firstYearWeeks, 0),
-                        HSTACK(
-                            _sign * _extentYear,
-                            _sign * _extentWeek
+                            _sign,
+                            _deltaWeek,
+                            _deltaDay
                         )
                     )
                 )
@@ -1912,54 +1955,70 @@ DELTA_YEAR_WEEKS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCal
 
 
 /*--------------------------------------------------------------------------------------------------------
-DELTA_YEAR_DAYS
+DELTA_YEAR_WEEK_DAYS
 
-Returns the timespan difference between two dates in years and days.
+Returns the timespan difference between Julian Dates in years, weeks, and days.
+Note the number of weeks per year an vary between 52 and 53. If an absolute number of weeks is being sought
+then use either DELTA_WEEK_DAYS or DELTA_WEEKS functions.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Delta years
- 2 | decimal | Delta days [-366]..[366]
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Delta years
+ 3 | integer [0..52]  | Delta weeks 
+ 4 | decimal [0..7)   | Delta days
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of days.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+JDate1           | decimal     | 
+JDate2           | decimal     | 
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |             | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DELTA_YEAR_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), {"", ""},
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!, #VALUE!},
+DELTA_YEAR_WEEK_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [JulianCalendar],
+    IF((JDate1 = "") * (JDate2 = ""), {"", "", "", ""},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
             LET(
-                _sign, IF(JDate2 >= JDate1, 1, -1),
-                _fractional, N(Extent) = 0,
-                _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, TimeZoneOffset),
-                _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, TimeZoneOffset),
-                _ordinalDate1, JDN_TO_ORDINAL_DATE(INDEX(_jdnLocal1, 1, 1), JulianCalendar),
-                _ordinalDate2, JDN_TO_ORDINAL_DATE(INDEX(_jdnLocal2, 1, 1), JulianCalendar),
-                _deltaDay, _sign * (INDEX(_ordinalDate2, 1, 2) - INDEX(_ordinalDate1, 1, 2)),
-                _deltaYear, ABS(INDEX(_ordinalDate2, 1, 1) - INDEX(_ordinalDate1, 1, 1)) - N(_deltaDay < 0),
-                _diffDay, _deltaDay + IF(_deltaDay >= 0, 0,
-                    IF(_sign = 1,
-                        DAYS_IN_YEAR(INDEX(_ordinalDate1, 1, 1)),
-                        DAYS_IN_YEAR(INDEX(_ordinalDate2, 1, 1))
-                    )
-                ),
-                
-                IF(_fractional,
-                    LET(
-                        _deltaTime, _sign * (INDEX(_jdnLocal2, 1, 2) - INDEX(_jdnLocal1, 1, 2)),
-                        HSTACK(
-                            _sign * _deltaYear,
-                            _sign *  (_diffDay + _deltaTime)
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!, #NUM!, #NUM!, #NUM!},
+                    IF(JDate2 = JDate1, {0, 0, 0, 0},
+                        LET(
+                            _sign, IF(JDate2 >= JDate1, 1, -1),
+                            _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                                IF(_sign = 1, JDate1, JDate2),
+                                _tzo
+                            ),
+                            _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                                IF(_sign = 1, JDate2, JDate1),
+                                _tzo
+                            ),
+
+                            _weekDate_Start, JDN_TO_WEEK_DATE(INDEX(_jdnLocal_Start, 1, 1), JulianCalendar),
+                            _weekDate_End, JDN_TO_WEEK_DATE(INDEX(_jdnLocal_End, 1, 1), JulianCalendar),
+                            _deltaYear, INDEX(_weekDate_End, 1, 1) - INDEX(_weekDate_Start, 1, 1),
+                            _deltaWeek, INDEX(_weekDate_End, 1, 2) - INDEX(_weekDate_Start, 1, 2),
+                            _deltaDay, INDEX(_weekDate_End, 1, 3) - INDEX(_weekDate_Start, 1, 3)
+                                + INDEX(_jdnLocal_End, 1, 2) - INDEX(_jdnLocal_Start, 1, 2),
+                        
+                            _deltaDay2, MOD(_deltaDay, 7),
+                            _deltaWeek2, _deltaWeek + INT(_deltaDay / 7),
+                            IF(_deltaWeek2 >= 0,
+                                HSTACK(
+                                    _sign,
+                                    _deltaYear,
+                                    _deltaWeek2,
+                                    _deltaDay2
+                                ),
+                                HSTACK(
+                                    _sign,
+                                    _deltaYear - 1,
+                                    _deltaWeek2 + INDEX(_weekDate_Start, 1, 4),
+                                    _deltaDay2
+                                )
+                            )
                         )
-                    ),
-                    HSTACK(
-                        _sign * _deltaYear,
-                        _sign * (ABS(_diffDay) + 1)
                     )
                 )
             )
@@ -1971,31 +2030,67 @@ DELTA_YEAR_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCale
 /*--------------------------------------------------------------------------------------------------------
 DELTA_MONTH_DAYS
 
-Returns the timespan difference between two dates in months and days.
+Returns the timespan difference between Julian Dates in months and days.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Difference in months
- 2 | decimal | Difference in days  [-31]..[31]
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Delta months
+ 3 | decimal [0..31)  | Delta days
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of days.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+JDate1           | decimal     | 
+JDate2           | decimal     | 
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |             | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DELTA_MONTH_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
+DELTA_MONTH_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [JulianCalendar],
+    IF((JDate1 = "") * (JDate2 = ""), {"", "", ""},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!, #VALUE!, #VALUE!},
             LET(
-                _diffMonths, DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-                _sign, IF(_diffMonths >= 0, 1, -1),
-                _years, FLOOR(_diffMonths / 12, _sign),
-                _months, _diffMonths - (_years * 12),
-                "HSTACK(_months, _days)"
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!, #NUM!, #NUM!},
+                    IF(JDate2 = JDate1, {0, 0, 0},
+                        LET(
+                            _sign, IF(JDate2 >= JDate1, 1, -1),
+                            _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                                IF(_sign = 1, JDate1, JDate2),
+                                _tzo
+                            ),
+                            _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                                IF(_sign = 1, JDate2, JDate1),
+                                _tzo
+                            ),
+
+                            _date_Start, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_Start, 1, 1), JulianCalendar),
+                            _date_End, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_End, 1, 1), JulianCalendar),
+                            _deltaYear, INDEX(_date_End, 1, 1) - INDEX(_date_Start, 1, 1),
+                            _deltaMonth, INDEX(_date_End, 1, 2) - INDEX(_date_Start, 1, 2),
+                            _diffMonths, (_deltaYear * 12) + _deltaMonth,
+                            _deltaDay, INDEX(_date_End, 1, 3) - INDEX(_date_Start, 1, 3)
+                                + INDEX(_jdnLocal_End, 1, 2) - INDEX(_jdnLocal_Start, 1, 2),
+                        
+                            IF(_deltaDay < 0,
+                                LET(
+                                    _daysMonth_Start, DAYS_IN_MONTH(INDEX(_date_Start, 1, 2), INDEX(_date_Start, 1, 1), JulianCalendar),
+                                    HSTACK(
+                                        _sign,
+                                        _diffMonths - 1,
+                                        _daysMonth_Start + _deltaDay
+                                    )
+                                ),
+                                HSTACK(
+                                    _sign,
+                                    _diffMonths,
+                                    _deltaDay
+                                )
+                            )
+                        )
+                    )
+                )
             )
         )
     )
@@ -2003,176 +2098,70 @@ DELTA_MONTH_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCal
 
 
 /*--------------------------------------------------------------------------------------------------------
-DELTA_WEEK_DAYS
+DELTA_QUARTER_DAYS
 
-Returns the timespan difference between two dates in weeks and days.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | Difference in weeks
- 2 | decimal | Difference in days [-7]..[7]
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of days.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-DELTA_WEEK_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _diffDays, DELTA_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-                _sign, IF(_diffDays >= 0, 1, -1),
-                _weeks, FLOOR(_diffDays / 7, _sign),
-                _days, _diffDays - (_weeks * 7),
-                HSTACK(_weeks, _days)
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-DELTA_YEAR_MONTH_DAYS
-
-Returns the timespan difference between two dates in years, months and days.
+Returns the timespan difference between Julian Dates in quarters and days.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Difference in years
- 2 | integer | Difference in months  -11..11
- 3 | decimal | Difference in days  [-31]..[31]
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Delta quarters
+ 3 | decimal [0..92)  | Delta days
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of days.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+JDate1           | decimal         | 
+JDate2           | decimal         | 
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[MonthOffset]    | integer [-6..3] | Quarter month offset from January.
+[JulianCalendar] | switch          | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DELTA_YEAR_MONTH_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
+DELTA_QUARTER_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [MonthOffset], [JulianCalendar],
+    IF((JDate1 = "") * (JDate2 = ""), {"", "", ""},
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!, #VALUE!, #VALUE!},
             LET(
-                _diffMonths, DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-                _sign, IF(_diffMonths >= 0, 1, -1),
-                _years, FLOOR(_diffMonths / 12, _sign),
-                _months, _diffMonths - (_years * 12),
-                "HSTACK(_years, _months, _days)"
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-DELTA_YEAR_WEEK_DAYS
-
-Returns the timespan difference between two dates in years, weeks and days.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | Difference in years
- 2 | integer | Difference in weeks -52..52
- 3 | decimal | Difference in days [-7]..[7]
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of days.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-DELTA_YEAR_WEEK_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _diffMonths, DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-                _sign, IF(_diffMonths >= 0, 1, -1),
-                _years, FLOOR(_diffMonths / 12, _sign),
-                _months, _diffMonths - (_years * 12),
-                "HSTACK(_years, _weeks, _days)"
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-DELTA_HOUR_MIN_SECS
-
-Returns the timespan difference between two dates in hours, minutes and seconds.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | Difference in hours
- 2 | integer | Difference in minutes   -59..59
- 3 | decimal | Difference in seconds [-60]..[60]
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of seconds.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-DELTA_HOUR_MIN_SECS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _diffMonths, DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-                _sign, IF(_diffMonths >= 0, 1, -1),
-                _years, FLOOR(_diffMonths / 12, _sign),
-                _months, _diffMonths - (_years * 12),
-                "HSTACK(_hours, _minutes, _seconds)"
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------
-DELTA_COMPLICATION
-
-Returns the timespan difference between two dates in years, months, days, hours, minutes and seconds.
-
-Output
-----------------------------------------------------------------------------------------------------------
- 1 | integer | Difference in years
- 2 | integer | Difference in months    -11..11
- 3 | integer | Difference in days      -30..30
- 4 | integer | Difference in hours     -23..23
- 5 | integer | Difference in minutes   -59..59
- 6 | decimal | Difference in seconds [-60]..[60]
-
-Parameters
-----------------------------------------------------------------------------------------------------------
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of seconds.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
---------------------------------------------------------------------------------------------------------*/
-DELTA_COMPLICATION = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
-    IF((JDate1 = "") * (JDate2 = ""), "",
-        IF((NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2))) <> 0, {#VALUE!},
-            LET(
-                _diffMonths, DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-                _sign, IF(_diffMonths >= 0, 1, -1),
-                _years, FLOOR(_diffMonths / 12, _sign),
-                _months, _diffMonths - (_years * 12),
-                "HSTACK(_years, _weeks, _days, _hours, _minutes, _seconds)"
+                _tzo, N(TimeZoneOffset),
+                _monthOffset, ROUND(N(MonthOffset), 0),
+                IF((ABS(_tzo) > 900) + (_monthOffset < -6) + (_monthOffset > 3), {#NUM!, #NUM!, #NUM!},
+                    IF(JDate2 = JDate1, { 0, 0 ,0},
+                        LET(
+                            _sign, IF(JDate1 > JDate2, -1, 1),
+                            _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                                IF(_sign = 1, JDate1, JDate2),
+                                _tzo
+                            ),
+                            _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                                IF(_sign = 1, JDate2, JDate1),
+                                _tzo
+                            ),
+                            _quarterDate_Start, JDN_TO_QUARTER_DATE(INDEX(_jdnLocal_Start, 1, 1), _monthOffset, JulianCalendar),
+                            _quarterDate_End, JDN_TO_QUARTER_DATE(INDEX(_jdnLocal_End, 1, 1), _monthOffset, JulianCalendar),
+                            _deltaYear, INDEX(_quarterDate_End, 1, 1) - INDEX(_quarterDate_Start, 1, 1),
+                            _deltaQuarter, INDEX(_quarterDate_End, 1, 2) - INDEX(_quarterDate_Start, 1, 2),
+                            _diffQuarters, (_deltaYear * 4) + _deltaQuarter,
+                            _deltaDay, INDEX(_quarterDate_End, 1, 3) - INDEX(_quarterDate_Start, 1, 3)
+                                + INDEX(_jdnLocal_End, 1, 2) - INDEX(_jdnLocal_Start, 1, 2),
+                        
+                            IF(_deltaDay < 0,
+                                LET(
+                                    _daysQuarter_Start, INDEX(_quarterDate_Start, 1, 4),
+                                    HSTACK(
+                                        _sign,
+                                        _diffQuarters - 1,
+                                        _daysQuarter_Start + _deltaDay
+                                    )
+                                ),
+                                HSTACK(
+                                    _sign,
+                                    _diffQuarters,
+                                    _deltaDay
+                                )
+                            )
+                        )
+                    )
+                )
             )
         )
     )
@@ -2182,42 +2171,142 @@ DELTA_COMPLICATION = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianC
 /*--------------------------------------------------------------------------------------------------------
 DELTA_INTERVAL
 
-Returns the timespan difference between two dates in the specified units.
+Returns the timespan difference between Julian Dates in the specified units.
 
-Output
+Output where Units = H, N, S, D, W, M, Q, Y
 ----------------------------------------------------------------------------------------------------------
- 1 | decimal | Difference in seconds
+ 1 | decimal | Delta units decimal
+
+Output where Units = HMS
+----------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Delta hours
+ 3 | integer [0..59]  | Delta minutes
+ 4 | decimal [0..60)  | Delta seconds
+
+Output where Units = DHMS
+----------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Delta days
+ 3 | integer [0..23]  | Delta hours
+ 4 | integer [0..59]  | Delta minutes
+ 5 | decimal [0..60)  | Delta seconds
+
+Output where Units = WD, MD, QD
+----------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1]     | Sign
+ 2 | integer [0..]        | Delta weeks/months/quarters
+ 3 | decimal [0..7/31/92) | Delta days
+
+Output where Units = YWD, YMD, YQD
+----------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1]     | Sign
+ 2 | integer [0..]        | Delta years
+ 3 | integer [0..52/12/4] | Delta weeks/months/quarters
+ 4 | decimal [0..7/31/92) | Delta days
+
+Output where Units = YMDHMS
+----------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Delta years
+ 3 | integer [0..12]  | Delta months
+ 4 | integer [0..30]  | Delta days
+ 5 | integer [0..23]  | Delta hours
+ 6 | integer [0..59]  | Delta minutes
+ 7 | decimal [0..60)  | Delta seconds
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Units            | text    |
-JDate1           | decimal | 
-JDate2           | decimal | 
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Extent]         | switch  | Calculate based on the extent of seconds.
-[JulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar.
+Units            | text            |      H - hours decimal
+                 |                 |      N - minutes decimal
+                 |                 |      S - seconds decimal
+                 |                 |      D - days decimal
+                 |                 |      W - weeks decimal
+                 |                 |      M - months decimal
+                 |                 |      Q - quarters decimal
+                 |                 |      Y - years decimal
+                 |                 |    HMS - hours, minutes, seconds
+                 |                 |   DHMS - days, hours, minutes, seconds
+                 |                 |     WD - weeks and days
+                 |                 |     MD - months and days
+                 |                 |     QD - quarters and days
+                 |                 |    YWD - years, weeks, days
+                 |                 |    YMD - years, months, days
+                 |                 |    YQD - years, quarters, days
+                 |                 | YMDHMS - years, months, days, hours, minutes, seconds
+JDate1           | decimal         | 
+JDate2           | decimal         | 
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[MonthOffset]    | integer [-6..3] | Quarter month offset from January.
+[JulianCalendar] | switch          | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-DELTA_INTERVAL = LAMBDA(Units, JDate1, JDate2, [TimeZoneOffset], [Extent], [JulianCalendar],
+DELTA_INTERVAL = LAMBDA(Units, JDate1, JDate2, [TimeZoneOffset], [MonthOffset], [JulianCalendar],
     IFS(
-        Units = "", DELTA_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "d", DELTA_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "w", DELTA_WEEKS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "m", DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "q", DELTA_QUARTERS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "y", DELTA_YEARS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "h", DELTA_HOURS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "n", DELTA_MINUTES(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "s", DELTA_SECONDS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "ym", DELTA_YEAR_MONTHS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "yw", DELTA_YEAR_WEEKS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "yd", DELTA_YEAR_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "md", DELTA_MONTH_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "wd", DELTA_WEEK_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "ymd", DELTA_YEAR_MONTH_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "ywd", DELTA_YEAR_WEEK_DAYS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "hms", DELTA_HOUR_MIN_SECS(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
-        Units = "ymdhms", DELTA_COMPLICATION(JDate1, JDate2, TimeZoneOffset, Extent, JulianCalendar),
+        Units = "", {#VALUE!},
+        Units = "H", DELTA_HOURS(JDate1, JDate2),
+        Units = "N", DELTA_MINUTES(JDate1, JDate2),
+        Units = "S", DELTA_SECONDS(JDate1, JDate2),
+        Units = "HMS", DELTA_HOUR_MIN_SEC(JDate1, JDate2),
+        Units = "D", DELTA_DAYS(JDate1, JDate2),
+        Units = "W", DELTA_WEEKS(JDate1, JDate2),
+        Units = "M", DELTA_MONTHS(JDate1, JDate2, TimeZoneOffset, JulianCalendar),
+        Units = "Q", DELTA_QUARTERS(JDate1, JDate2, TimeZoneOffset, MonthOffset, JulianCalendar),
+        Units = "Y", DELTA_YEARS(JDate1, JDate2, TimeZoneOffset, JulianCalendar),
+        Units = "WD", DELTA_WEEK_DAYS(JDate1, JDate2),
+        Units = "YWD", DELTA_YEAR_WEEK_DAYS(JDate1, JDate2, TimeZoneOffset, JulianCalendar),
+        Units = "MD", DELTA_MONTH_DAYS(JDate1, JDate2, TimeZoneOffset, JulianCalendar),
+        Units = "QD", DELTA_QUARTER_DAYS(JDate1, JDate2, TimeZoneOffset, MonthOffset, JulianCalendar),
+        Units = "DHMS", LET(
+                _hms, DELTA_HOUR_MIN_SEC(JDate1, JDate2),
+                _days, INT(INDEX(_hms, 1, 2) / 24),
+                _hours, INDEX(_hms, 1, 2) - _days * 24,
+                HSTACK(
+                    INDEX(_hms, 1, 1),
+                    _days,
+                    _hours,
+                    INDEX(_hms, 1, 3),
+                    INDEX(_hms, 1, 4)
+                )
+            ),
+        Units = "YMD", LET(
+                _monthDays, DELTA_MONTH_DAYS(JDate1, JDate2, TimeZoneOffset, JulianCalendar),
+                _years, INT(INDEX(_monthDays, 1, 2) / 12),
+                _months, INDEX(_monthDays, 1, 2) - _years * 12,
+                HSTACK(
+                    INDEX(_monthDays, 1, 1),
+                    _years,
+                    _months,
+                    INDEX(_monthDays, 1, 3)
+                )
+            ),
+        Units = "YQD", LET(
+                _quarterDays, DELTA_QUARTER_DAYS(JDate1, JDate2, TimeZoneOffset, JulianCalendar),
+                _years, INT(INDEX(_quarterDays, 1, 2) / 4),
+                _quarters, INDEX(_quarterDays, 1, 2) - _years * 4,
+                HSTACK(
+                    INDEX(_quarterDays, 1, 1),
+                    _years,
+                    _quarters,
+                    INDEX(_quarterDays, 1, 3)
+                )
+            ),
+        Units = "YMDHMS", LET(
+                _monthDays, DELTA_MONTH_DAYS(JDate1, JDate2, TimeZoneOffset, JulianCalendar),
+                _years, INT(INDEX(_monthDays, 1, 2) / 12),
+                _months, INDEX(_monthDays, 1, 2) - _years * 12,
+                _days, INT(INDEX(_monthDays, 1, 3)),
+                _time, INDEX(_monthDays, 1, 3) - _days,
+                _hms, TIME_DECIMAL_TO_HMS(_time),
+                HSTACK(
+                    INDEX(_monthDays, 1, 1),
+                    _years,
+                    _months,
+                    _days,
+                    DROP(_hms,, 1)
+                )
+            ),
         TRUE, {#VALUE!}
     )
 );
@@ -2227,8 +2316,262 @@ DELTA_INTERVAL = LAMBDA(Units, JDate1, JDate2, [TimeZoneOffset], [Extent], [Juli
 
 
 
+
+
+
+
+
+
 /*########################################################################################################
-# PARSING FUNCTIONS                                                                                      #
+# EXTENTS                                                                                                #
+########################################################################################################*/
+
+
+
+
+
+/*--------------------------------------------------------------------------------------------------------
+EXTENT_OF_DAYS
+
+Returns the inclusive extent of days spanned by two Julian Dates.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer | Extent of days
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1           | decimal     | 
+JDate2           | decimal     | 
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+
+Examples
+----------------------------------------------------------------------------------------------------------
+EXTENT_DAYS(JULIAN_DATE(2023,1,1,TIME(23,59,55)), JULIAN_DATE(2023,1,2,TIME(0,0,5)))
+= 2  i.e. 2 days because the 10 second timespan crosses the day boundary
+--------------------------------------------------------------------------------------------------------*/
+EXTENT_OF_DAYS = LAMBDA(JDate1, JDate2, [TimeZoneOffset],
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            LET(
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!},
+                    LET(
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal1, JDATE_TO_JDN_LOCAL(JDate1, _tzo),
+                        _jdnLocal2, JDATE_TO_JDN_LOCAL(JDate2, _tzo),
+                        _deltaDay, INDEX(_jdnLocal2, 1, 1) - INDEX(_jdnLocal1, 1, 1),
+                        _sign * (ABS(_deltaDay) + 1)
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+
+/*--------------------------------------------------------------------------------------------------------
+EXTENT_OF_WEEKS
+
+Returns the inclusive extent of weeks spanned by two Julian Dates.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer | Extent of weeks
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1           | decimal     | 
+JDate2           | decimal     | 
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+
+Examples
+----------------------------------------------------------------------------------------------------------
+EXTENT_DAYS(JULIAN_DATE(2023,6,4,TIME(23,59,55)), JULIAN_DATE(2023,6,5,TIME(0,0,5)))
+= 2  i.e. 2 weeks because the 10 second timespan crosses the week boundary
+--------------------------------------------------------------------------------------------------------*/
+EXTENT_OF_WEEKS = LAMBDA(JDate1, JDate2, [TimeZoneOffset],
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            LET(
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!},
+                    LET(
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate1, JDate2),
+                            _tzo
+                        ),
+                        _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate2, JDate1),
+                            _tzo
+                        ),
+                        _jdnMonday_Start, INDEX(_jdnLocal_Start, 1, 1) + 1 - DAY_OF_WEEK(INDEX(_jdnLocal_Start, 1, 1)),
+                        _jdnMonday_End, INDEX(_jdnLocal_End, 1, 1) + 1 - DAY_OF_WEEK(INDEX(_jdnLocal_End, 1, 1)),
+                        _sign * INT((_jdnMonday_End - _jdnMonday_Start) / 7 + 1)
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+EXTENT_OF_MONTHS
+
+Returns the inclusive extent of months spanned by two Julian Dates.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer | Extent of months
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1           | decimal     |
+JDate2           | decimal     |
+[TimeZoneOffset] | decimal     | Time zone offset in minutes from UTC.
+                 | [-900..900] | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |             | proleptic calendar.
+--------------------------------------------------------------------------------------------------------*/
+EXTENT_OF_MONTHS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [JulianCalendar],
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            LET(
+                _tzo, N(TimeZoneOffset),
+                IF(ABS(_tzo) > 900, {#NUM!},
+                    LET(
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate1, JDate2),
+                            _tzo
+                        ),
+                        _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate2, JDate1),
+                            _tzo
+                        ),
+                        _date_Start, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_Start, 1, 1), JulianCalendar),
+                        _date_End, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_End, 1, 1), JulianCalendar),
+                        _deltaYear, INDEX(_date_End, 1, 1) - INDEX(_date_Start, 1, 1),
+                        _deltaMonth, INDEX(_date_End, 1, 2) - INDEX(_date_Start, 1, 2),
+                        _diffMonths, (_deltaYear * 12) + _deltaMonth,
+                        _sign * (_diffMonths + 1)
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+EXTENT_OF_QUARTERS
+
+Returns the inclusive extent of quarters spanned by two Julian Dates.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer | Extent of quarters
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1           | decimal         |
+JDate2           | decimal         |
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[MonthOffset]    | integer [-6..3] | Quarter month offset from January.
+[JulianCalendar] | switch          | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+--------------------------------------------------------------------------------------------------------*/
+EXTENT_OF_QUARTERS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [MonthOffset], [JulianCalendar],
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            LET(
+                _tzo, N(TimeZoneOffset),
+                _monthOffset, ROUND(N(MonthOffset), 0),
+                IF((ABS(_tzo) > 900) + (_monthOffset < -6) + (_monthOffset > 3), {#NUM!},
+                    LET(
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate1, JDate2),
+                            _tzo
+                        ),
+                        _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate2, JDate1),
+                            _tzo
+                        ),
+                        _quarterDate_Start, JDN_TO_QUARTER_DATE(INDEX(_jdnLocal_Start, 1, 1), _monthOffset, JulianCalendar),
+                        _quarterDate_End, JDN_TO_QUARTER_DATE(INDEX(_jdnLocal_End, 1, 1), _monthOffset, JulianCalendar),
+                        _deltaYear, INDEX(_quarterDate_End, 1, 1) - INDEX(_quarterDate_Start, 1, 1),
+                        _deltaQuarter, INDEX(_quarterDate_End, 1, 2) - INDEX(_quarterDate_Start, 1, 2),
+                        _diffQuarters, (_deltaYear * 4) + _deltaQuarter,
+                        _sign * (_diffQuarters + 1)
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+EXTENT_OF_YEARS
+
+Returns the inclusive extent of years spanned by two Julian Dates.
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | integer | Extent of quarters
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+JDate1           | decimal         |
+JDate2           | decimal         |
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[JulianCalendar] | switch          | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+--------------------------------------------------------------------------------------------------------*/
+EXTENT_OF_YEARS = LAMBDA(JDate1, JDate2, [TimeZoneOffset], [JulianCalendar],
+    IF((JDate1 = "") * (JDate2 = ""), "",
+        IF(NOT(ISNUMBER(JDate1)) + NOT(ISNUMBER(JDate2)), {#VALUE!},
+            LET(
+                _tzo, N(TimeZoneOffset),
+                IF((ABS(_tzo) > 900), {#NUM!},
+                    LET(
+                        _sign, IF(JDate2 >= JDate1, 1, -1),
+                        _jdnLocal_Start, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate1, JDate2),
+                            _tzo
+                        ),
+                        _jdnLocal_End, JDATE_TO_JDN_LOCAL(
+                            IF(_sign = 1, JDate2, JDate1),
+                            _tzo
+                        ),
+                        _date_Start, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_Start, 1, 1), JulianCalendar),
+                        _date_End, JDN_TO_CALENDAR_DATE(INDEX(_jdnLocal_End, 1, 1), JulianCalendar),
+                        _deltaYear, INDEX(_date_End, 1, 1) - INDEX(_date_Start, 1, 1),
+                        _sign * (_deltaYear + 1)
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+
+
+
+
+
+
+/*########################################################################################################
+# PARSING                                                                                                #
 ########################################################################################################*/
 
 
@@ -2240,15 +2583,17 @@ in minutes from UTC.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year
- 2 | integer | Month
- 3 | integer | Day
- 4 | decimal | Time
- 5 | decimal | Time zone offset minutes from UTC
+ 1 | integer             | Year
+ 2 | integer [1..12]     | Month
+ 3 | integer [1..31]     | Day
+ 4 | decimal [0..1)      | Time
+ 5 | decimal [-900..900] | Time zone offset minutes from UTC
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-ISODate | text | Date in ISO format ie. yyyy-MM-ddThh:mm:ss+hh:mm
+ISODate          | text   | Date in ISO format ie. yyyy-MM-ddThh:mm:ss+hh:mm
+[JulianCalendar] | switch | Calculate in the Julian proleptic calendar. Default is Gregorian
+                 |        | proleptic calendar.
 
 Examples
 ----------------------------------------------------------------------------------------------------------
@@ -2519,7 +2864,7 @@ PARSE_ISO_DATE = LAMBDA(ISODate, [JulianCalendar],
 
 
 /*--------------------------------------------------------------------------------------------------------
-DAY_OF_WEEK_FROM_TEXT
+PARSE_WEEKDAY
 
 Returns a number representing the day of the week from a given text weekday name.
 
@@ -2536,19 +2881,19 @@ DayOfWeek       | text    | Day of week name
                 |         |   3 - 0..6 Monday..Sunday
 Examples
 ----------------------------------------------------------------------------------------------------------
-DAY_OF_WEEK_FROM_TEXT("Saturday")
+PARSE_WEEKDAY("Saturday")
 Returns: 7
 
-DAY_OF_WEEK_FROM_TEXT("Mon", 3)
+PARSE_WEEKDAY("Mon", 3)
 Returns: 0
 
-DAY_OF_WEEK_FROM_TEXT("Thurs", 1)
+PARSE_WEEKDAY("Thurs", 1)
 Returns: #VALUE!
 
-DAY_OF_WEEK_FROM_TEXT("Ven", 2)
+PARSE_WEEKDAY("Ven", 2)
 Returns: 5 (if local language is set to Italian)
 --------------------------------------------------------------------------------------------------------*/
-DAY_OF_WEEK_FROM_TEXT = LAMBDA(DayOfWeek, [NumberScheme],
+PARSE_WEEKDAY = LAMBDA(DayOfWeek, [NumberScheme],
     IF(DayOfWeek = "", "",
         LET(
             fnMatchIntEng, LAMBDA(DoW,
@@ -2612,13 +2957,13 @@ DAY_OF_WEEK_FROM_TEXT = LAMBDA(DayOfWeek, [NumberScheme],
 );
 
 /*--------------------------------------------------------------------------------------------------------
-MONTH_FROM_TEXT
+PARSE_MONTH
 
 Returns a number representing the month of year from a given text month name.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Month
+ 1 | integer [1..12] | Month
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -2626,19 +2971,19 @@ MonthName | text | Month name
 
 Examples
 ----------------------------------------------------------------------------------------------------------
-MONTH_FROM_TEXT("Feb")
+PARSE_MONTH("Feb")
 Returns: 2
 
-MONTH_FROM_TEXT("January")
+PARSE_MONTH("January")
 Returns: 1
 
-MONTH_FROM_TEXT("J")
+PARSE_MONTH("J")
 Returns: #VALUE!
 
-MONTH_FROM_TEXT("Marzo")
+PARSE_MONTH("Marzo")
 Returns: 3 (if local language is set to Italian)
 --------------------------------------------------------------------------------------------------------*/
-MONTH_FROM_TEXT = LAMBDA(MonthName,
+PARSE_MONTH = LAMBDA(MonthName,
     IF(MonthName = "", "",
         LET(
             _tryMonth, MonthName & " 2000",
@@ -2706,10 +3051,10 @@ Parses a literary date into respective parts of year, month, day and time of day
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year
- 2 | integer | Month
- 3 | integer | Day
- 4 | decimal | Time
+ 1 | integer         | Year
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
+ 4 | decimal [0..1)  | Time
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -2739,7 +3084,7 @@ PARSE_LITERARY_DATE = LAMBDA(LiteraryDate,
                             _spacePos, IFERROR(FIND(" ", _part1), 0),
                             IF(_spacePos = 0, {#VALUE!, "", "", ""},
                                 LET(
-                                    _month, MONTH_FROM_TEXT(LEFT(_part1, _spacePos - 1)),
+                                    _month, PARSE_MONTH(LEFT(_part1, _spacePos - 1)),
                                     _remain, MID(_part1, _spacePos + 1, LEN(_part1) - _spacePos),
                                     _denotedYear, IFERROR(FIND("C", _remain), 0) > 0,
                                     _val, IF(_denotedYear, PARSE_LITERARY_YEAR(_remain),
@@ -2764,7 +3109,7 @@ PARSE_LITERARY_DATE = LAMBDA(LiteraryDate,
                             _spacePos, IFERROR(FIND(" ", _p1), 0),
                             IF(_spacePos = 0, {#VALUE!, "", "", ""},
                                 LET(
-                                    _month, MONTH_FROM_TEXT(LEFT(_p1, _spacePos - 1)),
+                                    _month, PARSE_MONTH(LEFT(_p1, _spacePos - 1)),
                                     _day, INT(VALUE(MID(_p1, _spacePos + 1, LEN(_p1) - _spacePos))),
                                     _p2, INDEX(_parts, 1, 2),
                                     _tryTime, DATEVALUE(_p2) + TIMEVALUE(_p2),
@@ -2785,7 +3130,7 @@ PARSE_LITERARY_DATE = LAMBDA(LiteraryDate,
                             _spacePos, IFERROR(FIND(" ", _p1), 0),
                             IF(_spacePos = 0, {#VALUE!, "", "", ""},
                                 LET(
-                                    _month, MONTH_FROM_TEXT(LEFT(_p1, _spacePos - 1)),
+                                    _month, PARSE_MONTH(LEFT(_p1, _spacePos - 1)),
                                     _day, INT(VALUE(MID(_p1, _spacePos + 1, LEN(_p1) - _spacePos))),
                                     HSTACK(_year, _month, _day, _time)
                                 )
@@ -2815,10 +3160,10 @@ Parses a US formated date into respective parts of year, month, day and time of 
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year
- 2 | integer | Month
- 3 | integer | Day
- 4 | decimal | Time
+ 1 | integer         | Year
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
+ 4 | decimal [0..1)  | Time
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -2957,11 +3302,11 @@ month, day, time of day and time zone offset in minutes.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Year 1951..2050
- 2 | integer | Month
- 3 | integer | Day
- 4 | decimal | Time
- 5 | decimal | Time zone offest minutes
+ 1 | integer [1951..2050] | Year
+ 2 | integer [1..12]      | Month
+ 3 | integer [1..31]      | Day
+ 4 | decimal [0..1)       | Time
+ 5 | decimal [-900..900]  | Time zone offset minutes
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -3024,7 +3369,7 @@ PARSE_MIL_DTG = LAMBDA(DTG,
             fnParseFull, LAMBDA(_DTG,
                 LET(
                     _day, VALUE(LEFT(_DTG, 2)),
-                    _month, MONTH_FROM_TEXT(MID(_DTG, 10, 3)),
+                    _month, PARSE_MONTH(MID(_DTG, 10, 3)),
                     _year, fnYear(RIGHT(_DTG, 2)),
                     IF(NOT(IS_VALID_DATE(_year, _month, _day, 0)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!, #VALUE!},
                         LET(
@@ -3050,7 +3395,7 @@ PARSE_MIL_DTG = LAMBDA(DTG,
             fnParseShort, LAMBDA(_DTG,
                 LET(
                     _day, VALUE(LEFT(_DTG, 2)),
-                    _month, MONTH_FROM_TEXT(MID(_DTG, 8, 3)),
+                    _month, PARSE_MONTH(MID(_DTG, 8, 3)),
                     _year, fnYear(RIGHT(_DTG, 2)),
                     IF(NOT(IS_VALID_DATE(_year, _month, _day, 0)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!, #VALUE!},
                         LET(
@@ -3115,8 +3460,16 @@ PARSE_MIL_DTG = LAMBDA(DTG,
 
 
 
+
+
+
+
+
+
+
+
 /*########################################################################################################
-# FORMATTING FUNCTIONS                                                                                   #
+# TEXT                                                                                                   #
 ########################################################################################################*/
 
 
@@ -3131,16 +3484,16 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-ISOWeekDay      | integer | ISO day of week number
-[Short]         | switch  | Return short format Sun..Sat
-[LocalLanguage] | switch  | Use the local language set in Office
+ISOWeekDay             | integer [1..7] | ISO day of week number
+[Short]                | switch         | Return short format Mon..Sun
+[InternationalEnglish] | switch         | International English instead of local language set in Excel
 --------------------------------------------------------------------------------------------------------*/
-DAY_OF_WEEK_NAME = LAMBDA(ISOWeekDay, [Short], [LocalLanguage],
+WEEKDAY_NAME = LAMBDA(ISOWeekDay, [Short], [InternationalEnglish],
     IF(ISOWeekDay = "", "",
         IF(NOT(ISNUMBER(ISOWeekDay)), {#VALUE!},
             LET(
                 _useShort, N(Short) <> 0,
-                _useLocalLang, N(LocalLanguage) <> 0,
+                _useLocalLang, N(InternationalEnglish) = 0,
                 _isoDoW, MOD(INT(ISOWeekDay) - 1, 7) + 1, 
                 IF(_useLocalLang,
                     LET(
@@ -3187,9 +3540,9 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Month                  | integer | Month 1..12
-[Short]                | switch  | Return short format Jan..Dec
-[InternationalEnglish] | switch  | Use the International English instead of local language set in Office
+Month                  | integer [1..12] | Month
+[Short]                | switch          | Return short format Jan..Dec
+[InternationalEnglish] | switch          | International English instead of local language set in Excel
 --------------------------------------------------------------------------------------------------------*/
 MONTH_NAME = LAMBDA(Month, [Short], [InternationalEnglish],
     IF(Month = "", "",
@@ -3243,31 +3596,33 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer | 1..12
-Day              | integer | 1..31
-[Time]           | decimal | Time of day as decimal fraction of a day.
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC.
-[Precision]      | integer | Select precision level
-                 |         |   0 - Automatic
-                 |         |   1 - Hour
-                 |         |   2 - Minute
-                 |         |   3 - Second
-                 |         |   4 - Millisecond
-[NoZulu]         | switch  | Use +00:00 instead of Z for UTC time zone.
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar. 
+YearCE           | integer         | Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month            | integer [1..12] |
+Day              | integer [1..31] |
+[Time]           | decimal [0..1)  | Time of day as decimal fraction of a day.
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+[Precision]      | integer         | Select precision level
+                 |                 |   0 - Floating
+                 |                 |   1 - Day
+                 |                 |   2 - Hour
+                 |                 |   3 - Minute
+                 |                 |   4 - Second
+                 |                 |   5 - Millisecond
+[NoZulu]         | switch          | Use +00:00 instead of Z for UTC time zone.
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar. 
 --------------------------------------------------------------------------------------------------------*/
 FORMAT_ISO_DATE = LAMBDA(YearCE, Month, Day, [Time], [TimeZoneOffset], [Precision], [NoZulu], [JulianCalendar],
     IF((YearCE = "") * (Month = "") * (Day = ""), "",
-        IF((NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day))) <> 0, {#VALUE!},
+        IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day)), {#VALUE!},
             IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), {#VALUE!},
                 LET(
                     fnResolveTime, LAMBDA(_time,
                         IF(NOT(ISNUMBER(_time)),
                             HSTACK(YearCE, Month, Day, ""),
                             LET(
-                                _usePrecision, IF(N(Precision) >= 4, 4, 3),
+                                _usePrecision, IF(N(Precision) > 5, 5, 4),
                                 RESOLVE_DATE(YearCE, Month, Day, _time, _usePrecision, JulianCalendar)
                             )
                         )
@@ -3286,22 +3641,27 @@ FORMAT_ISO_DATE = LAMBDA(YearCE, Month, Day, [Time], [TimeZoneOffset], [Precisio
                     fnFormatTime, LAMBDA(_time,
                         IF(NOT(ISNUMBER(_time)), "",
                             LET(
-                                _milliSec, ROUND(_time * 86400000, 0),
+                                // round to milliseonds, scale to seconds
+                                _seconds, ROUND(_time * 86400, 3),
                                 _showPrecision, IF(N(Precision) > 0, Precision,
-                                    IFS(_milliSec = 0, 1,
-                                        MOD(_milliSec, 1000) > 0, 4,
-                                        MOD(_milliSec / 60000, 1) > 0, 3,
-                                        MOD(_milliSec / 3600000, 1) > 0, 2,
-                                        TRUE, 1
+                                    IFS(_seconds = 0, 2,
+                                        MOD(_seconds, 1) > 0, 5,
+                                        MOD(_seconds / 60, 1) > 0, 4,
+                                        MOD(_seconds / 3600, 1) > 0, 3,
+                                        TRUE, 2
                                     )
                                 ),
-                                _fmt, IFS(
-                                    _showPrecision = 1, "HH",
-                                    _showPrecision = 2, "HH:mm",
-                                    _showPrecision = 3, "HH:mm:ss",
-                                    TRUE, "HH:mm:ss.000"
-                                ),
-                                "T" & TEXT(_time, _fmt)
+                                IF(_showPrecision = 1, "",
+                                    LET(
+                                        _fmt, IFS(
+                                            _showPrecision = 2, "HH",
+                                            _showPrecision = 3, "HH:mm",
+                                            _showPrecision = 4, "HH:mm:ss",
+                                            TRUE, "HH:mm:ss.000"
+                                        ),
+                                        "T" & TEXT(_time, _fmt)
+                                    )
+                                )
                             )
                         )
                     ),
@@ -3373,19 +3733,20 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE                 | integer | Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month                  | integer | 1..12
-Day                    | integer | 1..31
-[Time]                 | decimal | Time of day as decimal fraction of a day.
-[Short]                | switch  | Return short format Jan..Dec
-[InternationalEnglish] | switch  | Use the International English instead of local language set in Office
-[AlwaysShowEra]        | switch  | Always apply BCE/CE suffix. If not used, only years less than 1000 show an era.
-[JulianCalendar]       | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                       |         | calendar.
+YearCE                 | integer         | Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month                  | integer [1..12] |
+Day                    | integer [1..31] |
+[Time]                 | decimal [0..1)  | Time of day as decimal fraction of a day.
+[Short]                | switch          | Return short format Jan..Dec
+[InternationalEnglish] | switch          | Use the International English instead of local language set in Excel
+[AlwaysShowEra]        | switch          | Always apply BCE/CE suffix. If not used, only years less than 1000
+                       |                 | show an era.
+[JulianCalendar]       | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                       |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
 FORMAT_LITERARY_DATE = LAMBDA(YearCE, Month, Day, [Time], [Short], [InternationalEnglish], [AlwaysShowEra], [JulianCalendar],
     IF((YearCE = "") * (Month = "") * (Day = ""), "",
-        IF((NOT(ISNUMBER(Month)) + (NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Day)))) <> 0, #VALUE!,
+        IF(NOT(ISNUMBER(Month)) + (NOT(ISNUMBER(YearCE)) * NOT(ISNUMBER(Day))), #VALUE!,
             LET(
                 _yearCE, IF(YearCE = "", 2000, YearCE),
                 _day, IF(Day = "", 1, Day),
@@ -3418,43 +3779,49 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-YearCE           | integer | Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer | 1..12
-Day              | integer | 1..31
-[Time]           | decimal | Time of day as decimal fraction of a day.
-[Separator]      | char    | Character separator for date elements. [,./-_]
-[Precision]      | integer | Select precision level
-                 |         |   0 - Automatic
-                 |         |   1 - Hour
-                 |         |   2 - Minute
-                 |         |   3 - Second
-                 |         |   4 - Millisecond
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian proleptic
-                 |         | calendar. 
+YearCE           | integer         | Note that 1 BC = 0 CE, 2 BC = -1 CE
+Month            | integer [1..12] |
+Day              | integer [1..31] |
+[Time]           | decimal [0..1)  | Time of day as decimal fraction of a day.
+[Separator]      | char            | Character separator for date elements. [,./-_]
+[Precision]      | integer         | Select precision level
+                 |                 |   0 - Floating
+                 |                 |   1 - Day
+                 |                 |   2 - Hour
+                 |                 |   3 - Minute
+                 |                 |   4 - Second
+                 |                 |   5 - Millisecond
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar. 
 --------------------------------------------------------------------------------------------------------*/
 FORMAT_US_DATE = LAMBDA(YearCE, Month, Day, [Time], [Separator], [Precision], [JulianCalendar],
     IF((YearCE = "") * (Month = "") * (Day = ""), "",
-        IF((NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day))) <> 0, #VALUE!,
+        IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day)), #VALUE!,
             IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), #VALUE!,
                 LET(
                     fnFormatTime, LAMBDA(_time,
                         IF(NOT(ISNUMBER(_time)), "",
                             LET(
-                                _milliSec, ROUND(_time * 86400000, 0),
+                                // round to milliseonds, scale to seconds
+                                _seconds, ROUND(_time * 86400, 3),
                                 _showPrecision, IF(N(Precision) > 0, Precision,
-                                    IFS(_milliSec = 0, 2,
-                                        MOD(_milliSec, 1000) > 0, 4,
-                                        MOD(_milliSec / 60000, 1) > 0, 3,
-                                        TRUE, 2
+                                    IFS(_seconds = 0, 3,
+                                        MOD(_seconds, 1) > 0, 5,
+                                        MOD(_seconds / 60, 1) > 0, 4,
+                                        TRUE, 3
                                     )
                                 ),
-                                _fmt, IFS(
-                                    _showPrecision = 1, "h AM/PM",
-                                    _showPrecision = 2, "h:mm AM/PM",
-                                    _showPrecision = 3, "h:mm:ss AM/PM",
-                                    TRUE, "h:mm:ss.000 AM/PM"
-                                ),
-                                " " & TEXT(_time, _fmt)
+                                IF(_showPrecision = 1, "",
+                                    LET(
+                                        _fmt, IFS(
+                                            _showPrecision = 2, "h AM/PM",
+                                            _showPrecision = 3, "h:mm AM/PM",
+                                            _showPrecision = 4, "h:mm:ss AM/PM",
+                                            TRUE, "h:mm:ss.000 AM/PM"
+                                        ),
+                                        " " & TEXT(_time, _fmt)
+                                    )
+                                )
                             )
                         )
                     ),
@@ -3465,7 +3832,7 @@ FORMAT_US_DATE = LAMBDA(YearCE, Month, Day, [Time], [Separator], [Precision], [J
                             IF(IFERROR(FIND(_char1, ",./-_"), 0) > 0, _char1, "/")
                         )
                     ),
-                    _usePrecision, IF(N(Precision) >= 4, 4, 3),
+                    _usePrecision, IF(N(Precision) >= 5, 5, 4),
                     _rDate, IF(NOT(ISNUMBER(Time)),
                         HSTACK(YearCE, Month, Day, ""),
                         RESOLVE_DATE(YearCE, Month, Day, Time, _usePrecision, JulianCalendar)
@@ -3492,12 +3859,15 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Year             | integer | 1951..2050
-Month            | integer | 1..12
-Day              | integer | 1..31
-Time             | decimal | Time of day as decimal fraction of a day.
-[TimeZoneOffset] | decimal | Time zone offset in minutes from UTC. If not provided, the result is in UTC.
-[Short]          | switch  | Select precision level
+Year             | integer [1951..2050] |
+Month            | integer [1..12]      |
+Day              | integer [1..31]      |
+Time             | decimal [0..1)       | Time of day as decimal fraction of a day.
+[TimeZoneOffset] | decimal              | Time zone offset in minutes from UTC.
+                 | [-900..900]          | Assumed to be UTC if ommitted.
+                 |                      | Time will be converted if the offset does not align with military
+                 |                      | time zones.
+[Short]          | switch               | Short time formt: hhmm, otherwise: hhmmss
 
 Examples
 ----------------------------------------------------------------------------------------------------------
@@ -3509,46 +3879,78 @@ Returns: 120600J
 --------------------------------------------------------------------------------------------------------*/
 FORMAT_MIL_DTG = LAMBDA(Year, Month, Day, Time, [TimeZoneOffset], [Short],
     IF((Year = "") * (Month = "") * (Day = "") * (Time = ""), "",
-        LET(
-            fnInvalidParams, LAMBDA(
-                IFS(
-                    NOT(ISNUMBER(Day)), TRUE,
-                    IF(TimeZoneOffset = "", FALSE,
-                    (MOD(TimeZoneOffset, 60) > 0)) * (ABS(TimeZoneOffset) <= 720), TRUE,
-                    IF(ISNUMBER(Year), ((Year < 1951) + (Year > 2050)), FALSE), TRUE, 
-                    (((Year = "") * (Month = "")) + N(IS_VALID_DATE(Year, Month, Day, 0))) = 0, TRUE,
-                    TRUE, FALSE
-                )
-            ),
+        IF(NOT(ISNUMBER(Day)), {#VALUE!},
+            LET(
+                _local, TimeZoneOffset = "",
+                _tzo, N(TimeZoneOffset),
+                    
+                fnInvalidParams, LAMBDA(
+                    IFS(
+                        ABS(_tzo) > 900, TRUE,
+                        IF(ISNUMBER(Year), ((Year < 1951) + (Year > 2050)), FALSE), TRUE, 
+                        (((Year = "") * (Month = "")) + N(IS_VALID_DATE(Year, Month, Day, 0))) = 0, TRUE,
+                        TRUE, FALSE
+                    )
+                ),
 
-            fnTime, LAMBDA(_time, _short,
-                LET(
-                    _timeFmt, IF(_short, "HHmm", "HHmmss"),
-                    TEXT(_time, _timeFmt)
-                )
-            ),
+                fnFmtTime, LAMBDA(_time, _short,
+                    LET(
+                        _timeFmt, IF(_short, "HHmm", "HHmmss"),
+                        TEXT(_time, _timeFmt)
+                    )
+                ),
 
-            fnTZ, LAMBDA(
-                LET(
-                    _idx, IF(TimeZoneOffset = "", 1, (TimeZoneOffset / 60) + 14),
-                    CHOOSE(_idx, "J", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "Z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M")
-                )
-            ),
-
-            IF(fnInvalidParams(), {#VALUE!},
-                LET(
-                    _rDate, IF(Year = "",
-                        RESOLVE_DATE(2000, 3, Day, N(Time), 3),
-                        RESOLVE_DATE(Year, Month, Day, N(Time), 3)
-                    ),
-                    _sDay, TEXT(INDEX(_rDate, 3), "00"),
-                    _sTZ, fnTZ(),
-                    IF(Year = "", CONCAT(_sDay, fnTime(INDEX(_rDate, 4), 1), _sTZ),
-                        LET(
-                            _sTime, fnTime(INDEX(_rDate, 4), N(Short)),
-                            _sMonth, UPPER(MONTH_NAME(INDEX(_rDate, 2), 1, 1)),
-                            _sYY, RIGHT(TEXT(INDEX(_rDate, 1), "00"), 2),
-                            CONCAT(_sDay, _sTime, _sTZ, _sMonth, _sYY)
+                fnResolveMilitaryTZ, LAMBDA(
+                    IFS(
+                        _local, HSTACK(
+                            N(Time),
+                            "J"
+                        ),
+                        _tzo > 720, LET(
+                            _shiftTZO, _tzo - 720,
+                            _time, N(Time) - (_shiftTZO / 1440),  
+                            HSTACK(
+                                _time,
+                                "M"
+                            )
+                        ),
+                        _tzo < -720, LET(
+                            _shiftTZO, _tzo + 720,
+                            _time, N(Time) - (_shiftTZO / 1440),  
+                            HSTACK(
+                                _time,
+                                "Y"
+                            )
+                        ),
+                        TRUE, LET(
+                            _militaryTZO, SIGN(_tzo) * MROUND(ABS(_tzo), 60),
+                            _shiftTZO, _tzo - _militaryTZO,
+                            _time, N(Time) - (_shiftTZO / 1440),
+                            _idx, INT(_militaryTZO / 60) + 13,
+                            _militaryTZ, CHOOSE(_idx, "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "Z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M"),
+                            HSTACK(
+                                _time,
+                                _militaryTZ
+                            )
+                        )
+                    )
+                ),
+                  
+                IF(fnInvalidParams(), {"#NUM!!"},
+                    LET(
+                        _militaryTime, fnResolveMilitaryTZ(),
+                        _rDate, IF(Year = "",
+                            RESOLVE_DATE(2000, 3, Day, INDEX(_militaryTime, 1, 1), 3),
+                            RESOLVE_DATE(Year, Month, Day, INDEX(_militaryTime, 1, 1), 3)
+                        ),
+                        _sDay, TEXT(INDEX(_rDate, 3), "00"),
+                        IF(Year = "", CONCAT(_sDay, fnFmtTime(INDEX(_rDate, 4), 1), INDEX(_militaryTime, 1, 2)),
+                            LET(
+                                _sTime, fnFmtTime(INDEX(_rDate, 4), N(Short)),
+                                _sMonth, UPPER(MONTH_NAME(INDEX(_rDate, 2), 1, 1)),
+                                _sYY, RIGHT(TEXT(INDEX(_rDate, 1), "00"), 2),
+                                CONCAT(_sDay, _sTime, INDEX(_militaryTime, 1, 2), _sMonth, _sYY)
+                            )
                         )
                     )
                 )
@@ -3562,8 +3964,10 @@ FORMAT_MIL_DTG = LAMBDA(Year, Month, Day, Time, [TimeZoneOffset], [Short],
 
 
 
+
+
 /*########################################################################################################
-# CONVERSION FUNCTIONS                                                                                   #
+# CONVERSIONS                                                                                            #
 ########################################################################################################*/
 
 
@@ -3575,15 +3979,16 @@ Returns the Julian Day Number and local time for a date and time provided in ISO
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Local Julian Day Number
- 2 | decimal | Local time of day. Decimal fraction of a day, implicitly converts to Excel time data type.
- 3 | decimal | Time zone offset in minutes from UTC.
+ 1 | integer        | Local Julian Day Number
+ 2 | decimal [0..1) | Local time of day. Decimal fraction of a day, implicitly converts to Excel time data type.
+ 3 | decimal        | Time zone offset minutes from UTC
+   | [-900..900]    | 
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
 ISODate              | text   | ISO formatted date, time and time zone offset.
-[FromJulianCalendar] | switch | Calculate from the Julian proleptic calendar. Default is Gregorian proleptic
-                     |        | calendar. 
+[FromJulianCalendar] | switch | Calculate from the Julian proleptic calendar. Default is Gregorian
+                     |        | proleptic calendar. 
 --------------------------------------------------------------------------------------------------------*/
 ISODATE_TO_JDN_LOCAL = LAMBDA(ISODate, [FromJulianCalendar],
     IF(ISODate = "", {"", "", ""},
