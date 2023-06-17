@@ -1,5 +1,5 @@
 /*########################################################################################################
-# CALENDAR v1                                                                                            #
+# CALENDAR v1.1                                                                                          #
 #                                                                                                        #
 # Module for working with dates in the Gregorian and Julian calendars outside the range of the Excel     #
 # Date/Time type.                                                                                        #
@@ -1401,7 +1401,7 @@ CALENDAR_FROM_JDATE = LAMBDA(JDate, [TimeZoneOffset], [Precision], [JulianCalend
                             _precision = 2, ROUND(INDEX(_jdnLocal, 1, 2) * 24, 0) / 24,
                             _precision = 3, ROUND(INDEX(_jdnLocal, 1, 2) * 1440, 0) / 1440,
                             _precision = 4, ROUND(INDEX(_jdnLocal, 1, 2) * 86400, 0) / 86400,
-                            TRUE, ROUND(INDEX(_jdnLocal, 1, 2) * 86400000, 0) / 86400000
+                            TRUE, ROUND(INDEX(_jdnLocal, 1, 2) * 86400, 3) / 86400
                         ),
                         _rLocalTime, MOD(_localTime, 1),
                         _rJDN, INDEX(_jdnLocal, 1, 1) + INT(_localTime),
@@ -3602,8 +3602,8 @@ Day              | integer [1..31] |
 [Time]           | decimal [0..1)  | Time of day as decimal fraction of a day.
 [TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
                  | [-900..900]     | Assumed to be UTC if ommitted.
-[Precision]      | integer         | Select precision level
-                 |                 |   0 - Floating
+[Precision]      | integer         | Select precision level, default is 3
+                 |                 |   0 - Floats from minute to millisecond
                  |                 |   1 - Day
                  |                 |   2 - Hour
                  |                 |   3 - Minute
@@ -3618,16 +3618,6 @@ FORMAT_ISO_DATE = LAMBDA(YearCE, Month, Day, [Time], [TimeZoneOffset], [Precisio
         IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day)), {#VALUE!},
             IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), {#VALUE!},
                 LET(
-                    fnResolveTime, LAMBDA(_time,
-                        IF(NOT(ISNUMBER(_time)),
-                            HSTACK(YearCE, Month, Day, ""),
-                            LET(
-                                _usePrecision, IF(N(Precision) > 5, 5, 4),
-                                RESOLVE_DATE(YearCE, Month, Day, _time, _usePrecision, JulianCalendar)
-                            )
-                        )
-                    ),
-
                     fnFormatYear, LAMBDA(_year,
                         LET(
                             _yearFmt, IF((_year >= 1000) * (_year <= 9999),
@@ -3638,17 +3628,19 @@ FORMAT_ISO_DATE = LAMBDA(YearCE, Month, Day, [Time], [TimeZoneOffset], [Precisio
                         )
                     ),
 
-                    fnFormatTime, LAMBDA(_time,
-                        IF(NOT(ISNUMBER(_time)), "",
+                    fnFormatTime, LAMBDA(_time, _precision,
+                        IF(_precision = 1, "",
                             LET(
-                                // round to milliseonds, scale to seconds
-                                _seconds, ROUND(_time * 86400, 3),
-                                _showPrecision, IF(N(Precision) > 0, Precision,
-                                    IFS(_seconds = 0, 2,
-                                        MOD(_seconds, 1) > 0, 5,
-                                        MOD(_seconds / 60, 1) > 0, 4,
-                                        MOD(_seconds / 3600, 1) > 0, 3,
-                                        TRUE, 2
+                                _showPrecision, IF(_precision > 1, _precision,
+                                    LET(
+                                        // round to milliseonds, scale to seconds
+                                        _seconds, ROUND(_time * 86400, 3),
+                                        IFS(
+                                            _seconds = 0, 3,
+                                            MOD(_seconds, 1) > 0, 5,
+                                            MOD(_seconds / 60, 1) > 0, 4,
+                                            TRUE, 3
+                                        )
                                     )
                                 ),
                                 IF(_showPrecision = 1, "",
@@ -3678,11 +3670,18 @@ FORMAT_ISO_DATE = LAMBDA(YearCE, Month, Day, [Time], [TimeZoneOffset], [Precisio
                         )
                     ),
 
-                    _rDate, fnResolveTime(Time),
+                    _hasTime, ((MOD(Day, 1) > 0) + ISNUMBER(Time)) > 0,
+                    _usePrecision, IFS(
+                        NOT(_hasTime), 1,
+                        NOT(ISNUMBER(Precision)), 3,
+                        TRUE, INT(Precision)
+                    ),
+
+                    _rDate, RESOLVE_DATE(YearCE, Month, Day, Time, _usePrecision, JulianCalendar),
                     _sYear, fnFormatYear(INDEX(_rDate, 1, 1)),
                     _sMonth, TEXT(INDEX(_rDate, 1, 2), "00"),
                     _sDay, TEXT(INDEX(_rDate, 1, 3), "00"),
-                    _sTime, fnFormatTime(INDEX(_rDate, 1, 4)),
+                    _sTime, fnFormatTime(INDEX(_rDate, 1, 4), _usePrecision),
                     _sTZ, fnFormatTZ(TimeZoneOffset),
                     CONCAT(_sYear, "-", _sMonth, "-", _sDay, _sTime, _sTZ)
                 )
@@ -3783,9 +3782,9 @@ YearCE           | integer         | Note that 1 BC = 0 CE, 2 BC = -1 CE
 Month            | integer [1..12] |
 Day              | integer [1..31] |
 [Time]           | decimal [0..1)  | Time of day as decimal fraction of a day.
-[Separator]      | char            | Character separator for date elements. [,./-_]
-[Precision]      | integer         | Select precision level
-                 |                 |   0 - Floating
+[Separator]      | char    [,./-_] | Character separator for date elements.
+[Precision]      | integer         | Select precision level, default is 3
+                 |                 |   0 - Floats from minute to millisecond
                  |                 |   1 - Day
                  |                 |   2 - Hour
                  |                 |   3 - Minute
@@ -3799,16 +3798,19 @@ FORMAT_US_DATE = LAMBDA(YearCE, Month, Day, [Time], [Separator], [Precision], [J
         IF(NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)) + NOT(ISNUMBER(Day)), #VALUE!,
             IF(NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), #VALUE!,
                 LET(
-                    fnFormatTime, LAMBDA(_time,
-                        IF(NOT(ISNUMBER(_time)), "",
+                    fnFormatTime, LAMBDA(_time, _precision,
+                        IF(_precision = 1, "",
                             LET(
-                                // round to milliseonds, scale to seconds
-                                _seconds, ROUND(_time * 86400, 3),
-                                _showPrecision, IF(N(Precision) > 0, Precision,
-                                    IFS(_seconds = 0, 3,
-                                        MOD(_seconds, 1) > 0, 5,
-                                        MOD(_seconds / 60, 1) > 0, 4,
-                                        TRUE, 3
+                                _showPrecision, IF(_precision > 1, _precision,
+                                    LET(
+                                        // round to milliseonds, scale to seconds
+                                        _seconds, ROUND(_time * 86400, 3),
+                                        IFS(
+                                            _seconds = 0, 3,
+                                            MOD(_seconds, 1) > 0, 5,
+                                            MOD(_seconds / 60, 1) > 0, 4,
+                                            TRUE, 3
+                                        )
                                     )
                                 ),
                                 IF(_showPrecision = 1, "",
@@ -3832,21 +3834,24 @@ FORMAT_US_DATE = LAMBDA(YearCE, Month, Day, [Time], [Separator], [Precision], [J
                             IF(IFERROR(FIND(_char1, ",./-_"), 0) > 0, _char1, "/")
                         )
                     ),
-                    _usePrecision, IF(N(Precision) >= 5, 5, 4),
-                    _rDate, IF(NOT(ISNUMBER(Time)),
-                        HSTACK(YearCE, Month, Day, ""),
-                        RESOLVE_DATE(YearCE, Month, Day, Time, _usePrecision, JulianCalendar)
+                    _hasTime, ((MOD(Day, 1) > 0) + ISNUMBER(Time)) > 0,
+                    _usePrecision, IFS(
+                        NOT(_hasTime), 1,
+                        NOT(ISNUMBER(Precision)), 3,
+                        TRUE, INT(Precision)
                     ),
+                    _rDate, RESOLVE_DATE(YearCE, Month, Day, Time, _usePrecision, JulianCalendar),
                     _sYear, TEXT(INDEX(_rDate, 1, 1), "0000;" & UNICHAR(8722) & "0000;0000"),
                     _sMonth, INDEX(_rDate, 1, 2),
                     _sDay, TEXT(INDEX(_rDate, 1, 3), "00"),
-                    _sTime, fnFormatTime(INDEX(_rDate, 1, 4)),
+                    _sTime, fnFormatTime(INDEX(_rDate, 1, 4), _usePrecision),
                     CONCAT(_sMonth, _separator, _sDay, _separator, _sYear, _sTime)
                 )
             )
         )
     )
 );
+
 
 /*--------------------------------------------------------------------------------------------------------
 FORMAT_MIL_DTG
@@ -3859,15 +3864,16 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Year             | integer [1951..2050] |
-Month            | integer [1..12]      |
-Day              | integer [1..31]      |
-Time             | decimal [0..1)       | Time of day as decimal fraction of a day.
-[TimeZoneOffset] | decimal              | Time zone offset in minutes from UTC.
-                 | [-900..900]          | Assumed to be UTC if ommitted.
-                 |                      | Time will be converted if the offset does not align with military
-                 |                      | time zones.
-[Short]          | switch               | Short time formt: hhmm, otherwise: hhmmss
+Year             | integer         |
+                 | [1951..2050]    |
+Month            | integer [1..12] |
+Day              | integer [1..31] |
+Time             | decimal [0..1)  | Time of day as decimal fraction of a day.
+[TimeZoneOffset] | decimal         | Time zone offset in minutes from UTC.
+                 | [-900..900]     | Assumed to be UTC if ommitted.
+                 |                 | Time will be converted if the offset does not align with military
+                 |                 | time zones.
+[Short]          | switch          | Short time formt: hhmm, otherwise: hhmmss
 
 Examples
 ----------------------------------------------------------------------------------------------------------
@@ -4055,7 +4061,8 @@ Note Excel Date/Time uses the Gregorian calendar.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | decimal | Excel Date/Time. 1900-01-01..9999-12-31
+ 1 | decimal      | Excel Date/Time.
+   | [1..2958466) | 1900-01-01..9999-12-31
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -4112,17 +4119,19 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate              | decimal | Julian Date. Note Julian Dates are always in UTC.
-[TimeZoneOffset]   | decimal | Time zone offset in minutes from UTC.
-[Precision]        | integer | Select precision level
-                   |         |   0 - Automatic
-                   |         |   1 - Hour
-                   |         |   2 - Minute
-                   |         |   3 - Second
-                   |         |   4 - Millisecond
-[NoZulu]           | switch  | Use +00:00 instead of Z for UTC time zone.
-[ToJulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                   |         | calendar. 
+JDate              | decimal     | Julian Date. Note Julian Dates are always in UTC.
+[TimeZoneOffset]   | decimal     | Time zone offset in minutes from UTC.
+                   | [-900..900] | Assumed to be UTC if ommitted.
+[Precision]        | integer     | Select precision level, default is 3
+                   |             |   0 - Floats from minute to millisecond
+                   |             |   1 - Day
+                   |             |   2 - Hour
+                   |             |   3 - Minute
+                   |             |   4 - Second
+                   |             |   5 - Millisecond
+[NoZulu]           | switch      | Use +00:00 instead of Z for UTC time zone.
+[ToJulianCalendar] | switch      | Calculate for the Julian proleptic calendar. Default is Gregorian
+                   |             | proleptic calendar. 
 --------------------------------------------------------------------------------------------------------*/
 JDATE_TO_ISODATE = LAMBDA(JDate, [TimeZoneOffset], [Precision], [NoZulu], [ToJulianCalendar],
     LET(
@@ -4152,18 +4161,20 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-LocalJDN           | integer | Local Julian Day Number.
-LocalTime          | decimal | Local time of day as decimal fraction of a day or Excel Time data type.
-[TimeZoneOffset]   | decimal | Time zone offset in minutes from UTC.
-[Precision]        | integer | Select precision level
-                   |         |   0 - Automatic
-                   |         |   1 - Hour
-                   |         |   2 - Minute
-                   |         |   3 - Second
-                   |         |   4 - Millisecond
-[NoZulu]           | switch  | Use +00:00 instead of Z for UTC time zone.
-[ToJulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                   |         | calendar. 
+LocalJDN           | integer     | Local Julian Day Number.
+LocalTime          | decimal     | Local time of day as decimal fraction of a day or Excel Time data type.
+[TimeZoneOffset]   | decimal     | Time zone offset in minutes from UTC.
+                   | [-900..900] | Assumed to be UTC if ommitted.
+[Precision]        | integer     | Select precision level, default is 3
+                   |             |   0 - Floats from minute to millisecond
+                   |             |   1 - Day
+                   |             |   2 - Hour
+                   |             |   3 - Minute
+                   |             |   4 - Second
+                   |             |   5 - Millisecond
+[NoZulu]           | switch      | Use +00:00 instead of Z for UTC time zone.
+[ToJulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                   |             | proleptic calendar. 
 --------------------------------------------------------------------------------------------------------*/
 JDN_LOCAL_TO_ISODATE = LAMBDA(LocalJDN, LocalTime, [TimeZoneOffset], [Precision], [NoZulu], [ToJulianCalendar],
     LET(
@@ -4184,17 +4195,19 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-EDate              | decimal | Excel Date/Time.
-[TimeZoneOffset]   | decimal | Time zone offset in minutes from UTC.
-[Precision]        | integer | Select precision level
-                   |         |   0 - Automatic
-                   |         |   1 - Hour
-                   |         |   2 - Minute
-                   |         |   3 - Second
-                   |         |   4 - Millisecond
-[NoZulu]           | switch  | Use +00:00 instead of Z for UTC time zone.
-[ToJulianCalendar] | switch  | Calculate in the Julian proleptic calendar. Default is Gregorian proleptic
-                   |         | calendar. 
+EDate              | decimal     | Excel Date/Time.
+[TimeZoneOffset]   | decimal     | Time zone offset in minutes from UTC.
+                   | [-900..900] | Assumed to be UTC if ommitted.
+[Precision]        | integer     | Select precision level, default is 3
+                   |             |   0 - Floats from minute to millisecond
+                   |             |   1 - Day
+                   |             |   2 - Hour
+                   |             |   3 - Minute
+                   |             |   4 - Second
+                   |             |   5 - Millisecond
+[NoZulu]           | switch      | Use +00:00 instead of Z for UTC time zone.
+[ToJulianCalendar] | switch      | Calculate in the Julian proleptic calendar. Default is Gregorian
+                   |             | proleptic calendar. 
 --------------------------------------------------------------------------------------------------------*/
 EDATE_TO_ISODATE = LAMBDA(EDate, [TimeZoneOffset], [Precision], [NoZulu], [ToJulianCalendar],
     IF(EDate = "", "", 
@@ -4235,8 +4248,9 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-EDate              | decimal | Excel Date/Time.
-[TimeZoneOffset]   | decimal | Time zone offset in minutes from UTC.
+EDate              | decimal     | Excel Date/Time.
+[TimeZoneOffset]   | decimal     | Time zone offset in minutes from UTC.
+                   | [-900..900] | Assumed to be UTC if ommitted.
 --------------------------------------------------------------------------------------------------------*/
 EDATE_TO_JDATE = LAMBDA(EDate, [TimeZoneOffset],
     IF(EDate = "", "", 
@@ -4260,8 +4274,8 @@ Returns the Julian Day Number and local time for the provided Excel Date/Time.
 
 Output
 ----------------------------------------------------------------------------------------------------------
- 1 | integer | Local Julian Day Number
- 2 | decimal | Local time of day. Decimal fraction of a day, implicitly converts to Excel time data type.
+ 1 | integer        | Local Julian Day Number
+ 2 | decimal [0..1) | Local time of day. Decimal fraction of a day, implicitly converts to Excel Date/Time type.
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
@@ -4295,7 +4309,7 @@ Output
 Parameters
 ----------------------------------------------------------------------------------------------------------
 LocalJDN       | integer | Local Julian Day Number.
-LocalTime      | decimal | Local time of day as decimal fraction of a day or Excel Time data type.
+LocalTime      | decimal | Local time of day as decimal fraction of a day or Excel Date/Time type.
 --------------------------------------------------------------------------------------------------------*/
 JDN_LOCAL_TO_EDATE = LAMBDA(LocalJDN, LocalTime,
     IF((LocalJDN = "") * (LocalTime = ""), "",
@@ -4323,8 +4337,9 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-JDate          | decimal | Julian Date
-TimeZoneOffset | decimal | Time zone offset in minutes from UTC.
+JDate          | decimal     | Julian Date
+TimeZoneOffset | decimal     | Time zone offset in minutes from UTC.
+               | [-900..900] | Assumed to be UTC if ommitted.
 --------------------------------------------------------------------------------------------------------*/
 JDATE_TO_EDATE = LAMBDA(JDate, TimeZoneOffset,
     IF(JDate = "", "",
@@ -4377,14 +4392,15 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-EDate       | decimal | Excel Date/Time.
-[Separator] | char    | Character separator for date elements. [,./-_]
-[Precision] | integer | Select precision level
-            |         |   0 - Automatic
-            |         |   1 - Hour
-            |         |   2 - Minute
-            |         |   3 - Second
-            |         |   4 - Millisecond
+EDate       | decimal      | Excel Date/Time.
+[Separator] | char [,./-_] | Character separator for date elements.
+[Precision] | integer      | Select precision level, default is 3
+            |              |   0 - Floats from minute to millisecond
+            |              |   1 - Day
+            |              |   2 - Hour
+            |              |   3 - Minute
+            |              |   4 - Second
+            |              |   5 - Millisecond
 --------------------------------------------------------------------------------------------------------*/
 EDATE_TO_USDATE = LAMBDA(EDate, [Separator], [Precision],
     IF(EDate = "", "", 
