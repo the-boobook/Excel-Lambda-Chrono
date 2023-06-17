@@ -91,7 +91,7 @@
 # DELTA_MONTH_DAYS       Returns the timespan difference between Julian Dates in months and days.        #
 # DELTA_QUARTER_DAYS     Returns the timespan difference between Julian Dates in quarters and days.      #
 #                                                                                                        #
-# EXTENTS                                                                                                #
+# EXTENT                                                                                                 #
 # ------------------------------------------------------------------------------------------------------ #
 # EXTENT_OF_DAYS         Returns the inclusive extent of days spanned by two Julian Dates.               #
 # EXTENT_OF_WEEKS        Returns the inclusive extent of weeks spanned by two Julian Dates.              #
@@ -126,7 +126,7 @@
 # FORMAT_US_DATE         Returns a date formatted in the US style.                                       #
 # FORMAT_MIL_DTG         Returns a date-time group formatted in US Military message traffic style.       #
 #                                                                                                        #
-# Conversions                                                                                            #
+# CONVERSION                                                                                             #
 # ------------------------------------------------------------------------------------------------------ #
 # ISODATE_TO_JDN_LOCAL   Returns the Julian Day Number and local time for a date and time provided in    #
 #                        ISO format.                                                                     #
@@ -3973,7 +3973,7 @@ FORMAT_MIL_DTG = LAMBDA(Year, Month, Day, Time, [TimeZoneOffset], [Short],
 
 
 /*########################################################################################################
-# CONVERSIONS                                                                                            #
+# CONVERSION                                                                                             #
 ########################################################################################################*/
 
 
