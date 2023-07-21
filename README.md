@@ -2,6 +2,11 @@
 
 Module for working with dates in the Gregorian and Julian calendars outside the range of the Excel Date/Time type.
 
+## General Guidance
+
+* Use the Julian Day Number (JDN) functions when working solely with calendar dates. Julian Day Numbers do not confer any time information.
+* Use the Julian Date (JDATE) functions when working with date and time values. Note Julian Dates are based on UTC.
+
 
 ## FUNCTIONS
 
@@ -51,7 +56,8 @@ JULIAN_DATE            | Returns the Julian Date of the provided calendar date a
 CALENDAR_FROM_JDATE    | Returns the calendar date and local time of day for a given Julian Date and time zone offset.
 TIME_DECIMAL_TO_HMS    | Returns the 24 hour timekeeping representation of a decimal time value.
 HMS_TO_TIME_DECIMAL    | Returns a decimal time as a fraction of a day from a 24 hour timekeeping value of time.
-ADD_TIMESPAN           | Returns the Julian Date of the addition of the provided calendar date and time of day and a timespan complication.
+JDN_LOCAL_ADDITION     | Returns the addition of a timespan complication to a given local Julian Day Number and local time of day.
+JDATE_ADDITION         | Returns the addition of a timespan complication to a given Julian Date.
 RESOLVE_DATE           | Returns a calendar date from provided decimal year, months, days and time.
 
 DELTA                  | <!-- -->
@@ -113,3 +119,9 @@ JDN_LOCAL_TO_EDATE     | Returns an Excel Date/Time for the provided Julian Day 
 JDATE_TO_EDATE         | Returns an Excel Date/Time for the provided Julian Date.
 USDATE_TO_EDATE        | Returns an Excel Date/Time for the provided US format date and time.
 EDATE_TO_USDATE        | Returns a US format date and time for the provided Excel Date/Time.
+
+
+## To Do
+
+JDN algorithm see if can simplify quarters offset algorithm similar
+Check precison functions in other functions
