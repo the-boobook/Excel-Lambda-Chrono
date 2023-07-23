@@ -4,8 +4,8 @@ Module for working with dates in the Gregorian and Julian calendars outside the 
 
 ## General Guidance
 
-* Use the Julian Day Number (JDN) functions when working solely with calendar dates. Julian Day Numbers do not confer any time information.
-* Use the Julian Date (JDATE) functions when working with date and time values. Note Julian Dates are based on UTC.
+* Use the Modified Julian Day Number (MJDN) functions when working solely with calendar dates. Julian Day Numbers do not confer any time information.
+* Use the Julian Date (JDATE) functions when working with date and time values.
 
 
 ## FUNCTIONS
@@ -120,8 +120,3 @@ JDATE_TO_EDATE         | Returns an Excel Date/Time for the provided Julian Date
 USDATE_TO_EDATE        | Returns an Excel Date/Time for the provided US format date and time.
 EDATE_TO_USDATE        | Returns a US format date and time for the provided Excel Date/Time.
 
-
-## To Do
-
-JDN algorithm see if can simplify quarters offset algorithm similar
-Check precison functions in other functions
