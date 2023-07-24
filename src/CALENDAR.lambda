@@ -11,9 +11,6 @@
 # NULLIFY                 Ensures an empty cell reference is not resolved to zero.                          #
 # IS_EMPTY                Tests if the parameter has an empty value. Errors return FALSE.                   #
 # IS_NUMERIC_NULL         Tests if the parameter has a numeric value or is empty. Errors return FALSE.      #
-# IS_NON_ZERO             Tests if the parameter has a value other than zero or empty. Errors return TRUE.  #
-# IS_NON_NEGATIVE         Tests if the parameter has a value greater than zero. Non-numeric values return   #
-#                         FALSE.                                                                            #
 # IS_INTEGER              Tests if a number is an integer or very close to an integer. Use in place of      #
 #                         MOD(N, 0) > 0 where N can be within a large range of magnitudes.                  #
 # DECIMALS                Returns the number of decimal places for a rational number.                       #
@@ -81,6 +78,15 @@
 # SECULAR_DIFFERENCE      Returns the number of days the Gregorian proleptic calendar is ahead of the       #
 #                         Julian proleptic calendar for a given date.                                       #
 #                                                                                                           #
+# TIME ZONES                                                                                                #
+# --------------------------------------------------------------------------------------------------------- #
+# IS_VALID_TZO            Tests if a time zone offset in minutes is within the range -900..+900             #
+# TIMESPAN_TO_TZO         Converts a deimal timespan into time zone offset minutes.                         #
+# TZO_TO_TIMESPAN         Converts time zone offset minutes into a decimal timespan.                        #
+# PARSE_ISO_TZO           Parses an ISO formatted time zone offset into a decimal timespan.                 #
+# FORMAT_ISO_TZO          Returns a time zone offset as text in ISO format.                                 #
+
+#                                                                                                           #
 # DATE AND TIME                                                                                             #
 # --------------------------------------------------------------------------------------------------------- #
 # IS_VALID_TIME_OF_DAY    Tests if sexagesimal representation of time is valid for a 24 hour day.           #
@@ -105,8 +111,6 @@
 #                         the bounds of calendar days.                                                      #
 # PARSE_ISO_TIME          Parses an ISO formatted time of day into decimal time of day.                     #
 # FORMAT_ISO_TIME         Returns a time of day as text in ISO format.                                      #
-# PARSE_ISO_TZO           Parses an ISO formatted time zone offset into a decimal timespan.                 #
-# FORMAT_ISO_TZO          Returns a time zone offset as text in ISO format.                                 #
 # PARSE_ISO_DATETIME      Parses an ISO formatted date and time into respective date parts, time, and time  #
 #                         zone offset from UTC. Providing a time zone offset on its own is invalid for      #
 #                         this function.                                                                    #
@@ -123,6 +127,8 @@
 #                         respective parts of year, month, day, time of day and time zone offset in         #
 #                         minutes from UTC.                                                                 #
 # FORMAT_MIL_DTG          Returns a date-time group formatted in US Military message traffic style.         #
+# SHIFT_TIMEZONE          Translates a Modified Julian Date from one time zone to another. If a time zone   #
+#                         is omitted it is assumed to be UTC.                                               #
 #                                                                                                           #
 # ORDINAL DATES                                                                                             #
 # --------------------------------------------------------------------------------------------------------- #
@@ -244,8 +250,6 @@
 #                         offset.                                                                           #
 # MJDATE_TO_ISO_DATETIME  Converts a Modified Julian Date and time zone offset to an ISO formatted date and #
 #                         time.                                                                             #
-# SHIFT_TIMEZONE          Translates a Modified Julian Date from one time zone to another. If a time zone   #
-#                         is omitted it is assumed to be UTC.                                               #
 #                                                                                                           #
 ###########################################################################################################*/
 
@@ -342,80 +346,6 @@ IS_NUMERIC_NULL = LAMBDA(Value,
         ISNUMBER(Value), TRUE,
         TRUE, FALSE
     )    
-);
-
-
-/*----------------------------------------------------------------------------------------------------------
-IS_NON_ZERO
-
-Tests if the parameter has a value other than zero or empty. Errors return TRUE.
-
-Output
--------------------------------------------------------------------------------------------------------------
- 1 | boolean | 
-
-Parameters
--------------------------------------------------------------------------------------------------------------
-N | Variant |
-
-Examples
--------------------------------------------------------------------------------------------------------------
-IS_NON_ZERO("")
-Returns FALSE
-
-IS_NON_ZERO(4.5)
-Returns TRUE
-
-IS_NON_ZERO(0)
-Returns FALSE
-
-IS_NON_ZERO("3")
-Returns TRUE
-----------------------------------------------------------------------------------------------------------*/
-IS_NON_ZERO = LAMBDA(N,
-    IFS(
-        ISERROR(N), TRUE,
-        N = "", FALSE,
-        NOT(ISNUMBER(N)), TRUE,
-        N = 0, FALSE,
-        TRUE, TRUE
-    )
-);
-
-/*----------------------------------------------------------------------------------------------------------
-IS_NON_NEGATIVE
-
-Tests if the parameter has a value greater than zero. Non-numeric values return FALSE.
-
-Output
--------------------------------------------------------------------------------------------------------------
- 1 | boolean | 
-
-Parameters
--------------------------------------------------------------------------------------------------------------
-N | Variant |
-
-Examples
--------------------------------------------------------------------------------------------------------------
-IS_NON_NEGATIVE("")
-Returns FALSE
-
-IS_NON_NEGATIVE(4.5)
-Returns TRUE
-
-IS_NON_NEGATIVE(0)
-Returns TRUE
-
-IS_NON_NEGATIVE(-1)
-Returns FALSE
-----------------------------------------------------------------------------------------------------------*/
-IS_NON_NEGATIVE = LAMBDA(N,
-    IFS(
-        ISERROR(N), FALSE,
-        N = "", FALSE,
-        NOT(ISNUMBER(N)), FALSE,
-        TRUE, N >= 0
-    )
 );
 
 
@@ -3043,6 +2973,230 @@ SECULAR_DIFFERENCE = LAMBDA(YearCE, Month, Day, [FromJulianCalendar],
 
 
 
+
+/*###########################################################################################################
+# TIME ZONES                                                                                                #
+###########################################################################################################*/
+
+
+/*----------------------------------------------------------------------------------------------------------
+IS_VALID_TZO
+
+Tests if a time zone offset in minutes is within the range -15:00..+15:00
+
+Output
+-------------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+-------------------------------------------------------------------------------------------------------------
+TZOMinutes | decimal [-900..900] | Fractional allowed if minute and second empty.
+----------------------------------------------------------------------------------------------------------*/
+IS_VALID_TZO = LAMBDA(TZOMinutes,
+    IFS(
+        IS_EMPTY(TZOMinutes), FALSE,
+        NOT(ISNUMBER(TZOMinutes)), FALSE,
+        ABS(TZOMinutes) > 900, FALSE,
+        TRUE, TRUE
+    )
+);
+
+
+/*----------------------------------------------------------------------------------------------------------
+TIMESPAN_TO_TZO
+
+Converts a deimal timespan into time zone offset minutes.
+
+Output
+-------------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+-------------------------------------------------------------------------------------------------------------
+TZOTimeSpan | decimal [-0.625..0.625] |
+----------------------------------------------------------------------------------------------------------*/
+TIMESPAN_TO_TZO = LAMBDA(TZOTimeSpan,
+    IF(IS_EMPTY(TZOTimeSpan), "",
+        LET(
+            _tzo, TZOTimeSpan * 1440,
+            IF(IS_VALID_TZO(_tzo), _tzo, {#NUM!})
+        )
+    )
+);
+
+
+/*----------------------------------------------------------------------------------------------------------
+TZO_TO_TIMESPAN
+
+Converts time zone offset minutes into a decimal timespan.
+
+Output
+-------------------------------------------------------------------------------------------------------------
+ 1 | boolean | Time Zone Offset expressed as a TimeSpan 
+
+Parameters
+-------------------------------------------------------------------------------------------------------------
+TZOTimeSpan | decimal [-0.625..0.625] |
+----------------------------------------------------------------------------------------------------------*/
+TZO_TO_TIMESPAN = LAMBDA(TZOMinutes,
+    IFS(
+        IS_EMPTY(TZOMinutes), "",
+        NOT(IS_VALID_TZO(TZOMinutes)), {#NUM!},
+        TRUE, TZOMinutes / 1440
+    )
+);
+
+
+/*----------------------------------------------------------------------------------------------------------
+PARSE_ISO_TZO
+
+Parses an ISO formatted time zone offset into time zone offset minutes.
+
+Output
+-------------------------------------------------------------------------------------------------------------
+ 1 | decimal [-900..900] | Time zone offset in minutes
+
+Parameters
+-------------------------------------------------------------------------------------------------------------
+ISOTimeZoneOffset | text | Time zone offset in ISO format ie. ±hh:mm
+
+Examples
+-------------------------------------------------------------------------------------------------------------
+PARSE_ISO_TZO("Z")
+Returns: 0 i.e. UTC time zone (Zulu)
+
+PARSE_ISO_TIME("−06:00")
+Returns: -360
+
+PARSE_ISO_TIME("+16:00")
+Returns: #NUM! i.e. range is −15:00 to +15:00
+----------------------------------------------------------------------------------------------------------*/
+PARSE_ISO_TZO = LAMBDA(ISOTimeZoneOffset,
+    IFS(
+        IS_EMPTY(ISOTimeZoneOffset), "",
+        (LEN(ISOTimeZoneOffset) = 1) * (CODE(ISOTimeZoneOffset) = 90), 0,
+        TRUE, LET(
+            _sChar, LEFT(ISOTimeZoneOffset, 1),
+            _sign, IFS(
+                _sChar = "+", 1,
+                _sChar = "-", -1,
+                UNICODE(_sChar) = 8722, -1,
+                TRUE, 0
+            ),
+            IF(_sign = 0, {#VALUE!},
+                LET(
+                    _tz, MID(ISOTimeZoneOffset, 2, LEN(ISOTimeZoneOffset) - 1),
+                    _pattern, REPLACE_CHARS(_tz, "0123456789", "_"),
+                    _tryParse, IFS(
+                        _pattern = "__:__:__",
+                            HSTACK(
+                                VALUE(LEFT(_tz, 2)),
+                                VALUE(MID(_tz, 4, 2)),
+                                VALUE(RIGHT(_tz, 2))
+                            ),
+                        _pattern = "__:__",
+                            HSTACK(
+                                VALUE(LEFT(_tz, 2)),
+                                VALUE(RIGHT(_tz, 2)),
+                                0
+                            ),
+                        _pattern = "______",
+                            HSTACK(
+                                VALUE(LEFT(_tz, 2)),
+                                VALUE(MID(_tz, 3, 2)),
+                                VALUE(RIGHT(_tz, 2))
+                            ),
+                        _pattern = "____",
+                            HSTACK(
+                                VALUE(LEFT(_tz, 2)),
+                                VALUE(RIGHT(_tz, 2)),
+                                0
+                            ),
+                        _pattern = "__",
+                            HSTACK(VALUE(_tz), 0, 0),
+                        TRUE, {#VALUE!}
+                    ),
+                    
+                    IFS(
+                        ISERROR(INDEX(_tryParse, 1, 1)), {#VALUE!},
+                        NOT(IS_VALID_TIME_OF_DAY(
+                            INDEX(_tryParse, 1, 1),
+                            INDEX(_tryParse, 1, 2),
+                            INDEX(_tryParse, 1, 3)
+                        )), {#NUM!},
+                        TRUE, TIMESPAN_TO_TZO(
+                            _sign * TIMESPAN(
+                                1, 0,
+                                INDEX(_tryParse, 1, 1),
+                                INDEX(_tryParse, 1, 2),
+                                INDEX(_tryParse, 1, 3)
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*----------------------------------------------------------------------------------------------------------
+FORMAT_ISO_TZO
+
+Returns a time zone offset as text in ISO format.
+
+Output
+-------------------------------------------------------------------------------------------------------------
+ 1 | text | ISO formatted time zone offset
+
+Parameters
+-------------------------------------------------------------------------------------------------------------
+TZOMinutes | decimal     | Time zone offset from UTC in minutes.
+           | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+[Options]  | text        | String with elements: [B][Z]
+           |             |  B : Display in basic format eg +0000
+           |             |  Z : Display 'Z' for Zulu time zone +00:00
+----------------------------------------------------------------------------------------------------------*/
+FORMAT_ISO_TZO = LAMBDA(TZOMinutes, [Options],
+    IFS(
+        IS_EMPTY(TZOMinutes), "",
+        NOT(ISNUMBER(TZOMinutes)), {#VALUE!},
+        NOT(IS_VALID_TZO(TZOMinutes)), {#NUM!},
+        TRUE, LET(
+            _basic, IFERROR(SEARCH("B", Options), 0) > 0,
+            _zulu, IFERROR(SEARCH("Z", Options), 0) > 0,
+            _tzo, ABS(TZOMinutes),
+            IF((_tzo = 0) * _zulu, "Z",
+                LET(
+                    _sign, IF(TZOMinutes >= 0, "+", UNICHAR(8722)), 
+                    _delim, IF(_basic, "", ":"),
+                    _rTZO, RESOLVE_TIMESPAN(TZO_TO_TIMESPAN(_tzo), 2, 4, 0),
+                    IF(INDEX(_rTZO, 5) > 0, 
+                        CONCAT(
+                            _sign,
+                            TEXT(INDEX(_rTZO, 1, 3), "00"),
+                            _delim, TEXT(INDEX(_rTZO, 1, 4), "00"),
+                            _delim, TEXT(INDEX(_rTZO, 1, 5), "00")
+                        ),
+                        CONCAT(
+                            _sign,
+                            TEXT(INDEX(_rTZO, 1, 3), "00"),
+                            _delim, TEXT(INDEX(_rTZO, 1, 4), "00")
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+
+
+
+
+
+
 /*###########################################################################################################
 # DATE AND TIME                                                                                             #
 ###########################################################################################################*/
@@ -3642,171 +3796,6 @@ FORMAT_ISO_TIME = LAMBDA(Time, [Options],
 );
 
 
-/*----------------------------------------------------------------------------------------------------------
-PARSE_ISO_TZO
-
-Parses an ISO formatted time zone offset into a decimal timespan.
-
-Output
--------------------------------------------------------------------------------------------------------------
- 1 | decimal [-0.625..0.625] | Time zone offset as decimal fraction of a day
-
-Output when AsComplication switch set
--------------------------------------------------------------------------------------------------------------
- 1 | integer [-1,0,1] | Sign
- 2 | integer [0..24]  | Hours
- 3 | integer [0..59]  | Minutes
- 4 | decimal [0..60)  | Seconds
-
-Parameters
--------------------------------------------------------------------------------------------------------------
-ISOTimeZoneOffset | text   | Time zone offset in ISO format ie. ±hh:mm
-[AsComplication]  | switch | Output component parts
-
-Examples
--------------------------------------------------------------------------------------------------------------
-PARSE_ISO_TZO("Z")
-Returns: 0 i.e. UTC time zone (Zulu)
-
-PARSE_ISO_TIME("−06:00")
-Returns: -0.25
-
-PARSE_ISO_TIME("+16:00")
-Returns: #NUM! i.e. range is −15:00 to +15:00
-----------------------------------------------------------------------------------------------------------*/
-PARSE_ISO_TZO = LAMBDA(ISOTimeZoneOffset, [AsComplication],
-    IF(ISOTimeZoneOffset = "", "",
-        LET(
-            _asValue, N(AsComplication) = 0,
-            _len, LEN(ISOTimeZoneOffset),
-            IF((_len = 1) * (CODE(ISOTimeZoneOffset) = 90), IF(_asValue, 0, {0, 0, 0, 0}),
-                LET(
-                    _sChar, LEFT(ISOTimeZoneOffset, 1),
-                    _sign, IFS(
-                        _sChar = "+", 1,
-                        _sChar = "-", -1,
-                        UNICODE(_sChar) = 8722, -1,
-                        TRUE, 0
-                    ),
-                    IF(_sign = 0, IF(_asValue, {#VALUE!}, {#VALUE!, "", "", ""}),
-                        LET(
-                            _tz, MID(ISOTimeZoneOffset, 2, _len - 1),
-                            _pattern, REPLACE_CHARS(_tz, "0123456789", "_"),
-                            _tryParse, IFS(
-                                _pattern = "__:__:__",
-                                    HSTACK(
-                                        VALUE(LEFT(_tz, 2)),
-                                        VALUE(MID(_tz, 4, 2)),
-                                        VALUE(RIGHT(_tz, 2))
-                                    ),
-                                _pattern = "__:__",
-                                    HSTACK(
-                                        VALUE(LEFT(_tz, 2)),
-                                        VALUE(RIGHT(_tz, 2)),
-                                        0
-                                    ),
-                                _pattern = "______",
-                                    HSTACK(
-                                        VALUE(LEFT(_tz, 2)),
-                                        VALUE(MID(_tz, 3, 2)),
-                                        VALUE(RIGHT(_tz, 2))
-                                    ),
-                                _pattern = "____",
-                                    HSTACK(
-                                        VALUE(LEFT(_tz, 2)),
-                                        VALUE(RIGHT(_tz, 2)),
-                                        0
-                                    ),
-                                _pattern = "__",
-                                    HSTACK(VALUE(_tz), 0, 0),
-                                TRUE, {#VALUE!}
-                            ),
-                            
-                            IFS(
-                                ISERROR(INDEX(_tryParse, 1, 1)), IF(_asValue, {#VALUE!}, {#VALUE!, "", "", ""}),
-                                NOT(IS_VALID_TIME_OF_DAY(
-                                    INDEX(_tryParse, 1, 1),
-                                    INDEX(_tryParse, 1, 2),
-                                    INDEX(_tryParse, 1, 3)
-                                )), IF(_asValue, {#NUM!}, {#NUM!, "", "", ""}),
-                                TRUE, LET(
-                                    _absTZO, TIMESPAN(
-                                        1, 0,
-                                        INDEX(_tryParse, 1, 1),
-                                        INDEX(_tryParse, 1, 2),
-                                        INDEX(_tryParse, 1, 3)
-                                    ),
-                                    IF(_absTZO > 0.625, IF(_asValue, {#NUM!}, {#NUM!, "", "", ""}),
-                                        IF(_asValue, _sign * _absTZO,
-                                            HSTACK(
-                                                IF(_absTZO = 0, 0, _sign),
-                                                INDEX(_tryParse, 1, 1),
-                                                INDEX(_tryParse, 1, 2),
-                                                INDEX(_tryParse, 1, 3)
-                                            )
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        )
-    )
-);
-
-
-/*----------------------------------------------------------------------------------------------------------
-FORMAT_ISO_TZO
-
-Returns a time zone offset as text in ISO format.
-
-Output
--------------------------------------------------------------------------------------------------------------
- 1 | text | ISO formatted time zone offset
-
-Parameters
--------------------------------------------------------------------------------------------------------------
-TimeZoneOffset | decimal         | Time zone offset from UTC as decimal fraction of a day.
-               | [-0.625..0.625] | Assumed to be UTC if ommitted. [-15:00..+15:00]
-[Options]      | text            | String with elements: [B][Z]
-               |                 |  B : Display in basic format eg +0000
-               |                 |  Z : Display 'Z' for Zulu time zone +00:00
-----------------------------------------------------------------------------------------------------------*/
-FORMAT_ISO_TZO = LAMBDA(TimeZoneOffset, [Options],
-    IFS(
-        TimeZoneOffset = "", "",
-        NOT(ISNUMBER(TimeZoneOffset)), {#VALUE!},
-        TRUE, LET(
-            _basic, IFERROR(SEARCH("B", Options), 0) > 0,
-            _zulu, IFERROR(SEARCH("Z", Options), 0) > 0,
-            _tzo, ABS(TimeZoneOffset),
-            IFS(
-                (_tzo = 0) * _zulu, "Z",
-                _tzo > 0.625, {#NUM!},
-                TRUE, LET(
-                    _sign, IF(TimeZoneOffset >= 0, "+", UNICHAR(8722)), 
-                    _delim, IF(_basic, "", ":"),
-                    _rTZO, RESOLVE_TIMESPAN(_tzo, 2, 4, 0),
-                    IF(INDEX(_rTZO, 5) > 0, 
-                        CONCAT(
-                            _sign,
-                            TEXT(INDEX(_rTZO, 1, 3), "00"),
-                            _delim, TEXT(INDEX(_rTZO, 1, 4), "00"),
-                            _delim, TEXT(INDEX(_rTZO, 1, 5), "00")
-                        ),
-                        CONCAT(
-                            _sign,
-                            TEXT(INDEX(_rTZO, 1, 3), "00"),
-                            _delim, TEXT(INDEX(_rTZO, 1, 4), "00")
-                        )
-                    )
-                )
-            )
-        )
-    )
-);
 
 
 /*----------------------------------------------------------------------------------------------------------
@@ -3843,10 +3832,10 @@ PARSE_ISO_DATETIME("T12:00")
 Returns: {"", "", "", 0.5, ""}
 
 PARSE_ISO_DATETIME("T12:00−06:00")
-Returns: {"", "", "", 0.5, -0.25}
+Returns: {"", "", "", 0.5, -360}
 
 PARSE_ISO_DATETIME("2023-05-23T+09:00")
-Returns: {2023, 5, 23, "", 0.375}
+Returns: {2023, 5, 23, "", 540}
 ----------------------------------------------------------------------------------------------------------*/
 PARSE_ISO_DATETIME = LAMBDA(ISODateTime, [AllowMixedStyles], [JulianCalendar],
     IFS(
@@ -3946,8 +3935,8 @@ YearCE           | integer         | Note that 1 BC = 0 CE, 2 BC = -1 CE
 Month            | integer [1..12] |
 Day              | integer [1..31] |
 [Time]           | decimal [0..1]  | Time of day as decimal fraction of a day.
-[TimeZoneOffset] | decimal         | Time zone offset from UTC as decimal fraction of a day.
-                 | [-0.625..0.625] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+[TZOMinutes]     | decimal         | Time zone offset from UTC in minutes
+                 | [-900..900]     | Assumed to be UTC if ommitted. [-15:00..+15:00]
 [Options]        | text            | String with elements: [B][<][LowOrder][Precision][Z]
                  |                 |        B : Display in basic format eg T0000
                  |                 |        < : Round by truncating components. Default is rounding to nearest.
@@ -3962,7 +3951,7 @@ Day              | integer [1..31] |
 [JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
                  |                 | proleptic calendar. 
 ----------------------------------------------------------------------------------------------------------*/
-FORMAT_ISO_DATETIME = LAMBDA(YearCE, Month, Day, [Time], [TimeZoneOffset], [Options], [JulianCalendar],
+FORMAT_ISO_DATETIME = LAMBDA(YearCE, Month, Day, [Time], [TZOMinutes], [Options], [JulianCalendar],
     IF(IS_EMPTY(YearCE) * IS_EMPTY(Month) * IS_EMPTY(Day) * IS_EMPTY(Time), "",
         LET(
             _hasDate, ISNUMBER(YearCE) * ISNUMBER(Month) * ISNUMBER(Day),
@@ -4031,7 +4020,7 @@ FORMAT_ISO_DATETIME = LAMBDA(YearCE, Month, Day, [Time], [TimeZoneOffset], [Opti
                         _lowOrder = 1, "",
                         TRUE, FORMAT_ISO_TIME(_rTime, Options)
                     ),
-                    _sTZO, IFERROR(FORMAT_ISO_TZO(TimeZoneOffset, Options), "#TZO!"),
+                    _sTZO, IFERROR(FORMAT_ISO_TZO(TZOMinutes, Options), "#TZO!"),
                     IF((_sTime = "") * (_sTZO <> ""),
                         CONCAT(_sDate, "T", _sTZO),
                         CONCAT(_sDate, _sTime, _sTZO)
@@ -4574,116 +4563,115 @@ PARSE_MIL_DTG("150600Z")
 Returns: {"", "", 15, 0.25, 0}
 ----------------------------------------------------------------------------------------------------------*/
 PARSE_MIL_DTG = LAMBDA(DTG,
-    IF(IS_EMPTY(DTG), {"", "", "", "", ""},
-        LET(
-            _DTG, SUBSTITUTE(DTG, " ", ""),
-            IF(NOT(VALIDATE_CHARSET("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", _DTG)), {#VALUE!, "", "", "", ""},
-                LET(
-                    fnYear, LAMBDA(_sYear,
-                        LET(
-                            _yy, VALUE(_sYear),
-                            IF(_yy < 51, 2000 + _yy, 1900 + _yy)
-                        )
-                    ),
+    LET(
+        _DTG, SUBSTITUTE(DTG, " ", ""),
+        IFS(
+            IS_EMPTY(_DTG), {"", "", "", "", ""},
+            NOT(VALIDATE_CHARSET("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", _DTG)), {#VALUE!, "", "", "", ""},
+            TRUE, LET(
+                fnYear, LAMBDA(_sYear,
+                    LET(
+                        _yy, VALUE(_sYear),
+                        IF(_yy < 51, 2000 + _yy, 1900 + _yy)
+                    )
+                ),
 
-                    fnTime, LAMBDA(_hour, _minute, _second,
-                        IF(NOT(IS_VALID_TIME_OF_DAY(_hour, _minute, _second, 0)), {#NUM!},
-                            TIMESPAN(1, 0, _hour, _minute, _second)
-                        )
-                    ),
+                fnTime, LAMBDA(_hour, _minute, _second,
+                    IF(NOT(IS_VALID_TIME_OF_DAY(_hour, _minute, _second, 0)), {#NUM!},
+                        TIMESPAN(1, 0, _hour, _minute, _second)
+                    )
+                ),
 
-                    fnParseTZ, LAMBDA(_tzChar,
-                        LET(
-                            _code, CODE(_tzChar) - 64,
-                            IFS(
-                                _code = 26, 0, // Z = UTC
-                                _code = 10, "", // J = Local Time
-                                _code <= 0, {#VALUE!},
-                                _code <= 9, _code / 24, // ABCDEFGHI -> +1..+9
-                                _code <= 13, (_code - 1) / 24,  // KLM -> +10..+12
-                                _code <= 25, (13 - _code) / 24, // NOPQRSTUVWXY -> -1..-12
-                                TRUE, {#VALUE!}
-                            )
-                        )
-                    ),
-
-                    fnParseFull, LAMBDA(_DTG,
-                        LET(
-                            _day, VALUE(LEFT(_DTG, 2)),
-                            _month, PARSE_MONTH(MID(_DTG, 10, 3)),
-                            _year, fnYear(RIGHT(_DTG, 2)),
-                            IF(NOT(IS_VALID_DATE(_year, _month, _day, 0)), {#VALUE!, "", "", "", ""},
-                                LET(
-                                    _hour, VALUE(MID(_DTG, 3, 2)),
-                                    _minute, VALUE(MID(_DTG, 5, 2)),
-                                    _second, VALUE(MID(_DTG, 7, 2)),
-                                    _time, fnTime(_hour, _minute, _second),
-                                    _tz, fnParseTZ(MID(_DTG, 9, 1)),
-                                    HSTACK(
-                                        _year,
-                                        _month,
-                                        _day,
-                                        _time,
-                                        _tz
-                                    )
-                                )
-                            )
-                        )
-                    ),
-
-                    fnParseShort, LAMBDA(_DTG,
-                        LET(
-                            _day, VALUE(LEFT(_DTG, 2)),
-                            _month, PARSE_MONTH(MID(_DTG, 8, 3)),
-                            _year, fnYear(RIGHT(_DTG, 2)),
-                            IF(NOT(IS_VALID_DATE(_year, _month, _day, 0)), {#VALUE!, "", "", "", ""},
-                                LET(
-                                    _hour, VALUE(MID(_DTG, 3, 2)),
-                                    _minute, VALUE(MID(_DTG, 5, 2)),
-                                    _time, fnTime(_hour, _minute, 0),
-                                    _tz, fnParseTZ(MID(_DTG, 7, 1)),
-                                    HSTACK(
-                                        _year,
-                                        _month,
-                                        _day,
-                                        _time,
-                                        _tz
-                                    )
-                                )
-                            )
-                        )
-                    ),
-
-                    fnParsePlan, LAMBDA(_DTG,
-                        LET(
-                            _day, VALUE(LEFT(_DTG, 2)),
-                            _hour, VALUE(MID(_DTG, 3, 2)),
-                            _minute, VALUE(MID(_DTG, 5, 2)),
-                            _time, fnTime(_hour, _minute, 0),
-                            _tz, fnParseTZ(MID(_DTG, 7, 1)),
-                            HSTACK(
-                                "",
-                                "",
-                                _day,
-                                _time,
-                                _tz
-                            )
-                        )
-                    ),
-
-                    _len, LEN(_DTG),
-                    _fmt, IFS(_len = 14, 1, 
-                        _len = 12, 2,
-                        _len = 7, 3,
-                        TRUE, 0
-                    ),
-                    IF(_fmt = 0, {#VALUE!, "", "", "", ""},
+                fnParseTZ, LAMBDA(_tzChar,
+                    LET(
+                        _code, CODE(_tzChar) - 64,
                         IFS(
-                            _fmt = 1, fnParseFull(_DTG),
-                            _fmt = 2, fnParseShort(_DTG),
-                            _fmt = 3, fnParsePlan(_DTG)
+                            _code = 26, 0, // Z = UTC
+                            _code = 10, "", // J = Local Time
+                            _code <= 0, {#VALUE!},
+                            _code <= 9, _code * 60, // ABCDEFGHI -> +1..+9
+                            _code <= 13, (_code - 1) * 60,  // KLM -> +10..+12
+                            _code <= 25, (13 - _code) * 60, // NOPQRSTUVWXY -> -1..-12
+                            TRUE, {#VALUE!}
                         )
                     )
+                ),
+
+                fnParseFull, LAMBDA(_DTG,
+                    LET(
+                        _day, VALUE(LEFT(_DTG, 2)),
+                        _month, PARSE_MONTH(MID(_DTG, 10, 3)),
+                        _year, fnYear(RIGHT(_DTG, 2)),
+                        IF(NOT(IS_VALID_DATE(_year, _month, _day, 0)), {#VALUE!, "", "", "", ""},
+                            LET(
+                                _hour, VALUE(MID(_DTG, 3, 2)),
+                                _minute, VALUE(MID(_DTG, 5, 2)),
+                                _second, VALUE(MID(_DTG, 7, 2)),
+                                _time, fnTime(_hour, _minute, _second),
+                                _tz, fnParseTZ(MID(_DTG, 9, 1)),
+                                HSTACK(
+                                    _year,
+                                    _month,
+                                    _day,
+                                    _time,
+                                    _tz
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                fnParseShort, LAMBDA(_DTG,
+                    LET(
+                        _day, VALUE(LEFT(_DTG, 2)),
+                        _month, PARSE_MONTH(MID(_DTG, 8, 3)),
+                        _year, fnYear(RIGHT(_DTG, 2)),
+                        IF(NOT(IS_VALID_DATE(_year, _month, _day, 0)), {#VALUE!, "", "", "", ""},
+                            LET(
+                                _hour, VALUE(MID(_DTG, 3, 2)),
+                                _minute, VALUE(MID(_DTG, 5, 2)),
+                                _time, fnTime(_hour, _minute, 0),
+                                _tz, fnParseTZ(MID(_DTG, 7, 1)),
+                                HSTACK(
+                                    _year,
+                                    _month,
+                                    _day,
+                                    _time,
+                                    _tz
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                fnParsePlan, LAMBDA(_DTG,
+                    LET(
+                        _day, VALUE(LEFT(_DTG, 2)),
+                        _hour, VALUE(MID(_DTG, 3, 2)),
+                        _minute, VALUE(MID(_DTG, 5, 2)),
+                        _time, fnTime(_hour, _minute, 0),
+                        _tz, fnParseTZ(MID(_DTG, 7, 1)),
+                        HSTACK(
+                            "",
+                            "",
+                            _day,
+                            _time,
+                            _tz
+                        )
+                    )
+                ),
+
+                _len, LEN(_DTG),
+                _fmt, IFS(_len = 14, "F", 
+                    _len = 12, "S",
+                    _len = 7, "P",
+                    TRUE, #N/A
+                ),
+                IFS(
+                    ISNA(_fmt), {#VALUE!, "", "", "", ""},
+                    _fmt = "F", fnParseFull(_DTG),
+                    _fmt = "S", fnParseShort(_DTG),
+                    _fmt = "P", fnParsePlan(_DTG)
                 )
             )
         )
@@ -4701,16 +4689,19 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-Year             | integer         |
-                 | [1951..2050]    |
-Month            | integer [1..12] |
-Day              | integer [1..31] |
-Time             | decimal [0..1)  | Time of day as decimal fraction of a day.
-[TimeZoneOffset] | decimal         | Time zone offset from UTC as decimal fraction of a day.
-                 | [-0.625..0.625] | Assumed to be UTC if ommitted. [-15:00..+15:00]
-                 |                 | Time will be converted if the offset does not align with military
-                 |                 | time zones.
-[Short]          | switch          | Short time formt: hhmm, otherwise: hhmmss
+Year         | integer         |
+             | [1951..2050]    |
+Month        | integer [1..12] |
+Day          | integer [1..31] |
+Time         | decimal [0..1)  | Time of day as decimal fraction of a day.
+[TZOMinutes] | decimal         | Time zone offset from UTC in minutes
+             | [-900..900]     | Assumed to be UTC if ommitted. [-15:00..+15:00]
+             |                 | Time will be converted if the offset does not align with military
+             |                 | time zones.
+[Options]    | text            | String with elements: [S][_][<]
+             |                 |  S : Short format, ommits seconds
+             |                 |  _ : Spacing between components
+             |                 |  < : Round by truncating components. Default is rounding to nearest.
 
 Examples
 ----------------------------------------------------------------------------------------------------------
@@ -4720,7 +4711,7 @@ Returns: 121800KFEB23
 FORMAT_MIL_DTG( , , 12, 0.25)
 Returns: 120600J
 --------------------------------------------------------------------------------------------------------*/
-FORMAT_MIL_DTG = LAMBDA(Year, Month, Day, Time, [TimeZoneOffset], [Short],
+FORMAT_MIL_DTG = LAMBDA(Year, Month, Day, Time, [TZOMinutes], [Options],
     IFS(
         IS_EMPTY(Year) * IS_EMPTY(Month) * IS_EMPTY(Day) * IS_EMPTY(Time), "",
         NOT(IS_NUMERIC_NULL(Year)), {#VALUE!},
@@ -4728,33 +4719,37 @@ FORMAT_MIL_DTG = LAMBDA(Year, Month, Day, Time, [TimeZoneOffset], [Short],
         NOT(IS_NUMERIC_NULL(Day)), {#VALUE!},
         NOT(IS_EMPTY(Month)) * NOT(IS_VALID_DATE(Year, Month, Day, 0)), "#DATE!",
         TRUE, LET(
-            _tzo, N(TimeZoneOffset),
-
+            _tzo, N(TZOMinutes),
+            _short, IFERROR(SEARCH("S", Options), 0) > 0,
+            _spacing, IFERROR(FIND("_", Options), 0) > 0,
+            _truncate, IFERROR(FIND("<", Options), 0) > 0,
+            
             fnFmtTime, LAMBDA(_time,
                 LET(
-                    _timeFmt, IF(N(Short), "HHmm", "HHmmss"),
-                    TEXT(_time, _timeFmt)
+                    _timeFmt, IF(N(_short), "BM<", "BS<"),
+                    _sTime, FORMAT_ISO_TIME(_time, _timeFmt),
+                    RIGHT(_sTime, LEN(_sTime) - 1)
                 )
             ),
 
             fnResolveMilitaryTZ, LAMBDA(
                 IFS(
-                    TimeZoneOffset = "", HSTACK(N(Time), "J"),
-                    _tzo > 0.5, LET(
-                        _shiftTZO, _tzo - 0.5,
+                    IS_EMPTY(TZOMinutes), HSTACK(N(Time), "J"),
+                    _tzo > 720, LET(
+                        _shiftTZO, (_tzo - 720) / 1440,
                         _time, N(Time) - _shiftTZO,  
                         HSTACK(_time, "M")
                     ),
-                    _tzo < -0.5, LET(
-                        _shiftTZO, _tzo + 0.5,
+                    _tzo < -720, LET(
+                        _shiftTZO, (_tzo + 720) / 1440,
                         _time, N(Time) - _shiftTZO,  
                         HSTACK(_time, "Y")
                     ),
                     TRUE, LET(
-                        _militaryTZO, SIGN(_tzo) * MROUND(ABS(_tzo * 1440), 60) / 1440,
-                        _shiftTZO, _tzo - _militaryTZO,
+                        _militaryTZO, SIGN(_tzo) * MROUND(ABS(_tzo), 60),
+                        _shiftTZO, (_tzo - _militaryTZO) / 1440,
                         _time, N(Time) - _shiftTZO,
-                        _idx, INT(_militaryTZO * 24) + 13,
+                        _idx, INT(_militaryTZO / 60) + 13,
                         _militaryTZ, CHOOSE(_idx, "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "Z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M"),
                         HSTACK(_time, _militaryTZ)
                     )
@@ -4762,7 +4757,6 @@ FORMAT_MIL_DTG = LAMBDA(Year, Month, Day, Time, [TimeZoneOffset], [Short],
             ),
     
             _day, INT(Day),
-            _usePrecision, 4 - N(Short),
             _militaryTime, fnResolveMilitaryTZ(),
             _nominalYear, IF(IS_EMPTY(Year), 2000, Year),
             _nominalMonth, IF(IS_EMPTY(Year), 3, Month),
@@ -7178,32 +7172,32 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-ExcelDate        | decimal         | Excel Date/Time.
-[TimeZoneOffset] | decimal         | Time zone offset from UTC as decimal fraction of a day.
-                 | [-0.625..0.625] | Assumed to be UTC if ommitted. [-15:00..+15:00]
-[Options]        | text            | String with elements: [B][<][LowOrder][Precision][Z]
-                 |                 |        B : Display in basic format eg T0000
-                 |                 |        < : Round by truncating components. Default is rounding to nearest.
-                 |                 | LowOrder : low order component to display
-                 |                 |     Null : Defaults to seconds if time present, otherwise day
-                 |                 |        D : Day
-                 |                 |        H : Hour
-                 |                 |        M : Minute
-                 |                 |        S : Second
-                 |                 | Precision: [0-9] Only has an effect when low order component is seconds.
-                 |                 |        Z : Display 'Z' for Zulu time zone +00:00
+ExcelDate    | decimal     | Excel Date/Time.
+[TZOMinutes] | decimal     | Time zone offset from UTC in minutes
+             | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+[Options]    | text        | String with elements: [B][<][LowOrder][Precision][Z]
+             |             |        B : Display in basic format eg T0000
+             |             |        < : Round by truncating components. Default is rounding to nearest.
+             |             | LowOrder : low order component to display
+             |             |     Null : Defaults to seconds if time present, otherwise day
+             |             |        D : Day
+             |             |        H : Hour
+             |             |        M : Minute
+             |             |        S : Second
+             |             | Precision: [0-9] Only has an effect when low order component is seconds.
+             |             |        Z : Display 'Z' for Zulu time zone +00:00
 --------------------------------------------------------------------------------------------------------*/
-EXCELDATE_TO_ISO_DATETIME = LAMBDA(ExcelDate, [TimeZoneOffset], [Options],
+EXCELDATE_TO_ISO_DATETIME = LAMBDA(ExcelDate, [TZOMinutes], [Options],
     IFS(
         IS_EMPTY(ExcelDate), "",
         NOT(ISNUMBER(ExcelDate)), {#VALUE!},
-        ExcelDate <= 1, FORMAT_ISO_DATETIME("", "", "", ExcelDate, TimeZoneOffset, Options),
+        ExcelDate <= 1, FORMAT_ISO_DATETIME("", "", "", ExcelDate, TZOMinutes, Options),
         TRUE, LET(
             _yearCE, YEAR(ExcelDate),
             _month, MONTH(ExcelDate),
             _day, DAY(ExcelDate),
             _time, ExcelDate - INT(ExcelDate),
-            FORMAT_ISO_DATETIME(_yearCE, _month, _day, _time, TimeZoneOffset, Options)
+            FORMAT_ISO_DATETIME(_yearCE, _month, _day, _time, TZOMinutes, Options)
         )
     )
 );
@@ -7262,24 +7256,24 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-MJDate           | decimal         | Modified Julian Date
-[TimeZoneOffset] | decimal         | Time zone offset from UTC as decimal fraction of a day.
-                 | [-0.625..0.625] | Assumed to be UTC if ommitted. [-15:00..+15:00]
-[Options]        | text            | String with elements: [B][<][LowOrder][Precision][Z]
-                 |                 |        B : Display in basic format eg T0000
-                 |                 |        < : Round by truncating components. Default is rounding to nearest.
-                 |                 | LowOrder : low order component to display
-                 |                 |     Null : Defaults to seconds if time present, otherwise day
-                 |                 |        D : Day
-                 |                 |        H : Hour
-                 |                 |        M : Minute
-                 |                 |        S : Second
-                 |                 | Precision: [0-9] Only has an effect when low order component is seconds.
-                 |                 |        Z : Display 'Z' for Zulu time zone +00:00
-[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |                 | proleptic calendar.
+MJDate           | decimal     | Modified Julian Date
+[TZOMinutes]     | decimal     | Time zone offset from UTC in minutes
+                 | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+[Options]        | text        | String with elements: [B][<][LowOrder][Precision][Z]
+                 |             |        B : Display in basic format eg T0000
+                 |             |        < : Round by truncating components. Default is rounding to nearest.
+                 |             | LowOrder : low order component to display
+                 |             |     Null : Defaults to seconds if time present, otherwise day
+                 |             |        D : Day
+                 |             |        H : Hour
+                 |             |        M : Minute
+                 |             |        S : Second
+                 |             | Precision: [0-9] Only has an effect when low order component is seconds.
+                 |             |        Z : Display 'Z' for Zulu time zone +00:00
+[JulianCalendar] | switch      | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |             | proleptic calendar.
 --------------------------------------------------------------------------------------------------------*/
-MJDATE_TO_ISO_DATETIME = LAMBDA(MJDate, [TimeZoneOffset], [Options], [JulianCalendar],
+MJDATE_TO_ISO_DATETIME = LAMBDA(MJDate, [TZOMinutes], [Options], [JulianCalendar],
     IFS(
         IS_EMPTY(MJDate), "",
         NOT(ISNUMBER(MJDate)), {#VALUE!},
@@ -7290,7 +7284,7 @@ MJDATE_TO_ISO_DATETIME = LAMBDA(MJDate, [TimeZoneOffset], [Options], [JulianCale
                 INDEX(_cDate, 1, 2),
                 INDEX(_cDate, 1, 3),
                 INDEX(_cDate, 1, 4),
-                TimeZoneOffset,
+                TZOMinutes,
                 Options,
                 JulianCalendar
             )
@@ -7310,20 +7304,20 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-MJDate                    | decimal         | Modified Julian Date
-[ReferenceTimeZoneOffset] | decimal         | Time zone offset referenced by the MJDate
-                          | [-0.625..0.625] | Assumed to be UTC if ommitted. [-15:00..+15:00]
-[TranslateTimeZoneOffset] | decimal         | Time zone offset to translate the MJDate to.
-                          | [-0.625..0.625] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+MJDate                | decimal     | Modified Julian Date
+[ReferenceTZOMinutes] | decimal     | Time zone offset referenced by the MJDate
+                      | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+[TranslateTZOMinutes] | decimal     | Time zone offset to translate the MJDate to.
+                      | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
 --------------------------------------------------------------------------------------------------------*/
-SHIFT_TIMEZONE = LAMBDA(MJDate, [ReferenceTimeZoneOffset], [TranslateTimeZoneOffset],
+SHIFT_TIMEZONE = LAMBDA(MJDate, [ReferenceTZOMinutes], [TranslateTZOMinutes],
     IFS(
         IS_EMPTY(MJDate), "",
         NOT(ISNUMBER(MJDate)), {#VALUE!},
         TRUE, LET(
-            _referenceTZ, N(ReferenceTimeZoneOffset),
-            _translateTZ, N(TranslateTimeZoneOffset),
-            _difference, _translateTZ - _referenceTZ, 
+            _referenceTZ, N(ReferenceTZOMinutes),
+            _translateTZ, N(TranslateTZOMinutes),
+            _difference, (_translateTZ - _referenceTZ) / 1440,
             HSTACK(MJDate + _difference, _translateTZ)
         )
     )
