@@ -10,9 +10,8 @@ Module for working with dates in the Gregorian and Julian calendars outside the 
 ## Placeholder
 
 CALENDAR DATES
+JULIAN_DAY_NUMBER
 
 ## To Do
 
-FORMAT_TIMESPAN to array support
 VALIDATE_TIMESPAN, IS_VALID_TIMESPAN  in later fns
-

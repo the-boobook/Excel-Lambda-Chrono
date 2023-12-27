@@ -47,18 +47,23 @@
 # RESOLVE_TIMESPAN           Returns the sexagesimal representation of a timespan value expressed from the     #
 #                            specified high order component and the given lowest order component rounded to    #
 #                            the specified precision.                                                          #
+# NORMALISE_TIMESPAN         Returns a normalised sexagesimal representation of a timespan where each          #
+#                            component is within its modulus.                                                  #
 # PARSE_TIMESPAN             Parses a text timespan expression into sexagesimal components.                    #
 # FORMAT_TIMESPAN            Returns a timespan as text in the specified format from a given decimal timespan. #
 #                                                                                                              #
 # CALENDAR DATES                                                                                               #
 # ------------------------------------------------------------------------------------------------------------ #
-# YEAR_COMMON_ERA            Returns year value relative to the Common Era.                                    #
+# YEAR_BCE_TO_CE             Converts to year value relative to the Common Era for a given year Before Common  #
+#                            Era.                                                                              #
 # PARSE_MONTH                Returns a number representing the month of year from a given month name.          #
 # MONTH_NAME                 Returns name of month.                                                            #
 # IS_LEAP_YEAR               Tests if a year includes a leap day in the given calendar.                        #
-# IS_VALID_DATE              Tests if a date is valid for the given calendar.                                  #
 # DAYS_IN_YEAR               Returns number of days in the given year of the specified calendar.               #
 # DAYS_IN_MONTH              Returns number of days in the given month and year of the specified calendar.     #
+# VALIDATE_DATE              Validate a year, month and day representation of a date of the specified calendar.#
+# IS_VALID_DATE              Tests if a month and day representation of a date is valid for the specified      #
+#                            calendar.                                                                         #
 # PARSE_ISO_CALENDAR_DATE    Parses an ISO formatted calendar date into respective parts of year, month and    #
 #                            day.                                                                              #
 # FORMAT_ISO_YEAR            Returns a year as text in ISO format.                                             #
@@ -561,7 +566,7 @@ Parameters
 Text          | text    | Text within which to replace matched text
 OldText       | text    | Text to be replaced
 NewText       | text    | Text with which to replace OldText
-[InstanceNum] | integer | Specifiy which occurance to replace. If ommitted or 0 then all occurances are replaced.
+[InstanceNum] | integer | Specifiy which occurance to replace. If omitted or 0 then all occurances are replaced.
               |         | Negative instance matches from end.
 
 Examples
@@ -715,10 +720,12 @@ FIND_NTH_CHAR = LAMBDA(Text, Chars, N, [CaseSensitive], [ReturnChar], [LowerPos]
                 )
             )
         ),
+
+        _rowCount, ROWS(Text),
         DROP(
-            REDUCE({0}, SEQUENCE(ROWS(Text)),
+            REDUCE({0}, SEQUENCE(_rowCount),
                 LAMBDA(_acc, _curr,
-                    VSTACK(_acc, fnNthChar(INDEX(Text, _curr)))
+                    VSTACK(_acc, fnNthChar(NULLIFY(INDEX(Text, _curr))))
                 )
             ), 1
         )
@@ -805,10 +812,12 @@ SPLIT_FOR_CHARS = LAMBDA(Text, Chars, [Limit], [CaseSensitive],
                         )
                     )
                 ),
+
+                _rowCount, ROWS(Text),
                 DROP(
-                    REDUCE({0}, SEQUENCE(ROWS(Text)),
+                    REDUCE({0}, SEQUENCE(_rowCount),
                         LAMBDA(_acc, _curr,
-                            VSTACK(_acc, fnSplitAround(INDEX(Text, _curr)))
+                            VSTACK(_acc, fnSplitAround(NULLIFY(INDEX(Text, _curr))))
                         )
                     ), 1
                 )
@@ -995,13 +1004,14 @@ VALIDATE_TIMESPAN = LAMBDA(TimeSpan_C5,
                 )
             )
         ),
+
         _rowCount, ROWS(TimeSpan_C5),
         DROP(
             REDUCE({""}, SEQUENCE(_rowCount),
                 LAMBDA(_acc, _curr,
                     VSTACK(
                         _acc,
-                        fnValidateTimeSpan(INDEX(TimeSpan_C5, _curr, ))
+                        fnValidateTimeSpan(NULLIFY(INDEX(TimeSpan_C5, _curr, )))
                     )
                 )
             ), 1
@@ -1228,7 +1238,7 @@ ROUND_TIMESPAN
 
 Returns a decimal timespan value rounded to the specified low order component and precision level.
 
-Array compatible: TimeSpan_D only
+Array compatible: TimeSpan_D as column
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -1537,13 +1547,64 @@ RESOLVE_TIMESPAN = LAMBDA(TimeSpan_D, [HighOrder], [LowOrder], [Precision], [Tru
                 )
             )
         ),
+
         _rowCount, ROWS(TimeSpan_D),
         DROP(
             REDUCE({""}, SEQUENCE(_rowCount),
                 LAMBDA(_acc, _curr,
                     VSTACK(
                         _acc,
-                        fnResolveTimeSpan(INDEX(TimeSpan_D, _curr, 1))
+                        fnResolveTimeSpan(NULLIFY(INDEX(TimeSpan_D, _curr, 1)))
+                    )
+                )
+            ), 1
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+NORMALISE_TIMESPAN
+
+Returns a normalised sexagesimal representation of a timespan where each component is within its modulus.
+
+Array compatible: TimeSpan_C5 as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer [-1,0,1] | Sign
+ 2 | integer [0..]    | Days
+ 3 | integer [0..23]  | Hours
+ 4 | integer [0..59]  | Minutes
+ 5 | decimal [0..60)  | Seconds
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TimeSpan_C5 | array   C[2..5]  |
+   Sign     | integer [-1,0,1] |
+   Days     | decimal [0..]    |
+   Hours    | decimal [0..]    |
+   Minutes  | decimal [0..]    |
+   Seconds  | decimal [0..]    |
+--------------------------------------------------------------------------------------------------------------*/
+NORMALISE_TIMESPAN = LAMBDA(TimeSpan_C5,
+    LET(
+        _maxPrecision, 9,
+        
+        fnNormalise, LAMBDA(_timeSpan_C5,
+            LET(
+                _timeSpan_D, TIMESPAN(_timeSpan_C5),
+                RESOLVE_TIMESPAN(_timeSpan_D, 1, 4, _maxPrecision)
+            )
+        ),
+        
+        _rowCount, ROWS(TimeSpan_C5),
+        DROP(
+            REDUCE({""}, SEQUENCE(_rowCount),
+                LAMBDA(_acc, _curr,
+                    VSTACK(
+                        _acc,
+                        fnNormalise(NULLIFY(INDEX(TimeSpan_C5, _curr, )))
                     )
                 )
             ), 1
@@ -1589,33 +1650,47 @@ PARSE_TIMESPAN = LAMBDA(TimeSpanText, [AsComplication],
         _asValue, N(AsComplication) = 0,
         _logicTable, {
             // terms, pattern, high, low, skipLastCol, hasDecimal
-            5, ".::.", 1, 4, FALSE, TRUE;    // d.hh:mm:ss.000
-            4, ".::", 1, 4, FALSE, FALSE;    // d.hh:mm:ss
-            4, "::.", 2, 4, FALSE, TRUE;     // h:mm:ss.000
-            3, ".:", 1, 3, FALSE, FALSE;     // d.hh:mm
-            3, "::", 2, 4, FALSE, FALSE;     // h:mm:ss
-            3, ":.", 3, 4, FALSE, TRUE;      // m:ss.000
-            2, ":", 2, 3, FALSE, FALSE;      // h:mm
-            2, ".", 1, 1, FALSE, TRUE;       // d.000
-            1, "", 1, 1, FALSE, FALSE;       // d
-            6, "dh'.""", 1, 4, TRUE, TRUE;  // 0d00h00'00.000"
-            5, "dh'""", 1, 4, TRUE, FALSE;  // 0d00h00'00"
-            5, "dh.'", 1, 3, TRUE, TRUE;    // 0d00h00.000'
-            5, "h'.""", 2, 4, TRUE, TRUE;   // 0h00'00.000"
-            4, "dh'", 1, 3, TRUE, FALSE;    // 0d00h00'
-            4, "h'""", 2, 4, TRUE, FALSE;   // 0h00'00"
-            4, "d.h", 1, 2, TRUE, TRUE;     // 0d00.000h
-            4, "h.'", 2, 3, TRUE, TRUE;     // 0h00.000'
-            4, "'.""", 3, 4, TRUE, TRUE;    // 0'00.000"
-            3, "dh", 1, 2, TRUE, FALSE;     // 0d00h
-            3, "h'", 2, 3, TRUE, FALSE;     // 0h00'
-            3, "'""", 3, 4, TRUE, FALSE;    // 0'00"
+            5, ".::.", 1, 4, FALSE, TRUE;   // d.hh:mm:ss.000
+            4, ".::", 1, 4, FALSE, FALSE;   // d.hh:mm:ss
+            4, "::.", 2, 4, FALSE, TRUE;    // h:mm:ss.000
+            3, ".:", 1, 3, FALSE, FALSE;    // d.hh:mm
+            3, "::", 2, 4, FALSE, FALSE;    // h:mm:ss
+            3, ":.", 3, 4, FALSE, TRUE;     // m:ss.000
+            2, ":", 2, 3, FALSE, FALSE;     // h:mm
+            2, ".", 1, 1, FALSE, TRUE;      // d.000
+            1, "", 1, 1, FALSE, FALSE;      // d
+            6, "dhm.s", 1, 4, TRUE, TRUE;   // 0d 0h 0m 0.000s
+            5, "dhms", 1, 4, TRUE, FALSE;   // 0d 0h 0m 0s
+            5, "dh.m", 1, 3, TRUE, TRUE;    // 0d 0h 0.000m
+            5, "hm.s", 2, 4, TRUE, TRUE;    // 0h 0m 0.000s
+            4, "dhm", 1, 3, TRUE, FALSE;    // 0d 0h 0m
+            4, "hms", 2, 4, TRUE, FALSE;    // 0h 0m 0s
+            4, "d.h", 1, 2, TRUE, TRUE;     // 0d 0.000h
+            4, "h.m", 2, 3, TRUE, TRUE;     // 0h 0.000m
+            4, "m.s", 3, 4, TRUE, TRUE;     // 0m 0.000s
+            3, "dh", 1, 2, TRUE, FALSE;     // 0d 0h
+            3, "hm", 2, 3, TRUE, FALSE;     // 0h 0m
+            3, "ms", 3, 4, TRUE, FALSE;     // 0m 0s
             3, ".d", 1, 1, TRUE, TRUE;      // 0.000d
             3, ".h", 2, 2, TRUE, TRUE;      // 0.000h
-            3, ".'", 3, 3, TRUE, TRUE;      // 0.000'
-            3, ".""", 4, 4, TRUE, TRUE;     // 0.000"
+            3, ".m", 3, 3, TRUE, TRUE;      // 0.000m
+            3, ".s", 4, 4, TRUE, TRUE;      // 0.000s
             2, "d", 1, 1, TRUE, FALSE;      // 0d
             2, "h", 2, 2, TRUE, FALSE;      // 0h
+            2, "m", 3, 3, TRUE, FALSE;      // 0m
+            2, "s", 4, 4, TRUE, FALSE;      // 0s
+            6, "dh'.""", 1, 4, TRUE, TRUE;  // 0d 0h 0' 0.000"
+            5, "dh'""", 1, 4, TRUE, FALSE;  // 0d 0h 0' 0"
+            5, "dh.'", 1, 3, TRUE, TRUE;    // 0d 0h 0.000'
+            5, "h'.""", 2, 4, TRUE, TRUE;   // 0h 0' 0.000"
+            4, "dh'", 1, 3, TRUE, FALSE;    // 0d 0h 0'
+            4, "h'""", 2, 4, TRUE, FALSE;   // 0h 0' 0"
+            4, "h.'", 2, 3, TRUE, TRUE;     // 0h 0.000'
+            4, "'.""", 3, 4, TRUE, TRUE;    // 0' 0.000"
+            3, "h'", 2, 3, TRUE, FALSE;     // 0h 0'
+            3, "'""", 3, 4, TRUE, FALSE;    // 0' 0"
+            3, ".'", 3, 3, TRUE, TRUE;      // 0.000'
+            3, ".""", 4, 4, TRUE, TRUE;     // 0.000"
             2, "'", 3, 3, TRUE, FALSE;      // 0'
             2, """", 4, 4, TRUE, FALSE      // 0"
         },
@@ -1704,11 +1779,12 @@ PARSE_TIMESPAN = LAMBDA(TimeSpanText, [AsComplication],
             )
         ),
         
+        _rowCount, ROWS(TimeSpanText),
         DROP(
-            REDUCE({""}, SEQUENCE(ROWS(TimeSpanText)),
+            REDUCE({""}, SEQUENCE(_rowCount),
                 LAMBDA(_acc, _curr,
                     LET(
-                        _ts, INDEX(TimeSpanText, _curr, ),
+                        _ts, NULLIFY(INDEX(TimeSpanText, _curr, )),
                         _out, IF(_asValue,
                             IFS(
                                 _ts = "", "",
@@ -1743,7 +1819,7 @@ FORMAT_TIMESPAN
 
 Returns a timespan as text in the specified format from a given decimal timespan.
 
-Array compatible: TimeSpan_D only
+Array compatible: TimeSpan_D as column
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -2101,35 +2177,34 @@ _FORMAT_PROVIDER_TIMESPAN_EUROPEAN = LAMBDA(TimeSpan_D, SignPositive, Padding, S
 
 
 
+
+
 /*##############################################################################################################
 # CALENDAR DATES                                                                                               #
 ##############################################################################################################*/
 
 
 /*--------------------------------------------------------------------------------------------------------------
-YEAR_COMMON_ERA
+YEAR_BCE_TO_CE
 
-Returns year value relative to the Common Era.
+Converts to year value relative to the Common Era for a given year Before Common Era.
+Function is symmetrical, can also be used for CE to BCE conversion.
+
+Array compatible: Yes
 
 Output
 ----------------------------------------------------------------------------------------------------------------
- 1 | integer | 1 CE = 1, 1 BCE = 0, 2 BCE = -1
+ 1 | integer | 1 BCE = 0, 2 BCE = -1
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Year  | integer [1..] | Positive non-zero integer.
-BCE   | switch        | Before Common Era.
+Year  | integer | Where 1 is first year Before Common Era
 --------------------------------------------------------------------------------------------------------------*/
-YEAR_COMMON_ERA = LAMBDA(Year, BCE,
+YEAR_BCE_TO_CE = LAMBDA(Year,
     IFS(
         Year = "", "",
         NOT(ISNUMBER(Year)), {#VALUE!},
-        TRUE, LET(
-            _year, INT(Year),
-            IF(_year < 1, {#NUM!},
-                IF(N(BCE), 1 - _year, _year)
-            )
-        )
+        TRUE, 1 - INT(Year)
     )
 );
 
@@ -2138,6 +2213,8 @@ YEAR_COMMON_ERA = LAMBDA(Year, BCE,
 PARSE_MONTH
 
 Returns a number representing the month of year from a given text month name.
+
+Array compatible: Yes
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -2173,68 +2250,77 @@ MONTH_NAME
 
 Returns a month as text.
 
+Array compatible: Month only
+
 Output
 ----------------------------------------------------------------------------------------------------------------
  1 | text | Month name
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Month                  | integer [1..12] | Month
+Month                  | integer [1..12] | Month. For values outside of range modulus is taken.
 [Short]                | switch          | Return short format Jan..Dec
 [InternationalEnglish] | switch          | International English instead of local language set in Excel
 --------------------------------------------------------------------------------------------------------------*/
 MONTH_NAME = LAMBDA(Month, [Short], [InternationalEnglish],
-    IFS(
-        Month = "", "",
-        NOT(ISNUMBER(Month)), #VALUE!,
-        TRUE, LET(
-            _useShort, N(Short) <> 0,
-            _useLocalLang, N(InternationalEnglish) = 0,
-            _month, INT(Month),
-            IF(_useLocalLang,
-                LET(
-                    _dayOfMonth, DATE(2000, _month, 1),
-                    _fmt, IF(_useShort, "MMM", "MMMM"),
-                    TEXT(_dayOfMonth, _fmt)
-                ),
-                IF(
-                    _useShort,
-                    INDEX(
-                        {
-                            "Jan";
-                            "Feb";
-                            "Mar";
-                            "Apr";
-                            "May";
-                            "Jun";
-                            "Jul";
-                            "Aug";
-                            "Sep";
-                            "Oct";
-                            "Nov";
-                            "Dec"
-                        },
-                        _month
-                    ),
-                    INDEX(
-                        {
-                            "January";
-                            "February";
-                            "March";
-                            "April";
-                            "May";
-                            "June";
-                            "July";
-                            "August";
-                            "September";
-                            "October";
-                            "November";
-                            "December"
-                        },
-                        _month
+    LET(
+        _useShort, N(Short) <> 0,
+        _fmt, IF(_useShort, "MMM", "MMMM"),
+        _useLocalLang, N(InternationalEnglish) = 0,
+        fnMonthName, LAMBDA(_m,
+            IFS(
+                _m = "", {""},
+                NOT(ISNUMBER(_m)), {#VALUE!},
+                TRUE, LET(
+                    _month, MOD(INT(_m) - 1, 12) + 1,
+                    IF(_useLocalLang,
+                        LET(
+                            _dayOfMonth, DATE(2000, _month, 1),
+                            TEXT(_dayOfMonth, _fmt)
+                        ),
+                        IF(_useShort,
+                            INDEX(
+                                {
+                                    "Jan";
+                                    "Feb";
+                                    "Mar";
+                                    "Apr";
+                                    "May";
+                                    "Jun";
+                                    "Jul";
+                                    "Aug";
+                                    "Sep";
+                                    "Oct";
+                                    "Nov";
+                                    "Dec"
+                                },
+                                _month
+                            ),
+                            INDEX(
+                                {
+                                    "January";
+                                    "February";
+                                    "March";
+                                    "April";
+                                    "May";
+                                    "June";
+                                    "July";
+                                    "August";
+                                    "September";
+                                    "October";
+                                    "November";
+                                    "December"
+                                },
+                                _month
+                            )
+                        )
                     )
                 )
             )
+        ),
+
+        MAP(Month,
+            LAMBDA(_element, fnMonthName(_element))
         )
     )
 );
@@ -2244,6 +2330,8 @@ MONTH_NAME = LAMBDA(Month, [Short], [InternationalEnglish],
 IS_LEAP_YEAR
 
 Tests if a year includes a leap day in the given calendar.
+
+Array compatible: YearCE only
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -2256,57 +2344,28 @@ YearCE           | decimal | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -
                  |         | proleptic calendar.
 --------------------------------------------------------------------------------------------------------------*/
 IS_LEAP_YEAR = LAMBDA(YearCE, [JulianCalendar],
-    IFS(
-        YearCE = "", "",
-        NOT(ISNUMBER(YearCE)), {#VALUE!},
-        TRUE, LET(
-            _yearCE, INT(YearCE),
-            IF(
-                N(JulianCalendar) = 0,
-                IFS(MOD(_yearCE, 400) = 0, TRUE,
-                    MOD(_yearCE, 100) = 0, FALSE,
-                    TRUE, MOD(_yearCE, 4) = 0
-                ),
-                MOD(_yearCE, 4) = 0
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-IS_VALID_DATE
-
-Tests if a date is valid for the given calendar.
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | boolean |
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer [1..12] | Month of year
-[Day]            | decimal [1..32) | Day of month
-[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |                 | proleptic calendar.
---------------------------------------------------------------------------------------------------------------*/
-IS_VALID_DATE = LAMBDA(YearCE, Month, [Day], [JulianCalendar],
-    IFS(
-        NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(Month)), FALSE, // cannot ommit year or month
-        NOT(IS_INTEGER(YearCE) * IS_INTEGER(Month)), FALSE, // year and month cannot be fractional
-        (Month < 1) + (Month > 12), FALSE, 
-        Day = "", TRUE,
-        TRUE, LET(
-            _day, INT(Day),
-            IF(_day < 1, FALSE,
-                LET(
-                    _daysInMonth, DAYS_IN_MONTH(Month, YearCE, JulianCalendar),
-                    IF(ISERROR(_daysInMonth), FALSE,
-                        _day <= _daysInMonth
+    LET(
+        _gregorian, N(JulianCalendar) = 0,
+        fnIsLeapYear, LAMBDA(_yearCE,
+            IFS(
+                _yearCE = "", {""},
+                NOT(ISNUMBER(_yearCE)), {#VALUE!},
+                TRUE, LET(
+                    _iYear, INT(_yearCE),
+                    IF(_gregorian,
+                        IFS(
+                            MOD(_iYear, 400) = 0, TRUE,
+                            MOD(_iYear, 100) = 0, FALSE,
+                            TRUE, MOD(_iYear, 4) = 0
+                        ),
+                        MOD(_iYear, 4) = 0
                     )
                 )
             )
+        ),
+
+        MAP(YearCE,
+            LAMBDA(_element, fnIsLeapYear(_element))
         )
     )
 );
@@ -2316,6 +2375,8 @@ IS_VALID_DATE = LAMBDA(YearCE, Month, [Day], [JulianCalendar],
 DAYS_IN_YEAR
 
 Returns number of days in the given year of the specified calendar.
+
+Array compatible: YearCE only
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -2328,11 +2389,18 @@ YearCE           | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -
                  |         | calendar.
 --------------------------------------------------------------------------------------------------------------*/
 DAYS_IN_YEAR = LAMBDA(YearCE, [JulianCalendar],
-    IFS(
-        YearCE = "", "",
-        NOT(ISNUMBER(YearCE)), {#VALUE!},
-        IS_LEAP_YEAR(YearCE, JulianCalendar), 366,
-        TRUE, 365
+    LET(
+        _julianCalendar, N(JulianCalendar) <> 0,
+        
+        MAP(YearCE,
+            LAMBDA(_yearCE,
+                IFS(
+                    _yearCE = "", {""},
+                    IS_LEAP_YEAR(_yearCE, _julianCalendar), 366,
+                    TRUE, 365
+                )
+            )
+        )
     )
 );
 
@@ -2341,6 +2409,8 @@ DAYS_IN_YEAR = LAMBDA(YearCE, [JulianCalendar],
 DAYS_IN_MONTH
 
 Returns number of days in the given month and year of the specified calendar.
+
+Array compatible: Month, YearCE as columns
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -2354,30 +2424,175 @@ Month            | integer [1..12] | Month of year
                  |                 | proleptic calendar.
 --------------------------------------------------------------------------------------------------------------*/
 DAYS_IN_MONTH = LAMBDA(Month, [YearCE], [JulianCalendar],
-    IFS(
-        Month = "", "",
-        NOT(ISNUMBER(Month)), {#VALUE!},
-        TRUE, LET(
-            _month, INT(Month),
-            IFS(
-                _month < 1, {#NUM!},
-                _month > 12, {#NUM!},
+    LET(
+        _julianCalendar, N(JulianCalendar) <> 0,
+        _rowCount, ROWS(Month),
+        BYROW(SEQUENCE(_rowCount),
+            LAMBDA(_row,
+                LET(
+                    _m, INDEX(Month, _row, 1),
+                    IFS(
+                        _m = "", {""},
+                        NOT(ISNUMBER(_m)), {#VALUE!},
+                        TRUE, LET(
+                            _iMonth, INT(_m),
+                            IFS(
+                                _iMonth < 1, {#NUM!},
+                                _iMonth > 12, {#NUM!},
 
-                // February
-                _month = 2,
+                                // February
+                                _iMonth = 2, LET(
+                                    _y, INDEX(YearCE, _row, 1),
+                                    _leapDay, IFERROR(N(IS_LEAP_YEAR(_y, _julianCalendar)), 0),
+                                    28 + _leapDay
+                                ),
+
+                                // Jan, Mar, Apr, May, Jun, Jul
+                                _iMonth <= 7, 30 + MOD(_iMonth, 2),
+                                
+                                // Aug, Sep, Oct, Nov, Dec
+                                TRUE, 31 - MOD(_iMonth, 2)
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+VALIDATE_DATE
+
+Validate a year, month and day representation of a date in a given calendar.
+
+Array compatible: Date_YMD as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer          | YearCE
+ 2 | integer [1..12]  | Month
+ 3 | integer [1..366] | Day
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Date_YMD         | array   C[2..3]  |
+   YearCE        | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]       | integer [1..12]  | Month of year. Can be empty.
+   [Day]         | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
+[JulianCalendar] | switch           | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                  | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+VALIDATE_DATE = LAMBDA(Date_YMD, [JulianCalendar],
+    LET(
+        _julianCalendar, N(JulianCalendar) <> 0,
+        fnValidateDate, LAMBDA(_ymd,
+            IF(COLUMNS(_ymd) > 3, {#VALUE!, #VALUE!, #VALUE!},
+                LET(
+                    _ymd1, IFNA(_ymd, ""),
+                    IF(MAX(N(NOT(CALENDAR.IS_EMPTY(_ymd)))) = 0, {"", "", ""},
+                        LET(
+                            _y, INDEX(_ymd1, 1, 1),
+                            _m, INDEX(_ymd1, 1, 2),
+                            _d, INDEX(_ymd1, 1, 3),
+                            
+                            _yearIsInt, IS_INTEGER(_y),
+                            _year, IFS(
+                                ISERROR(_yearIsInt), {#VALUE!},
+                                NOT(_yearIsInt), {#NUM!},
+                                TRUE, _y
+                            ),
+                            
+                            _monthIsInt, IS_INTEGER(_m),
+                            _month, IFS(
+                                IFNA(ERROR.TYPE(_m), 0) = 4, "",
+                                _m = "", "",
+                                ISERROR(_monthIsInt), {#VALUE!},
+                                NOT(_monthIsInt), {#NUM!},
+                                _m < 1, {#NUM!},
+                                _m > 12, {#NUM!},
+                                TRUE, _m
+                            ),
+                            
+                            _day, IFS(
+                                IFNA(ERROR.TYPE(_d), 0) = 4, "",
+                                _d = "", "",
+                                ISERROR(_month), {#VALUE!},
+                                NOT(ISNUMBER(_d)), {#VALUE!},
+                                TRUE, LET(
+                                    _iDay, INT(_d),
+                                    IFS(
+                                        _iDay < 1, {#NUM!},
+                                        _month = "", IFS(
+                                            _iDay <= 365, _iDay,
+                                            _iDay > 366, {#NUM!},
+                                            IFERROR(IS_LEAP_YEAR(_year, _julianCalendar), FALSE), 366,
+                                            TRUE, {#NUM!}
+                                        ),
+                                        _iDay <= DAYS_IN_MONTH(_month, _year, _julianCalendar), _iDay,
+                                        TRUE, {#NUM!}
+                                    )
+                                )
+                            ),
+                            
+                            HSTACK(_year, _month, _day)
+                        )
+                    )
+                )
+            )
+        ),
+
+        _rowCount, ROWS(Date_YMD),
+        DROP(
+            REDUCE({""}, SEQUENCE(_rowCount),
+                LAMBDA(_acc, _curr,
                     LET(
-                        _leapDay, IF(ISNUMBER(YearCE),
-                            N(IS_LEAP_YEAR(YearCE, JulianCalendar)),
-                            0
-                        ),
-                        28 + _leapDay
-                    ),
+                        _ymd, NULLIFY(INDEX(Date_YMD, _curr, )),
+                        _validateDate_YMD, fnValidateDate(_ymd),
+                        VSTACK(
+                            _acc,
+                            _validateDate_YMD
+                        )
+                    )
+                )
+            ), 1
+        )
+    )
+);
 
-                // Jan, Mar, Apr, May, Jun, Jul
-                _month <= 7, 30 + MOD(_month, 2),
-                
-                // Aug, Sep, Oct, Nov, Dec
-                TRUE, 31 - MOD(_month, 2)
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_VALID_DATE
+
+Tests if a month and day representation of a date is valid for the specified calendar.
+
+Array compatible: Date_YMD as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Date_YMD         | array   C[2..3]  |
+   YearCE        | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]       | integer [1..12]  | Month of year. Can be empty.
+   [Day]         | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
+[JulianCalendar] | switch           | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                  | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+IS_VALID_DATE = LAMBDA(Date_YMD, [JulianCalendar],
+    LET(
+        _julianCalendar, N(JulianCalendar) <> 0,
+        BYROW(Date_YMD,
+            LAMBDA(_date_YMD,
+                IF(MAX(N(NOT(IS_EMPTY(_date_YMD)))) = 0, FALSE,
+                    LET(
+                        _validateDate, VALIDATE_DATE(_date_YMD, _julianCalendar),
+                        MAX(N(ISERROR(_validateDate))) = 0
+                    )
+                )
             )
         )
     )
@@ -2388,6 +2603,8 @@ DAYS_IN_MONTH = LAMBDA(Month, [YearCE], [JulianCalendar],
 PARSE_ISO_CALENDAR_DATE
 
 Parses an ISO formatted calendar date into respective parts of year, month and day.
+
+Array compatible: ISOCalendarDate as column
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -2410,107 +2627,111 @@ PARSE_ISO_CALENDAR_DATE("1900-02-29", 1)
 Returns: {2023, 2, 29} i.e. Feb 29, 1900 is valid in the Julian calendar
 --------------------------------------------------------------------------------------------------------------*/
 PARSE_ISO_CALENDAR_DATE = LAMBDA(ISOCalendarDate, [JulianCalendar],
-    IFS(
-        ISOCalendarDate = "", {"", "", ""},
-        NOT(VALIDATE_CHARSET(ISOCalendarDate, "+-0123456789" & UNICHAR(8722))), {#VALUE!, "", ""},
-        TRUE, LET(
-            _firstChar, LEFT(ISOCalendarDate, 1),
-            _isSigned, IFS(
-                _firstChar = "+", TRUE,
-                _firstChar = "-", TRUE,
-                _firstChar = UNICHAR(8722), TRUE,
-                TRUE, FALSE
-            ),
-            _sign, IFS(
-                NOT(_isSigned), 1,
-                _firstChar = "-", -1,
-                _firstChar = UNICHAR(8722), -1,
-                TRUE, 1
-            ),
-            _unSigned, IF(_isSigned,
-                RIGHT(ISOCalendarDate, LEN(ISOCalendarDate) - 1),
-                ISOCalendarDate
-            ),
-            _len, LEN(_unSigned),
-            _pattern, REPLACE_CHARS(_unSigned, "0123456789", "_"),
-            _tryParse, IFS(
-                _len >= 10, IFS(
-                    _pattern = RIGHT("_______________-__-__", _len),
-                    HSTACK(
-                        VALUE(LEFT(_unSigned, _len - 6)),
-                        VALUE(MID(_unSigned, _len - 4, 2)),
-                        VALUE(RIGHT(_unSigned, 2))
+    LET(
+        _julianCalendar, N(JulianCalendar) <> 0,
+        
+        fnParseISOCalendarDate, LAMBDA(_ISOCalendarDate,
+            IFS(
+                _ISOCalendarDate = "", {"", "", ""},
+                NOT(VALIDATE_CHARSET(_ISOCalendarDate, "+-0123456789" & UNICHAR(8722))), {#VALUE!, "", ""},
+                TRUE, LET(
+                    _firstChar, LEFT(_ISOCalendarDate, 1),
+                    _isSigned, IFS(
+                        _firstChar = "+", TRUE,
+                        _firstChar = "-", TRUE,
+                        _firstChar = UNICHAR(8722), TRUE,
+                        TRUE, FALSE
                     ),
-                    _pattern = RIGHT("_______________-__", _len),
-                    HSTACK(
-                        VALUE(LEFT(_unSigned, _len - 3)),
-                        VALUE(RIGHT(_unSigned, 2)),
-                        ""
+                    _sign, IFS(
+                        NOT(_isSigned), 1,
+                        _firstChar = "-", -1,
+                        _firstChar = UNICHAR(8722), -1,
+                        TRUE, 1
                     ),
-                    _pattern = RIGHT("___________________", _len),
-                    HSTACK(
-                        VALUE(LEFT(_unSigned, _len - 4)),
-                        VALUE(MID(_unSigned, _len - 3, 2)),
-                        VALUE(RIGHT(_unSigned, 2))
+                    _unSigned, IF(_isSigned,
+                        RIGHT(_ISOCalendarDate, LEN(_ISOCalendarDate) - 1),
+                        _ISOCalendarDate
                     ),
-                    TRUE, ""
-                ),
-                _len >= 8, IFS(
-                    _pattern = RIGHT("______-__", _len),
-                    HSTACK(
-                        VALUE(LEFT(_unSigned, _len - 3)),
-                        VALUE(RIGHT(_unSigned, 2)),
-                        ""
+                    _len, LEN(_unSigned),
+                    _pattern, REPLACE_CHARS(_unSigned, "0123456789", "_"),
+                    _tryParse, IFS(
+                        _len >= 10, IFS(
+                            _pattern = RIGHT("_______________-__-__", _len),
+                            HSTACK(
+                                _sign * VALUE(LEFT(_unSigned, _len - 6)),
+                                VALUE(MID(_unSigned, _len - 4, 2)),
+                                VALUE(RIGHT(_unSigned, 2))
+                            ),
+                            _pattern = RIGHT("_______________-__", _len),
+                            HSTACK(
+                                _sign * VALUE(LEFT(_unSigned, _len - 3)),
+                                VALUE(RIGHT(_unSigned, 2)),
+                                ""
+                            ),
+                            _pattern = RIGHT("___________________", _len),
+                            HSTACK(
+                                _sign * VALUE(LEFT(_unSigned, _len - 4)),
+                                VALUE(MID(_unSigned, _len - 3, 2)),
+                                VALUE(RIGHT(_unSigned, 2))
+                            ),
+                            TRUE, ""
+                        ),
+                        _len >= 8, IFS(
+                            _pattern = RIGHT("______-__", _len),
+                            HSTACK(
+                                _sign * VALUE(LEFT(_unSigned, _len - 3)),
+                                VALUE(RIGHT(_unSigned, 2)),
+                                ""
+                            ),
+                            _pattern = RIGHT("_________", _len),
+                            HSTACK(
+                                _sign * VALUE(LEFT(_unSigned, _len - 4)),
+                                VALUE(MID(_unSigned, _len - 3, 2)),
+                                VALUE(RIGHT(_unSigned, 2))
+                            ),
+                            TRUE, ""
+                        ),
+                        _len = 7, IF(
+                            _pattern = "____-__",
+                            HSTACK(
+                                _sign * VALUE(LEFT(_unSigned, 4)),
+                                VALUE(RIGHT(_unSigned, 2)),
+                                ""
+                            ),
+                            ""
+                        ),
+                        (_len >= 4) * (_len <= 5),  IF(
+                            _pattern = RIGHT("_____", _len),
+                            HSTACK(
+                                _sign * VALUE(_unSigned),
+                                "",
+                                ""
+                            ),
+                            ""
+                        ),
+                        TRUE, ""
                     ),
-                    _pattern = RIGHT("_________", _len),
-                    HSTACK(
-                        VALUE(LEFT(_unSigned, _len - 4)),
-                        VALUE(MID(_unSigned, _len - 3, 2)),
-                        VALUE(RIGHT(_unSigned, 2))
-                    ),
-                    TRUE, ""
-                ),
-                _len = 7, IF(
-                    _pattern = "____-__",
-                    HSTACK(
-                        VALUE(LEFT(_unSigned, 4)),
-                        VALUE(RIGHT(_unSigned, 2)),
-                        ""
-                    ),
-                    ""
-                ),
-                (_len >= 4) * (_len <= 5),  IF(
-                    _pattern = RIGHT("_____", _len),
-                    HSTACK(
-                        VALUE(_unSigned),
-                        "",
-                        ""
-                    ),
-                    ""
-                ),
-                TRUE, ""
-            ),
 
-            IF(INDEX(_tryParse, 1, 1) = "", {#VALUE!, "", ""},
-                LET(
-                    _year, _sign * INDEX(_tryParse, 1, 1),
-                    _month, INDEX(_tryParse, 1, 2),
-                    IFS(
-                        _month = "", HSTACK(_year, "", ""),
-                        (_month < 1) + (_month > 12), HSTACK(_year, {#NUM!}, ""),
-                        TRUE, LET(
-                            _day, INDEX(_tryParse, 1, 3),
-                            IF(_day = "",
-                                HSTACK(_year, _month, ""),    
-                                IF(IS_VALID_DATE(_year, _month, _day, JulianCalendar),
-                                    HSTACK(_year, _month, _day),
-                                    HSTACK(_year, _month, {#NUM!})
-                                )
-                            )
-                        )
+                    IF(INDEX(_tryParse, 1, 1) = "", {#VALUE!, #VALUE!, #VALUE!},
+                        VALIDATE_DATE(_tryParse, _julianCalendar)
                     )
                 )
             )
+        ),
+
+        _rowCount, ROWS(ISOCalendarDate),
+        DROP(
+            REDUCE({""}, SEQUENCE(_rowCount),
+                LAMBDA(_acc, _curr,
+                    LET(
+                        _date_YMD, fnParseISOCalendarDate(NULLIFY(INDEX(ISOCalendarDate, _curr, ))),
+                        VSTACK(
+                            _acc,
+                            _date_YMD
+                        )
+                    )
+                )
+            ), 1
         )
     )
 );
@@ -2520,6 +2741,8 @@ PARSE_ISO_CALENDAR_DATE = LAMBDA(ISOCalendarDate, [JulianCalendar],
 FORMAT_ISO_YEAR
 
 Returns a year as text in ISO format.
+
+Array compatible: Yes
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -2550,45 +2773,58 @@ FORMAT_ISO_CALENDAR_DATE
 
 Returns a calendar date as text in ISO format.
 
+Array compatible: Date_YMD as column
+
 Output
 ----------------------------------------------------------------------------------------------------------------
  1 | text | ISO formatted date
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-YearCE           | integer         | Note that 1 BC = 0 CE, 2 BC = -1 CE
-Month            | integer [1..12] |
-Day              | integer [1..31] |
-[Basic]          | switch          | Display in basic format eg yyyyMMdd
-                 |                 | Invalid when Day not provided and YearCE outside of range
-                 |                 | -9999..9999 due to collision with yyyyddd ISO format.
-[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |                 | proleptic calendar. 
+Date_YMD         | array   C[2..3]  |
+   YearCE        | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]       | integer [1..12]  | Month of year. Can be empty.
+   [Day]         | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
+[JulianCalendar] | switch           | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                  | proleptic calendar.
 --------------------------------------------------------------------------------------------------------------*/
-FORMAT_ISO_CALENDAR_DATE = LAMBDA(YearCE, Month, Day, [Basic], [JulianCalendar],
-    IFS(
-        (YearCE = "") * (Month = "") * (Day = ""), "",
-        NOT(ISNUMBER(YearCE)), {#VALUE!},
-        NOT(IS_NUMERIC_NULL(Month)), {#VALUE!},
-        NOT(IS_NUMERIC_NULL(Day)), {#VALUE!},
-        NOT(ISNUMBER(Month)) * ISNUMBER(Day), {#VALUE!},
-        NOT(ISNUMBER(Month)), FORMAT_ISO_Year(YearCE),
-        NOT(IS_VALID_DATE(YearCE, Month, Day, JulianCalendar)), {#NUM!},
-        TRUE, LET(
-            _basic, N(Basic) <> 0,
-            _delim, IF(_basic, "", "-"),
-            IFS(
-                _basic * (ABS(YearCE) > 9999), {#VALUE!},
-                ISNUMBER(Day), CONCAT(
-                    FORMAT_ISO_Year(YearCE),
-                    _delim, TEXT(Month, "00"),
-                    _delim, TEXT(Day, "00")
-                ),
-                TRUE, CONCAT(
-                    FORMAT_ISO_Year(YearCE),
-                    _delim, TEXT(Month, "00")
+FORMAT_ISO_CALENDAR_DATE = LAMBDA(Date_YMD, [Basic], [JulianCalendar],
+    LET(
+        _julianCalendar, N(JulianCalendar) <> 0,
+        _basic, N(Basic) <> 0,
+        _delim, IF(_basic, "", "-"),
+            
+        fnFormatISOCalendarDate, LAMBDA(_date_YMD,
+            IF(MAX(N(NOT(IS_EMPTY(_date_YMD)))) = 0, "",
+                LET(
+                    _validateDate, VALIDATE_DATE(_date_YMD, JulianCalendar),
+                    _firstError, TAKE(FILTER(_validateDate,IFNA(ERROR.TYPE(_validateDate), 0) > 0, ""), 1, 1),
+                    IFS(
+                        ISERROR(_firstError), _firstError,
+                        _basic * (ABS(INDEX(_validateDate, 1, 1)) > 9999), {#VALUE!},
+                        TRUE, LET(
+                            _sYear, FORMAT_ISO_Year(INDEX(_validateDate, 1, 1)), 
+                            IF(INDEX(_validateDate, 1, 2) = "",
+                                IF(INDEX(_validateDate, 1, 3) = "",
+                                    _sYear,
+                                    CONCAT(_sYear, _delim, TEXT(INDEX(_validateDate, 1, 3), "000"))
+                                ),
+                                LET(
+                                    _sMonth, TEXT(INDEX(_validateDate, 1, 2), "00"),
+                                    IF(INDEX(_validateDate, 1, 3) = "",
+                                        IF(_basic, {#VALUE!}, CONCAT(_sYear, _delim, _sMonth)),
+                                        CONCAT(_sYear, _delim, _sMonth, _delim, TEXT(INDEX(_validateDate, 1, 3), "00"))
+                                    )
+                                )
+                            )
+                        )
+                    )
                 )
             )
+        ),
+
+        BYROW(Date_YMD,
+            LAMBDA(_date_YMD, fnFormatISOCalendarDate(_date_YMD))
         )
     )
 );
@@ -3102,7 +3338,7 @@ Output
 Parameters
 ----------------------------------------------------------------------------------------------------------------
 TZOMinutes | decimal     | Time zone offset from UTC in minutes.
-           | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+           | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
 [Options]  | text        | String with elements: [B][Z]
            |             |  B : Display in basic format eg +0000
            |             |  Z : Display 'Z' for Zulu time zone +00:00
@@ -3200,7 +3436,7 @@ Output
 Parameters
 ----------------------------------------------------------------------------------------------------------
 [TZOMinutes] | decimal     | Time zone offset from UTC in minutes
-             | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+             | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
 
 Examples
 ----------------------------------------------------------------------------------------------------------
@@ -3249,9 +3485,9 @@ Parameters
 ----------------------------------------------------------------------------------------------------------
 MJDate                | decimal     | Modified Julian Date
 [ReferenceTZOMinutes] | decimal     | Time zone offset referenced by the MJDate
-                      | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+                      | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
 [TranslateTZOMinutes] | decimal     | Time zone offset to translate the MJDate to.
-                      | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+                      | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
 --------------------------------------------------------------------------------------------------------*/
 SHIFT_TIMEZONE = LAMBDA(MJDate, [ReferenceTZOMinutes], [TranslateTZOMinutes],
     IFS(
@@ -4057,7 +4293,7 @@ Month            | integer [1..12] |
 Day              | integer [1..31] |
 [Time]           | decimal [0..1]  | Time of day as decimal fraction of a day.
 [TZOMinutes]     | decimal         | Time zone offset from UTC in minutes
-                 | [-900..900]     | Assumed to be UTC if ommitted. [-15:00..+15:00]
+                 | [-900..900]     | Assumed to be UTC if omitted. [-15:00..+15:00]
 [Options]        | text            | String with elements: [B][<][LowOrder][Precision][Z]
                  |                 |        B : Display in basic format eg T0000
                  |                 |        < : Round by truncating components. Default is rounding to nearest.
@@ -4773,11 +5009,11 @@ Month        | integer [1..12] |
 Day          | integer [1..31] |
 Time         | decimal [0..1)  | Time of day as decimal fraction of a day.
 [TZOMinutes] | decimal         | Time zone offset from UTC in minutes
-             | [-900..900]     | Assumed to be UTC if ommitted. [-15:00..+15:00]
+             | [-900..900]     | Assumed to be UTC if omitted. [-15:00..+15:00]
              |                 | Time will be converted if the offset does not align with military
              |                 | time zones.
 [Options]    | text            | String with elements: [S][_][<]
-             |                 |  S : Short format, ommits seconds
+             |                 |  S : Short format, omits seconds
              |                 |  _ : Spacing between components
              |                 |  < : Round by truncating components. Default is rounding to nearest.
 
@@ -4875,7 +5111,7 @@ OrdinalDay       | decimal [1..367) | Day of year
 --------------------------------------------------------------------------------------------------------------*/
 IS_VALID_ORDINAL_DATE = LAMBDA(YearCE, OrdinalDay, [JulianCalendar],
     IFS(
-        NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(OrdinalDay)), FALSE, // cannot ommit year or ordinal day
+        NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(OrdinalDay)), FALSE, // cannot omit year or ordinal day
         NOT(IS_INTEGER(YearCE)), FALSE, // year cannot be fractional
         TRUE, LET(
             _ordinalDay, INT(OrdinalDay),
@@ -5406,7 +5642,7 @@ ISOWeek          | integer [1..53] | ISO defined week number of the year
 --------------------------------------------------------------------------------------------------------------*/
 IS_VALID_WEEK_DATE = LAMBDA(YearCE, ISOWeek, [ISOWeekDay], [JulianCalendar],
     IFS(
-        NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(ISOWeek)), FALSE, // cannot ommit year or week
+        NOT(ISNUMBER(YearCE)) + NOT(ISNUMBER(ISOWeek)), FALSE, // cannot omit year or week
         NOT(IS_INTEGER(YearCE) * IS_INTEGER(ISOWeek)), FALSE, // year and week cannot be fractional
         TRUE, LET(
             _validWeek, IFS(
@@ -7225,7 +7461,7 @@ Parameters
 ----------------------------------------------------------------------------------------------------------------
 ExcelDate    | decimal     | Excel Date/Time.
 [TZOMinutes] | decimal     | Time zone offset from UTC in minutes
-             | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+             | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
 [Options]    | text        | String with elements: [B][<][LowOrder][Precision][Z]
              |             |        B : Display in basic format eg T0000
              |             |        < : Round by truncating components. Default is rounding to nearest.
@@ -7309,7 +7545,7 @@ Parameters
 ----------------------------------------------------------------------------------------------------------------
 MJDate           | decimal     | Modified Julian Date
 [TZOMinutes]     | decimal     | Time zone offset from UTC in minutes
-                 | [-900..900] | Assumed to be UTC if ommitted. [-15:00..+15:00]
+                 | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
 [Options]        | text        | String with elements: [B][<][LowOrder][Precision][Z]
                  |             |        B : Display in basic format eg T0000
                  |             |        < : Round by truncating components. Default is rounding to nearest.
