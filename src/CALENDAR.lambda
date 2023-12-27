@@ -8,31 +8,34 @@
 #                                                                                                              #
 # GENERAL                                                                                                      #
 # ------------------------------------------------------------------------------------------------------------ #
-# NULLIFY                    Ensures an empty cell reference is not resolved to zero.                          #
 # IS_EMPTY                   Tests if the parameter has an empty value. Errors return FALSE.                   #
 # IS_NUMERIC_NULL            Tests if the parameter has a numeric value or is empty. Errors return FALSE.      #
 # IS_INTEGER                 Tests if a number is an integer or very close to an integer. Use in place of      #
 #                            MOD(N, 0) > 0 where N can be within a large range of magnitudes.                  #
+# NULLIFY                    Ensures an empty cell reference is not resolved to zero.                          #
 # DECIMALS                   Returns the number of decimal places for a rational number.                       #
 # VALIDATE_CHARSET           Validates that the given text only contains characters in the specified character #
-#                            set. Matching is case sensitive.                                                  #
+#                            set. Matching is case-insensitive by default.                                     #
 # REPLACE_CHARS              Replaces each instance of a set of characters within text with another character. #
-#                            Matching is case sensitive. Note can be used to remove characters by supplying an #
-#                            empty CharReplaceWith.                                                            #
+#                            Matching is case-insensitive by default. Note can be used to remove characters by #
+#                            supplying an empty CharReplaceWith.                                               #
+# SUBSTITUTE_I               Case-insensitive substitution of text. Similar to SUBSTITUTE function which is    #
+#                            case-sensitive.                                                                   #
 # FIND_NTH_CHAR              Locates the position of the Nth count of any one of a set of characters within    #
-#                            the given text. The search is case sensitive.                                     #
-# SEARCH_NTH_CHAR            Locates the position of the Nth count of any one of a set of characters within    #
-#                            the given text. The search is case insensitive                                    #
-# SPLIT_AROUND_CHARS         Splits text at any character not in the given set. First element returned is the  #
-#                            sequence of unmatched characters, followed by each substring. Matching is case    #
-#                            sensitive.                                                                        #
+#                            the given text. The search is case-insensitive by default.                        #
+# SPLIT_FOR_CHARS            Splits text at any character not in the given set. First element returned is the  #
+#                            count number of substrings, then second element is the sequence of unmatched      #
+#                            characters, followed by each substring. Matching is case-insensitive by default.  #
+# SIFT_FOR_CHARS             Returns in sorted order the characters found in a text string found from a given  #
+#                            set of characters. An upper limit can be set on the number of times any character #
+#                            can be matched. Matching is case-insensitive by default.                          #
 #                                                                                                              #
 # TIMESPAN                                                                                                     #
 # ------------------------------------------------------------------------------------------------------------ #
+# VALIDATE_TIMESPAN          Validate each element of a sexagesimal representation of a timespan. A component  #
+#                            can exceed its modulus if no higher order component is provided.                  #
 # IS_VALID_TIMESPAN          Tests if sexagesimal representation of a timespan is valid. A component can       #
 #                            exceed its modulus if no higher order element is provided.                        #
-# VALIDATE_TIMESPAN          Validate each element of a sexagesimal representation of a timespan. A component  #
-#                            can exceed its modulus if no higher order omponent is provided.                   #
 # TIMESPAN_LOW_ORDER         Returns a number representing the lowest order component of the sexagesimal       #
 #                            representation of a timespan value.                                               #
 # TIMESPAN_HIGH_ORDER        Returns a number representing the highest order component of the sexagesimal      #
@@ -265,31 +268,11 @@
 
 
 /*--------------------------------------------------------------------------------------------------------------
-NULLIFY
-
-Ensures an empty cell reference is not resolved to zero.
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | variant | 
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Value | variant |
-
-Examples
-----------------------------------------------------------------------------------------------------------------
-NULLIFY(A1), where A1 is empty
-Returns ""
---------------------------------------------------------------------------------------------------------------*/
-NULLIFY = LAMBDA(Value,
-    IF(ISBLANK(Value), "", Value)
-);
-
-/*--------------------------------------------------------------------------------------------------------------
 IS_EMPTY
 
 Tests if the parameter has an empty value. Errors return FALSE.
+
+Array compatible: Yes
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -321,6 +304,8 @@ IS_EMPTY = LAMBDA(Value,
 IS_NUMERIC_NULL
 
 Tests if the parameter has a numeric value or is empty. Errors return FALSE.
+
+Array compatible: Yes
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -360,13 +345,15 @@ IS_INTEGER
 Tests if a number is an integer or very close to an integer. Use in place of MOD(N, 0) > 0 where N
 can be within a large range of magnitudes.
 
+Array compatible: Yes
+
 Output
 ----------------------------------------------------------------------------------------------------------------
  1 | boolean | 
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-N | decimal |
+N | decimal | 
 
 Examples
 ----------------------------------------------------------------------------------------------------------------
@@ -389,11 +376,37 @@ IS_INTEGER = LAMBDA(N,
 );
 
 
+/*--------------------------------------------------------------------------------------------------------------
+NULLIFY
+
+Ensures an empty cell reference is not resolved to zero.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | variant | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Value | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+NULLIFY(A1), where A1 is empty
+Returns ""
+--------------------------------------------------------------------------------------------------------------*/
+NULLIFY = LAMBDA(Value,
+    IF(ISBLANK(Value), "", Value)
+);
+
 
 /*--------------------------------------------------------------------------------------------------------------
 DECIMALS
 
 Returns the number of decimal places for a rational number.
+
+Array compatible: Yes
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -443,7 +456,9 @@ DECIMALS = LAMBDA(N,
 VALIDATE_CHARSET
 
 Validates that the given text only contains characters in the specified character set.
-Matching is case sensitive.
+Matching is case-insensitive by default.
+
+Array compatible: Text parameter only
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -451,13 +466,16 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-CharSet | text | Valid characters
-Text    | text | Text to validate
+Text              | text    | Text to validate
+CharSet           | text    | Valid characters
+[CaseInsensitive] | boolean | Ignore case when matching
 --------------------------------------------------------------------------------------------------------------*/
-VALIDATE_CHARSET = LAMBDA(CharSet, Text, [IgnoreCase],
-    IF((CharSet = "") + (Text = ""), FALSE,
-        LET(
-            _ignoreCase, N(IgnoreCase) <> 0,
+VALIDATE_CHARSET = LAMBDA(Text, CharSet, [CaseSensitive],
+    IFS(
+        CharSet = "", FALSE,
+        Text = "", FALSE,
+        TRUE, LET(
+            _ignoreCase, N(CaseSensitive) = 0,
             _text, IF(_ignoreCase, UPPER(Text), Text),
             _chars, IF(_ignoreCase, UPPER(CharSet), CharSet),
             _escapeText, SUBSTITUTE(SUBSTITUTE(_text, "&", "&amp;"), "<", "&lt;"),
@@ -473,7 +491,9 @@ VALIDATE_CHARSET = LAMBDA(CharSet, Text, [IgnoreCase],
 REPLACE_CHARS
 
 Replaces each instance of a set of characters within text with another character.
-Matching is case sensitive. Note can be used to remove characters by supplying an empty CharReplaceWith.
+Matching is case-insensitive by default. Note can be used to remove characters by supplying an empty CharReplaceWith.
+
+Array compatible: Text parameter only
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -481,9 +501,10 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Text            | text | Text within which to replace characters
-CharSet         | text | Set of characters to be replaced
-CharReplaceWith | text | Target character with which to replace each character in CharSet
+Text            | text    | Text within which to replace characters
+CharSet         | text    | Set of characters to be replaced
+CharReplaceWith | text    | Target character with which to replace each character in CharSet
+[CaseSensitive] | boolean | Match on letter case
 
 Examples
 ----------------------------------------------------------------------------------------------------------------
@@ -493,15 +514,97 @@ Returns: abcdefgh
 REPLACE_CHARS("abc:def/g/h", ":/", "_")
 Returns: abc_def_g_h
 --------------------------------------------------------------------------------------------------------------*/
-REPLACE_CHARS = LAMBDA(Text, CharSet, CharReplaceWith,
-    IFS(
-        Text = "", "",
-        CharSet = "", Text,
-        TRUE, LET(
-            _charNew, LEFT(CharReplaceWith),
-            REDUCE(text, SEQUENCE(LEN(CharSet)),
-                LAMBDA(acc, curr,
-                    SUBSTITUTE(acc, MID(CharSet, curr, 1), _charNew)
+REPLACE_CHARS = LAMBDA(Text, CharSet, CharReplaceWith, [CaseSensitive],
+    LET(
+        _charNew, LEFT(CharReplaceWith),
+        _ignoreCase, N(CaseSensitive) = 0,
+        MAP(Text,
+            LAMBDA(_text,
+                IFS(
+                    CharSet = "", _text,
+                    _text = "", "",
+                    _ignoreCase,
+                        REDUCE(_text, SEQUENCE(LEN(CharSet)),
+                            LAMBDA(acc, curr,
+                                LET(
+                                    _charL, LOWER(MID(CharSet, curr, 1)),
+                                    _textL, SUBSTITUTE(acc, _charL, _charNew),
+                                    SUBSTITUTE(_textL, UPPER(_charL), _charNew)
+                                )
+                            )
+                        ),
+                    TRUE, REDUCE(_text, SEQUENCE(LEN(CharSet)),
+                        LAMBDA(acc, curr,
+                            SUBSTITUTE(acc, MID(CharSet, curr, 1), _charNew)
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+SUBSTITUTE_I
+
+Case-insensitive substitution of text. Similar to SUBSTITUTE function which is case-sensitive.
+
+Array compatible: Text parameter only
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Text          | text    | Text within which to replace matched text
+OldText       | text    | Text to be replaced
+NewText       | text    | Text with which to replace OldText
+[InstanceNum] | integer | Specifiy which occurance to replace. If ommitted or 0 then all occurances are replaced.
+              |         | Negative instance matches from end.
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+SUBSTITUTE_I("abc:def:ghi:jkl", ":", "")
+Returns: abcdefghijkl
+
+SUBSTITUTE_I("abc:def:ghi:jkl", ":", "-", 2)
+Returns: abc:def-ghi:jkl
+--------------------------------------------------------------------------------------------------------------*/
+SUBSTITUTE_I = LAMBDA(Text, OldText, NewText, [InstanceNum],
+    IF(OldText = "", NULLIFY(Text),
+        LET(
+            _oldLen, LEN(OldText),
+            _lenDiff, LEN(NewText) - _oldLen,
+            _instance, N(InstanceNum),
+            MAP(Text,
+                LAMBDA(_text,
+                    IF(_text = "", "",
+                        LET(
+                            _maxInstance, INT(LEN(_text) / _oldLen),
+                            _pos, SCAN(0, SEQUENCE(1, _maxInstance),
+                                LAMBDA(_acc, _curr,
+                                    IF(_acc = "", "", IFERROR(SEARCH(OldText, _text, _acc + 1), ""))
+                                )
+                            ),
+                            _count, COUNT(_pos),
+                            IFS(
+                                _count = 0, _text,
+                                ABS(_instance) > _count, _text,
+                                _instance > 0, REPLACE(_text, INDEX(_pos, 1, _instance), _oldLen, NewText),
+                                _instance < 0, REPLACE(_text, INDEX(_pos, 1, _count + _instance + 1), _oldLen, NewText),
+                                TRUE, LET(
+                                    _nPos, TAKE(_pos, 1, _count) + SEQUENCE(1, _count, 0, _lenDiff),
+                                    REDUCE(_text, _nPos,
+                                        LAMBDA(_acc, _curr,
+                                            REPLACE(_acc, _curr, _oldLen, NewText)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
                 )
             )
         )
@@ -513,291 +616,288 @@ REPLACE_CHARS = LAMBDA(Text, CharSet, CharReplaceWith,
 FIND_NTH_CHAR
 
 Locates the position of the Nth count of any one of a set of characters within the given text.
-The search is case sensitive.
+Search is case-insensitive by default.
+
+Array compatible: Text parameter as column
 
 Output
 ----------------------------------------------------------------------------------------------------------------
- 1 | integer | Character position in text. Negative if a negative StartPos was used.
+ 1 | integer | Character position in text.
  2 | char    | Character found. Returned if ReturnChar is set
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Chars        | text             | Characters to search for
-Text         | text             | Text to search within
-N            | integer          | Nth count of any of the characters
-             |                  | Negative values will perform a reverse search from the end of the text.
-[ReturnChar] | switch           | Also return the character found
-[LowerPos]   | integer          | Position to start the search from.
-             | [1..LEN(Text)]   | Negative values are relative to the end of the text.
-             | [-LEN(Text)..-1] | Defaults to beginning of the text.
-[UpperPos]   | integer          | Position limit of the search.
-             | [1..LEN(Text)]   | Negative values are relative to the end of the text.
-             | [-LEN(Text)..-1] | Defaults to end of the text.
+Text            | text             | Text to search within
+Chars           | text             | Characters to search for
+N               | integer          | Nth count of any of the characters
+                |                  | Negative values will perform a reverse search from the end of the text.
+[CaseSensitive] | switch           | Search is case-sensitive.           
+[ReturnChar]    | switch           | Also return the character found
+[LowerPos]      | integer          | Position to start the search from.
+                | [1..LEN(Text)]   | Negative values are relative to the end of the text.
+                | [-LEN(Text)..-1] | Defaults to beginning of the text.
+[UpperPos]      | integer          | Position limit of the search.
+                | [1..LEN(Text)]   | Negative values are relative to the end of the text.
+                | [-LEN(Text)..-1] | Defaults to end of the text.
 
 Examples
 ----------------------------------------------------------------------------------------------------------------
-FIND_NTH_CHAR("AB", "1234_A_B_A_0", 1)
-Returns: 6 i.e. 1st A or B at position 6
+FIND_NTH_CHAR("1234_A_B_A_0", "AB", 1)
+Returns: 6 i.e. 1st A or B is at position 6
 
-FIND_NTH_CHAR("AB", "1234_A_B_A_0", 2)
-Returns: 8 i.e. 2nd A or B at position 8
+FIND_NTH_CHAR("1234_A_b_a_0", "ab", 2, 1)
+Returns: 10 i.e. 2nd a or b, case-sensitive is at position 10
 
-FIND_NTH_CHAR("AB", "1234_A_B_A_0", 2, 1, 7)
-Returns: {10, A} i.e. 2nd A or B at position 10, searching from position 7. A was found
+FIND_NTH_CHAR("1234_A_B_A_0", "ab", 2, 0, 1, 7)
+Returns: {10, A} i.e. 2nd a or b, case-insensitive is at position 10, searching from position 7. A was found.
 
-FIND_NTH_CHAR("AB", "1234_A_B_A_0", -2, 1, -4)
-Returns: {6, A} i.e. 2nd A or B at position 6, using reverse search from 4 characters from end. A was found
+FIND_NTH_CHAR("1234_A_B_A_0", "AB", -2, 1, 1, -4)
+Returns: {6, A} i.e. 2nd A or B, case-sensitive is at position 6, using reverse search from 4 characters from end.
+         A was found
 --------------------------------------------------------------------------------------------------------------*/
-FIND_NTH_CHAR = LAMBDA(Chars, Text, N, [ReturnChar], [LowerPos], [UpperPos],
+FIND_NTH_CHAR = LAMBDA(Text, Chars, N, [CaseSensitive], [ReturnChar], [LowerPos], [UpperPos],
     LET(
-        _n, INT(N(N)),
-        _signN, SIGN(_n),
+        _ignoreCase, N(CaseSensitive) = 0,
         _outChar, N(ReturnChar) <> 0,
-        _len, LEN(Text),
-        _startPos, IFS(
-            NOT(ISNUMBER(LowerPos)), 1,
-            LowerPos > 0, LowerPos,
-            LowerPos < 0, _len + LowerPos + 1,
-            LowerPos = 0, 1
-        ),
-        _endPos, IFS(
-            NOT(ISNUMBER(UpperPos)), _len,
-            UpperPos > 0, UpperPos,
-            UpperPos < 0, _len + UpperPos + 1,
-            UpperPos = 0, 0
-        ),
-        
-        IF((_startPos > _len) + (_startPos > _endPos) + (Chars = "") + (_n = 0),
-            IF(_outChar, {0, ""}, 0),
-            LET(
-                _text, MID(Text, _startPos, _endPos - _startPos + 1),
-                _searchLen, LEN(_text),
-                _chars, MID(Chars, SEQUENCE(1, LEN(Chars)), 1),
-                _findCount, LET(
-                    _removed, REDUCE(_text, _chars,
-                        LAMBDA(_acc, _curr, SUBSTITUTE(_acc, _curr, ""))
-                    ),
-                    _searchLen - LEN(_removed)
-                ),
-                IF(_findCount < ABS(_n), IF(_outChar, {0, ""}, 0),
-                    LET(
-                        // nth can count from end backwards
-                        _nth, IF(_n > 0, _n, _findCount + _n + 1),
-                        _nthPos, REDUCE(0, SEQUENCE(1, _nth),
-                            LAMBDA(_acc, _curr,
-                                IF(_acc < 0, -1,
-                                    LET(
-                                        _nextPosChars, IFERROR(
-                                            FIND(_chars, _text, _acc + 1),
-                                            0
-                                        ),
-                                        _nextPos, MIN(
-                                            FILTER(_nextPosChars, _nextPosChars > 0, 0)
-                                        ),
-                                        IF(_nextPos = 0, -1, _nextPos)
-                                    )
-                                )
-                            )
-                        ),
-                        _outPos, _nthPos + _startPos - 1,
-                        
-                        IF(_outChar,
-                            IF(_outPos = 0, {0, ""},
-                                HSTACK(
-                                    _outPos,
-                                    MID(_text, _nthPos, 1)
-                                )
-                            ),
-                            _outPos
-                        )
-                    )
-                )
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-SEARCH_NTH_CHAR
-
-Locates the position of the Nth count of any one of a set of characters within the given text.
-The search is case insensitive. 
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer | Character position in text. Negative if a negative StartPos was used.
- 2 | char    | Character found. Returned if ReturnChar is set
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Chars        | text             | Characters to search for
-Text         | text             | Text to search within
-N            | integer          | Nth count of any of the characters
-             |                  | Negative values will perform a reverse search from the end of the text.
-[ReturnChar] | switch           | Also return the character found
-[LowerPos]   | integer          | Position to start the search from.
-             | [1..LEN(Text)]   | Negative values are relative to the end of the text.
-             | [-LEN(Text)..-1] | Defaults to beginning of the text.
-[UpperPos]   | integer          | Position limit of the search.
-             | [1..LEN(Text)]   | Negative values are relative to the end of the text.
-             | [-LEN(Text)..-1] | Defaults to end of the text.
-
-Examples
-----------------------------------------------------------------------------------------------------------------
-SEARCH_NTH_CHAR("ab", "1234_A_B_A_0", 1)
-Returns: 6 i.e. 1st A or B at position 6
-
-SEARCH_NTH_CHAR("ab", "1234_A_B_A_0", 2)
-Returns: 8 i.e. 2nd A or B at position 8
-
-SEARCH_NTH_CHAR("ab", "1234_A_B_A_0", 2, 1, 7)
-Returns: {10, A} i.e. 2nd A or B at position 10, searching from position 7. A was found
-
-SEARCH_NTH_CHAR("ab", "1234_A_B_A_0", -2, 1, -4)
-Returns: {6, A} i.e. 2nd A or B at position 6, using reverse search from 4 characters from end. A was found
---------------------------------------------------------------------------------------------------------------*/
-SEARCH_NTH_CHAR = LAMBDA(Chars, Text, N, [ReturnChar], [LowerPos], [UpperPos],
-    LET(
         _n, INT(N(N)),
-        _signN, SIGN(_n),
-        _outChar, N(ReturnChar) <> 0,
-        _len, LEN(Text),
-        _startPos, IFS(
-            NOT(ISNUMBER(LowerPos)), 1,
-            LowerPos > 0, LowerPos,
-            LowerPos < 0, _len + LowerPos + 1,
-            LowerPos = 0, 1
-        ),
-        _endPos, IFS(
-            NOT(ISNUMBER(UpperPos)), _len,
-            UpperPos > 0, UpperPos,
-            UpperPos < 0, _len + UpperPos + 1,
-            UpperPos = 0, 0
-        ),
-        
-        IF((_startPos > _len) + (_startPos > _endPos) + (Chars = "") + (_n = 0),
-            IF(_outChar, {0, ""}, 0),
-            LET(
-                _text, MID(Text, _startPos, _endPos - _startPos + 1),
-                _searchLen, LEN(_text),
-                _searchText, UPPER(_text),
-                _chars, UPPER(MID(Chars, SEQUENCE(1, LEN(Chars)), 1)),
-                _findCount, LET(
-                    _removed, REDUCE(_searchText, _chars,
-                        LAMBDA(_acc, _curr, SUBSTITUTE(_acc, _curr, ""))
+        _returnNone, IF(_outChar, {0, ""}, 0),
+        _lowPos, IF(N(LowerPos) = 0, 1, LowerPos),
+        fnNthChar, LAMBDA(_rowText,
+            IF((Chars = "") + (_n = 0), _returnNone,
+                LET(
+                    _len, LEN(_rowText),
+                    _startPos, IF(_lowPos < 1, _len + _lowPos + 1, _lowPos),
+                    _endPos, IFS(
+                        NOT(ISNUMBER(UpperPos)), _len,
+                        UpperPos > 0, UpperPos,
+                        UpperPos < 0, _len + UpperPos + 1,
+                        TRUE, 0
                     ),
-                    _searchLen - LEN(_removed)
-                ),
-                IF(_findCount < ABS(_n), IF(_outChar, {0, ""}, 0),
-                    LET(
-                        // nth can count from end backwards
-                        _nth, IF(_n > 0, _n, _findCount + _n + 1),
-                        _nthPos, REDUCE(0, SEQUENCE(1, _nth),
-                            LAMBDA(_acc, _curr,
-                                IF(_acc < 0, -1,
-                                    LET(
-                                        _nextPosChars, IFERROR(
-                                            FIND(_chars, _searchText, _acc + 1),
-                                            0
-                                        ),
-                                        _nextPos, MIN(
-                                            FILTER(_nextPosChars, _nextPosChars > 0, 0)
-                                        ),
-                                        IF(_nextPos = 0, -1, _nextPos)
-                                    )
-                                )
-                            )
-                        ),
-                        _outPos, _nthPos + _startPos - 1,
-                        
-                        IF(_outChar,
-                            IF(_outPos = 0, {0, ""},
-                                HSTACK(
-                                    _outPos,
-                                    MID(_text, _nthPos, 1)
-                                )
-                            ),
-                            _outPos
-                        )
-                    )
-                )
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-SPLIT_AROUND_CHARS
-
-Splits text at any character not in the given set. First element returned is the sequence of unmatched
-characters, followed by each substring. Matching is case sensitive.
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | text | Array of substrings
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Chars   | text    | Characters not split at
-Text    | text    | Text to split
-[Limit] | integer | Limit at which to stop splitting
-
-Examples
-----------------------------------------------------------------------------------------------------------------
-SPLIT_AROUND_CHARS("123456", "A12b34B56")
-Returns: {AbB; ; 12; 34; 56}
---------------------------------------------------------------------------------------------------------------*/
-SPLIT_AROUND_CHARS = LAMBDA(Chars, Text, [Limit],
-    IF((Chars = "") + (Text = ""), VSTACK("", NULLIFY(Text)),
-        LET(
-            _chars, MID(Chars, SEQUENCE(1, LEN(Chars)), 1),
-            _limit, MAX(INT(N(Limit)), 0),
-            _len, LEN(Text),
-            _pos, VSTACK(
-                REDUCE({0}, SEQUENCE(_len),
-                    LAMBDA(_acc, _curr,
+                    IF((_startPos > _len) + (_startPos > _endPos), _returnNone,
                         LET(
-                            _isMatch, MAX(N(CODE(MID(Text, _curr, 1)) = CODE(_chars))),
-                            IF(_isMatch, _acc,
-                                VSTACK(_acc, _curr)
+                            _searchText, MID(_rowText, _startPos, _endPos - _startPos + 1),
+                            _casedText, IF(_ignoreCase, UPPER(_searchText), _searchText),
+                            _searchLen, LEN(_searchText),
+                            _chars, MID(Chars, SEQUENCE(1, LEN(Chars)), 1),
+                            _casedChars, IF(_ignoreCase, UPPER(_chars), _chars),
+                            _findCount, LET(
+                                _removed, REDUCE(_casedText, _casedChars,
+                                    LAMBDA(_acc, _curr, SUBSTITUTE(_acc, _curr, ""))
+                                ),
+                                _searchLen - LEN(_removed)
+                            ),
+                            IF(_findCount < ABS(_n), _returnNone,
+                                LET(
+                                    // nth can count from end backwards
+                                    _nth, IF(_n > 0, _n, _findCount + _n + 1),
+                                    _nthPos, REDUCE(0, SEQUENCE(1, _nth),
+                                        LAMBDA(_acc, _curr,
+                                            IF(_acc < 0, -1,
+                                                LET(
+                                                    _nextPosChars, IFERROR(FIND(_casedChars, _casedText, _acc + 1), 0),
+                                                    _nextPos, MIN(FILTER(_nextPosChars, _nextPosChars > 0, 0)),
+                                                    IF(_nextPos = 0, -1, _nextPos)
+                                                )
+                                            )
+                                        )
+                                    ),
+                                    _outPos, _nthPos + _startPos - 1,
+                    
+                                    IFS(
+                                        _outPos < 1, _returnNone,
+                                        _outChar, HSTACK(_outPos, MID(_searchText, _nthPos, 1)),
+                                        TRUE, _outPos
+                                    )
+                                )
                             )
                         )
                     )
                 )
-            ),
-            
-            _count, IF(_limit, MIN(_limit, ROWS(_pos) - 1), ROWS(_pos) - 1),
-            
-            _limitPos, VSTACK(
-                IFERROR(TAKE(_pos, _count + 1), 0),
-                _len + 1
-            ),
-            _sift, CONCAT(IFERROR(MID(Text, DROP(_limitPos, 1), 1), "")),
-            _idx, SEQUENCE(_count + 1),
-            VSTACK(
-               _sift,
-               IFERROR(MID(Text, INDEX(_limitPos, _idx) + 1, INDEX(_limitPos, _idx + 1) - INDEX(_limitPos, _idx) - 1), Text)
             )
+        ),
+        DROP(
+            REDUCE({0}, SEQUENCE(ROWS(Text)),
+                LAMBDA(_acc, _curr,
+                    VSTACK(_acc, fnNthChar(INDEX(Text, _curr)))
+                )
+            ), 1
         )
     )
 );
 
 
+/*--------------------------------------------------------------------------------------------------------------
+SPLIT_FOR_CHARS
 
+Splits text at any character not in the given set. First element returned is the count of substrings, then second
+element is the sequence of unmatched characters, followed by each substring. Matching is case-insensitive by default.
 
+Array compatible: Text parameter as column
 
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Number of substrings (n)
+ 2 | text    | Unmatched characters
+ 3 | text    | Array of substrings [1..n]
 
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Text            | text    | Text to split
+Chars           | text    | Valid characters for each substring
+[Limit]         | integer | Limit at which to stop splitting
+[CaseSensitive] | boolean | Match letter case
 
+Examples
+----------------------------------------------------------------------------------------------------------------
+SPLIT_FOR_CHARS("A12b34B56", "123456")
+Returns: {4, "AbB", , 12, 34, 56}
+--------------------------------------------------------------------------------------------------------------*/
+SPLIT_FOR_CHARS = LAMBDA(Text, Chars, [Limit], [CaseSensitive],
+    LET(
+        _limit, MAX(INT(N(Limit)), 0),
+        IF((Text = "") + (Chars = "") + (_limit = 1), HSTACK(1, "", NULLIFY(Text)),
+            LET(
+                _ignoreCase, N(CaseSensitive) = 0,
+                _chars, MID(Chars, SEQUENCE(LEN(Chars)), 1),
+                fnMatchChar, LAMBDA(_c,
+                    LET(
+                        _charMatches, IF(_ignoreCase,
+                            _c = _chars,
+                            CODE(_c) = CODE(_chars)
+                        ),
+                        N(MAX(N(_charMatches)) <> 0)
+                    ) 
+                ),
+                fnSplitAround, LAMBDA(_rowText,
+                    LET(
+                        _len, LEN(_rowText),
+                        _firstChar, LEFT(_rowText, 1),
+                        _init, IF(fnMatchChar(_firstChar),
+                            HSTACK("", _firstChar, 1),
+                            HSTACK(_firstChar, "", 0)
+                        ),
+                        _split, REDUCE(_init, SEQUENCE(1, _len - 1, 2),
+                            LAMBDA(_acc, _curr,
+                                LET(
+                                    _accLastCol, COLUMNS(_acc),
+                                    _currChar, MID(_rowText, _curr, 1),
+                                    IF((_limit > 1) * (_accLastCol - 2 = _limit),
+                                        HSTACK(TAKE(_acc, 1, _accLastCol - 2), INDEX(_acc, 1, _accLastCol - 1) & _currChar, 1),
+                                        LET(
+                                            _lastMatch, INDEX(_acc, 1, _accLastCol),
+                                            _thisMatch, fnMatchChar(_currChar),
+                                            IF(_thisMatch,
+                                                IF(_lastMatch,
+                                                    HSTACK(TAKE(_acc, 1, _accLastCol - 2), INDEX(_acc, 1, _accLastCol - 1) & _currChar, 1),
+                                                    HSTACK(TAKE(_acc, 1, _accLastCol - 1), _currChar, 1)
+                                                ),
+                                                HSTACK(INDEX(_acc, 1, 1) & _currChar, DROP(TAKE(_acc, 1, _accLastCol - 1),, 1), 0)
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        _splitLastCol, COLUMNS(_split),
+                        IF(INDEX(_split, 1, _splitLastCol) = 0,
+                            HSTACK(_splitLastCol - 1, DROP(_split, , -1), ""),
+                            HSTACK(_splitLastCol - 2, DROP(_split, , -1))
+                        )
+                    )
+                ),
+                DROP(
+                    REDUCE({0}, SEQUENCE(ROWS(Text)),
+                        LAMBDA(_acc, _curr,
+                            VSTACK(_acc, fnSplitAround(INDEX(Text, _curr)))
+                        )
+                    ), 1
+                )
+            )
+        )
+    )
+);
 
+/*--------------------------------------------------------------------------------------------------------------
+SIFT_FOR_CHARS
 
+Returns in sorted order the characters found in a text string found from a given set of characters. An upper limit
+can be set on the number of times any character can be matched. Matching is case-insensitive by default.
 
+Array compatible: Text parameter only
 
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text | Matched characters, sorted
 
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Text            | text    | Text to sift
+Chars           | text    | Characters to match
+[Limit]         | integer | Upper limit for matches
+                |         | 0 for no limit
+                |         | Defaults to 1
+[CaseSensitive] | boolean | Match letter case
 
-
-
+Examples
+----------------------------------------------------------------------------------------------------------------
+SIFT_FOR_CHARS("CDA_b_B", "abc")
+Returns: "AbC"
+--------------------------------------------------------------------------------------------------------------*/
+SIFT_FOR_CHARS = LAMBDA(Text, Chars, [Limit], [CaseSensitive],
+    IF((Text = "") + (Chars = ""), "",
+        LET(
+            _limit, IF(ISNUMBER(Limit), MAX(INT(Limit), 0), 1),
+            _ignoreCase, N(CaseSensitive) = 0,
+            _targetChars, LET(
+                _charArray, MID(Chars, SEQUENCE(LEN(Chars)), 1),
+                IF(_ignoreCase, UNIQUE(_charArray),
+                    UNIQUE(CODE(_charArray))
+                 )
+            ),
+            fnMatchChar, LAMBDA(_refChars,
+                BYROW(_refChars,
+                    LAMBDA(_c,
+                        LET(
+                            _charMatches, IF(_ignoreCase,
+                                _c = _targetChars,
+                                CODE(_c) = _targetChars
+                            ),
+                            N(MAX(N(_charMatches)) <> 0)
+                        )
+                    )
+                ) 
+            ),
+            fnSiftChars, LAMBDA(_text,
+                LET(
+                    _charList, MID(_text, SEQUENCE(LEN(_text)), 1),
+                    _charFiltered, FILTER(_charList, fnMatchChar(_charList), ""),
+                    _charSorted, IF(_ignoreCase,
+                        SORT(_charFiltered),
+                        SORTBY(_charFiltered, _charFiltered, 1, IFERROR(CODE(_charFiltered), 0), 1)
+                    ),
+                    _charLimited, IF(_limit = 0, _charSorted,
+                        LET(
+                            _repeats, SCAN(0, SEQUENCE(ROWS(_charSorted)),
+                                LAMBDA(_acc, _curr,
+                                    IF(_acc = 0, 1,
+                                        IF(_ignoreCase,
+                                            IF(INDEX(_charSorted, _curr) = INDEX(_charSorted, _curr - 1), _acc + 1, 1),
+                                            IF(CODE(INDEX(_charSorted, _curr)) = CODE(INDEX(_charSorted, _curr - 1)), _acc + 1, 1)
+                                        )
+                                    )
+                                )
+                            ),
+                            FILTER(_charSorted, _repeats <= _limit, "")
+                        )
+                    ),
+                    TEXTJOIN("", TRUE, _charLimited)
+                )
+            ),
+            MAP(Text, LAMBDA(_element, fnSiftChars(_element))
+            )
+        )
+    )
+); 
 
 
 /*##############################################################################################################
@@ -806,81 +906,12 @@ SPLIT_AROUND_CHARS = LAMBDA(Chars, Text, [Limit],
 
 
 /*--------------------------------------------------------------------------------------------------------------
-IS_VALID_TIMESPAN
-
-Tests if sexagesimal representation of a timespan is valid.
-A component can exceed its modulus if no higher order component is provided.
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | boolean |
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Sign      | integer [-1,0,1] |
-Days      | decimal [0..]    | Fractional allowed if hours, minutes and seconds empty.
-[Hours]   | decimal [0..24)  | Fractional allowed if minutes and seconds empty.
-[Minutes] | decimal [0..60)  | Fractional allowed if seconds empty.
-[Seconds] | decimal [0..60)  | Fractional allowed
---------------------------------------------------------------------------------------------------------------*/
-IS_VALID_TIMESPAN = LAMBDA(Sign, Days, [Hours], [Minutes], [Seconds],
-    IFS(
-        ISERROR(Sign), FALSE,
-        NOT(ISNUMBER(Sign)), FALSE,
-        Sign < -1, FALSE,
-        Sign > 1, FALSE,
-        NOT(IS_INTEGER(Sign)), FALSE,
-        TRUE, LET(
-            _high, IFS(
-                ISNUMBER(Days), 1,
-                ISNUMBER(Hours), 2,
-                ISNUMBER(Minutes), 3,
-                ISNUMBER(Seconds), 4,
-                TRUE, 0
-            ),
-            IF(_high = 0, FALSE,
-                LET(
-                    _low, IFS(
-                        ISNUMBER(Seconds), 4,
-                        ISNUMBER(Minutes), 3,
-                        ISNUMBER(Hours), 2,
-                        ISNUMBER(Days), 1
-                    ),
-                    
-                    fnInvalidElement, LAMBDA(_element, _max, _level, _zeroSign,
-                        IFS(
-                            ISERROR(_element), TRUE,
-                            (_element = "") * (_high < _level) * (_low > _level), TRUE,
-                            _element = "", FALSE,
-                            NOT(ISNUMBER(_element)), TRUE,
-                            (_low > _level) * NOT(IS_INTEGER(_element)), TRUE,
-                            _element < 0, TRUE,
-                            _zeroSign * (_element > 0), TRUE,
-                            IF(_max = "", 0, (_high < _level) * (_element >= _max)), TRUE,
-                            TRUE, FALSE
-                        )
-                    ),
-                    
-                    _zeroSign, Sign = 0,
-                    IFS(
-                        fnInvalidElement(Days, "", 1, _zeroSign), FALSE,
-                        fnInvalidElement(Hours, 24, 2, _zeroSign), FALSE,
-                        fnInvalidElement(Minutes, 60, 3, _zeroSign), FALSE,
-                        fnInvalidElement(Seconds, 60, 4, _zeroSign), FALSE,
-                        TRUE, TRUE
-                    )
-                )
-            )
-        )
-    )    
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
 VALIDATE_TIMESPAN
 
 Validate each element of a sexagesimal representation of a timespan.
 A component can exceed its modulus if no higher order component is provided.
+
+Array compatible: As columns
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -892,61 +923,123 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Sign      | integer [-1,0,1] |
-Days      | decimal [0..]    | Fractional allowed if hours, minutes and seconds empty.
-[Hours]   | decimal [0..24)  | Fractional allowed if minutes and seconds empty.
-[Minutes] | decimal [0..60)  | Fractional allowed if seconds empty.
-[Seconds] | decimal [0..60)  | Fractional allowed
+TimeSpan_C5 | array   C[2..5]  |
+   Sign     | integer [-1,0,1] |
+   Days     | decimal [0..]    | Fractional allowed if hours, minutes and seconds empty.
+   Hours    | decimal [0..24)  | Fractional allowed if minutes and seconds empty.
+   Minutes  | decimal [0..60)  | Fractional allowed if seconds empty.
+   Seconds  | decimal [0..60)  | Fractional allowed
 --------------------------------------------------------------------------------------------------------------*/
-VALIDATE_TIMESPAN = LAMBDA(Sign, Days, [Hours], [Minutes], [Seconds],
+VALIDATE_TIMESPAN = LAMBDA(TimeSpan_C5,
     LET(
-        _high, IFS(
-            ISNUMBER(Days), 1,
-            ISNUMBER(Hours), 2,
-            ISNUMBER(Minutes), 3,
-            ISNUMBER(Seconds), 4,
-            TRUE, 0
-        ),
-
-        _low, IFS(
-            ISNUMBER(Seconds), 4,
-            ISNUMBER(Minutes), 3,
-            ISNUMBER(Hours), 2,
-            ISNUMBER(Days), 1,
-            TRUE, 0
-        ),
-        
-        fnCheckElement, LAMBDA(_element, _max, _level, _zeroSign,
-            IFS(
-                ISERROR(_element), _element,
-                (_element = "") * (_high < _level) * (_low > _level), {#VALUE!},
-                _element = "", "",
-                NOT(ISNUMBER(_element)), {#VALUE!},
-                (_low > _level) * NOT(IS_INTEGER(_element)), {#NUM!},
-                _element < 0, {#NUM!},
-                _zeroSign * (_element > 0), {#NUM!},
-                IF(_max = "", 0, (_high < _level) * (_element >= _max)), {#NUM!},
-                TRUE, _element
+        fnValidateTimeSpan, LAMBDA(_timeSpan,
+            LET(
+                _colCount, COLUMNS(TimeSpan_C5),
+                IFS(
+                    (_colCount > 5) + (_colCount < 2), ({#REF!} * SEQUENCE(1, _colCount)),
+                    MAX(N(NOT(IS_EMPTY(_timeSpan)))) = 0, TAKE({"","","","",""}, 1, _colCount),
+                    TRUE, LET(
+                        _sign, LET(
+                            _s, INDEX(_timeSpan, 1, 1),
+                            IFS(
+                                ISERROR(_s), HSTACK(_s),
+                                NOT(ISNUMBER(_s)), {#VALUE!},
+                                MAX(N(_s = {-1,0,1})) = 0, {#NUM!},
+                                TRUE, _s
+                            )
+                        ),
+                        _isZeroed, IFERROR(_sign, 1) = 0,
+                        _high, IFS(
+                            NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 2), ""))), 1,
+                            NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 3), ""))), 2,
+                            NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 4), ""))), 3,
+                            NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 5), ""))), 4,
+                            TRUE, 0
+                        ),
+                        IF(_high = 0, HSTACK(_sign, ({#VALUE!} * SEQUENCE(1, _colCount-1))),
+                            LET(
+                                _low, IFS(
+                                    NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 5),""))), 4,
+                                    NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 4),""))), 3,
+                                    NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 3),""))), 2,
+                                    NOT(IS_EMPTY(IFERROR(INDEX(_timeSpan, 1, 2),""))), 1,
+                                    TRUE, 0
+                                ),
+                                fnValidateComponentValue, LAMBDA(_idx, _modulus,
+                                    IF((_high > _idx) + (_low < _idx), "",
+                                        LET(
+                                            _comp, INDEX(_timeSpan, 1, _idx + 1),
+                                            IFS(
+                                                ISERROR(_comp), HSTACK(_comp),
+                                                NOT(ISNUMBER(_comp)), {#VALUE!},
+                                                _comp < 0, {#NUM!},
+                                                _isZeroed * (_comp > 0), {#NUM!},
+                                                (_high < _idx) * (_comp >= _modulus), {#NUM!},
+                                                (_low > _idx) * NOT(IS_INTEGER(_comp)), {#NUM!},
+                                                TRUE, _comp
+                                            )
+                                        )
+                                    )
+                                ),
+                                _days, fnValidateComponentValue(1, 0),
+                                _hours, fnValidateComponentValue(2, 24),
+                                _minutes, fnValidateComponentValue(3, 60),
+                                _seconds, fnValidateComponentValue(4, 60),
+                                TAKE(
+                                    HSTACK(_sign, _days, _hours, _minutes, _seconds),
+                                    1, _colCount
+                                )
+                            )
+                        )
+                    )
+                )
             )
         ),
-        
-        _sign, IFS(
-            NOT(ISNUMBER(Sign)), {#VALUE!},
-            Sign < -1, {#NUM!},
-            Sign > 1, {#NUM!},
-            NOT(IS_INTEGER(Sign)), {#NUM!},
-            TRUE, Sign
-        ),
-        _zeroSign, IF(ISNUMBER(_sign), _sign = 0, FALSE),
-        
-        _days, fnCheckElement(Days, "", 1, _zeroSign),
-        _hours, fnCheckElement(Hours, 24, 2, _zeroSign),
-        _minutes, fnCheckElement(Minutes, 60, 3, _zeroSign),
-        _seconds, fnCheckElement(Seconds, 60, 4, _zeroSign),
-        IF(
-            ISNUMBER(_sign) * IS_EMPTY(_days) * IS_EMPTY(_hours) * IS_EMPTY(_minutes) * IS_EMPTY(_seconds),
-            HSTACK(_sign, {#VALUE!, #VALUE!, #VALUE!, #VALUE!}),
-            HSTACK(_sign, _days, _hours, _minutes, _seconds)
+        _rowCount, ROWS(TimeSpan_C5),
+        DROP(
+            REDUCE({""}, SEQUENCE(_rowCount),
+                LAMBDA(_acc, _curr,
+                    VSTACK(
+                        _acc,
+                        fnValidateTimeSpan(INDEX(TimeSpan_C5, _curr, ))
+                    )
+                )
+            ), 1
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_VALID_TIMESPAN
+
+Tests if sexagesimal representation of a timespan is valid.
+A component can exceed its modulus if no higher order component is provided.
+
+Array compatible: As columns
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TimeSpan_C5 | array   C[2..5]  |
+   Sign     | integer [-1,0,1] |
+   Days     | decimal [0..]    | Fractional allowed if hours, minutes and seconds empty.
+   Hours    | decimal [0..24)  | Fractional allowed if minutes and seconds empty.
+   Minutes  | decimal [0..60)  | Fractional allowed if seconds empty.
+   Seconds  | decimal [0..60)  | Fractional allowed
+--------------------------------------------------------------------------------------------------------------*/
+IS_VALID_TIMESPAN = LAMBDA(TimeSpan_C5,
+    BYROW(TimeSpan_C5,
+        LAMBDA(_timeSpan,
+            IF(MAX(N(NOT(IS_EMPTY(_timeSpan)))) = 0, FALSE,
+                LET(
+                    _validateTimeSpan, VALIDATE_TIMESPAN(_timeSpan),
+                    MAX(N(ISERROR(_validateTimeSpan))) = 0
+                )
+            )
         )
     )
 );
@@ -956,6 +1049,9 @@ VALIDATE_TIMESPAN = LAMBDA(Sign, Days, [Hours], [Minutes], [Seconds],
 TIMESPAN_LOW_ORDER
 
 Returns a number representing the lowest order element of the sexagesimal representation of a timespan value.
+Assumes the timespan is validly resolved.
+
+Array compatible: As columns
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -967,30 +1063,48 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Days      | decimal         | Decimal timespan when omitting hours, minutes and seconds
-[Hours]   | integer [0..23] |
-[Minutes] | integer [0..59] |
-[Seconds] | decimal [0..60) |
+TimeSpan_C5 | array   C[2..5]  |
+   Sign     | integer [-1,0,1] |
+   Days     | decimal [0..]    | Fractional allowed if hours, minutes and seconds empty.
+   Hours    | decimal [0..24)  | Fractional allowed if minutes and seconds empty.
+   Minutes  | decimal [0..60)  | Fractional allowed if seconds empty.
+   Seconds  | decimal [0..60)  | Fractional allowed
 --------------------------------------------------------------------------------------------------------------*/
-TIMESPAN_LOW_ORDER = LAMBDA(Days, [Hours], [Minutes], [Seconds],
-    IFS(
-        (Days = "") * (Hours = "") * (Minutes = "") * (Seconds = ""), "",
-        ISNUMBER(Days) * IS_EMPTY(Hours) * IS_EMPTY(Minutes) * IS_EMPTY(Seconds), IFS(
-            Days = 0, {#N/A},
-            NOT(IS_INTEGER(Days * 1440)), 4,
-            NOT(IS_INTEGER(Days * 24)), 3,
-            NOT(IS_INTEGER(Days)), 2,
-            ISNUMBER(Days), 1,
-            TRUE, {#N/A}
-        ),
-        ISNUMBER(Hours) + ISNUMBER(Minutes) + ISNUMBER(Seconds), IFS(
-            ABS(N(Seconds)) > 0, 4,
-            ABS(N(Minutes)) > 0, 3,
-            ABS(N(Hours)) > 0, 2,
-            ABS(N(Days)) > 0, 1,
-            TRUE, {#N/A}
-        ),
-        TRUE, {#VALUE!}
+TIMESPAN_LOW_ORDER = LAMBDA(TimeSpan_C5,
+    BYROW(TimeSpan_C5,
+        LAMBDA(_timeSpan,
+            LET(
+                _colCount, COLUMNS(_timeSpan),
+                IFS(
+                    (_colCount > 5) + (_colCount < 2), {#REF!},
+                    MAX(N(NOT(IS_EMPTY(_timeSpan)))) = 0, {#VALUE!},
+                    TRUE, LET(
+                        _sign, INDEX(_timeSpan, 1, 1),
+                        _days, N(INDEX(_timeSpan, 1, 2)),
+                        _hours, IF(_colCount < 3, 0, N(INDEX(_timeSpan, 1, 3))),
+                        _minutes, IF(_colCount < 4, 0, N(INDEX(_timeSpan, 1, 4))),
+                        _seconds, IF(_colCount < 5, 0, N(INDEX(_timeSpan, 1, 5))),
+                        IFS(
+                            NOT(ISNUMBER(_sign)), {#VALUE!},
+                            MAX(N(_sign = {-1,0,1})) = 0, {#VALUE!},
+                            _sign = 0, {#N/A},
+                            TRUE, LET(
+                                _totalSecs, (_days * 86400) + (_hours * 3600) + (_minutes * 60) + _seconds,
+                                IFS(
+                                    ISERROR(_totalSecs), {#VALUE!},
+                                    _totalSecs < 0, {#VALUE!},
+                                    _totalSecs = 0, {#N/A},
+                                    NOT(IS_INTEGER(_totalSecs / 60)), 4,
+                                    NOT(IS_INTEGER(_totalSecs / 3600)), 3,
+                                    NOT(IS_INTEGER(_totalSecs / 86400)), 2,
+                                    TRUE, 1
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
     )
 );
 
@@ -1000,6 +1114,8 @@ TIMESPAN_HIGH_ORDER
 
 Returns a number representing the highest order component of the sexagesimal representation of a timespan value.
 
+Array compatible: As columns
+
 Output
 ----------------------------------------------------------------------------------------------------------------
  1 | integer | Order, #N/A for zero
@@ -1010,32 +1126,48 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Days      | decimal         | Decimal timespan when omitting hours, minutes and seconds
-[Hours]   | integer [0..23] |
-[Minutes] | integer [0..59] |
-[Seconds] | decimal [0..60) |
+TimeSpan_C5 | array   C[2..5]  |
+   Sign     | integer [-1,0,1] |
+   Days     | decimal [0..]    | Fractional allowed if hours, minutes and seconds empty.
+   Hours    | decimal [0..24)  | Fractional allowed if minutes and seconds empty.
+   Minutes  | decimal [0..60)  | Fractional allowed if seconds empty.
+   Seconds  | decimal [0..60)  | Fractional allowed
 --------------------------------------------------------------------------------------------------------------*/
-TIMESPAN_HIGH_ORDER = LAMBDA(Days, [Hours], [Minutes], [Seconds],
-    IFS(
-        (Days = "") * (Hours = "") * (Minutes = "") * (Seconds = ""), "",
-        ISNUMBER(Days) * IS_EMPTY(Hours) * IS_EMPTY(Minutes) * IS_EMPTY(Seconds), LET(
-            _absTimeSpan, ABS(Days),
-            IFS(
-                _absTimeSpan = 0, {#N/A},
-                _absTimeSpan >= 1, 1,
-                _absTimeSpan * 24 >= 1, 2,
-                _absTimeSpan * 1440 >= 1, 3,
-                TRUE, 4
+TIMESPAN_HIGH_ORDER = LAMBDA(TimeSpan_C5,
+    BYROW(TimeSpan_C5,
+        LAMBDA(_timeSpan,
+            LET(
+                _colCount, COLUMNS(_timeSpan),
+                IFS(
+                    (_colCount > 5) + (_colCount < 2), {#REF!},
+                    MAX(N(NOT(IS_EMPTY(_timeSpan)))) = 0, {#VALUE!},
+                    TRUE, LET(
+                        _sign, INDEX(_timeSpan, 1, 1),
+                        _days, N(INDEX(_timeSpan, 1, 2)),
+                        _hours, IF(_colCount < 3, 0, N(INDEX(_timeSpan, 1, 3))),
+                        _minutes, IF(_colCount < 4, 0, N(INDEX(_timeSpan, 1, 4))),
+                        _seconds, IF(_colCount < 5, 0, N(INDEX(_timeSpan, 1, 5))),
+                        IFS(
+                            NOT(ISNUMBER(_sign)), {#VALUE!},
+                            MAX(N(_sign = {-1,0,1})) = 0, {#VALUE!},
+                            _sign = 0, {#N/A},
+                            TRUE, LET(
+                                _totalSecs, (_days * 86400) + (_hours * 3600) + (_minutes * 60) + _seconds,
+                                IFS(
+                                    ISERROR(_totalSecs), {#VALUE!},
+                                    _totalSecs < 0, {#VALUE!},
+                                    _totalSecs = 0, {#N/A},
+                                    _totalSecs >= 86400, 1,
+                                    _totalSecs >= 3600, 2,
+                                    _totalSecs >= 60, 3,
+                                    TRUE, 4
+                                )
+                            )
+                        )
+                    )
+                )
             )
-        ),
-        ISNUMBER(Days) + ISNUMBER(Hours) + ISNUMBER(Minutes) + ISNUMBER(Seconds), IFS(
-            ABS(N(Days)) > 0, 1,
-            ABS(N(Hours)) > 0, 2,
-            ABS(N(Minutes)) > 0, 3,
-            ABS(N(Seconds)) > 0, 4,
-            TRUE, {#N/A}
-        ),
-        TRUE, {#VALUE!}
+        )
     )
 );
 
@@ -1046,6 +1178,8 @@ TIMESPAN
 Returns a decimal timespan as a fraction of a day from a sexagesimal representation of time.
 Note components exceeding their modulus will carry.
 
+Array compatible: As columns
+
 Output
 ----------------------------------------------------------------------------------------------------------------
  1 | decimal | Timespan as fraction of a day. Implicitly converts to Excel Date/Time type for non-negative
@@ -1053,32 +1187,37 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-Sign      | integer [-1,0,1] |
-Days      | decimal [0..]    |
-[Hours]   | decimal [0..23]  |
-[Minutes] | decimal [0..59]  |
-[Seconds] | decimal [0..60)  |
+TimeSpan_C5 | array   C[2..5]  |
+   Sign     | integer [-1,0,1] |
+   Days     | decimal [0..]    | Fractional allowed if hours, minutes and seconds empty.
+   Hours    | decimal [0..24)  | Fractional allowed if minutes and seconds empty.
+   Minutes  | decimal [0..60)  | Fractional allowed if seconds empty.
+   Seconds  | decimal [0..60)  | Fractional allowed
 --------------------------------------------------------------------------------------------------------------*/
-TIMESPAN = LAMBDA(Sign, Days, [Hours], [Minutes], [Seconds],
-    IFS(
-        IS_EMPTY(Days) * IS_EMPTY(Hours) * IS_EMPTY(Minutes) * IS_EMPTY(Seconds), "",
-        ISERROR(Sign), Sign,
-        ISERROR(Days), Days,
-        ISERROR(Hours), Hours,
-        ISERROR(Minutes), Minutes,
-        ISERROR(Seconds), Seconds,
-        NOT(IS_NUMERIC_NULL(Sign)), {#VALUE!},
-        NOT(IS_NUMERIC_NULL(Days)), {#VALUE!},
-        NOT(IS_NUMERIC_NULL(Hours)), {#VALUE!},
-        NOT(IS_NUMERIC_NULL(Minutes)), {#VALUE!},
-        NOT(IS_NUMERIC_NULL(Seconds)), {#VALUE!},
-        TRUE, LET(
-            _sign, IFS(
-                Sign = 0, 0,
-                Sign < 0, -1,
-                TRUE, 1
-            ),
-            _sign * (N(Days) + (N(Hours) / 24) + (N(Minutes) / 1440) + (N(Seconds) / 86400))
+TIMESPAN = LAMBDA(TimeSpan_C5,
+    BYROW(TimeSpan_C5,
+        LAMBDA(_timeSpan,
+            LET(
+                _colCount, COLUMNS(_timeSpan),
+                IFS(
+                    (_colCount > 5) + (_colCount < 2), {#REF!},
+                    MAX(N(NOT(IS_EMPTY(_timeSpan)))) = 0, "",
+                    MAX(N(ISERROR(_timeSpan))) = 1, {#VALUE!},
+                    TRUE, LET(
+                        _sign, INDEX(_timeSpan, 1, 1),
+                        _days, N(INDEX(_timeSpan, 1, 2)),
+                        _hours, IF(_colCount < 3, 0, N(INDEX(_timeSpan, 1, 3))),
+                        _minutes, IF(_colCount < 4, 0, N(INDEX(_timeSpan, 1, 4))),
+                        _seconds, IF(_colCount < 5, 0, N(INDEX(_timeSpan, 1, 5))),
+                        IFS(
+                            NOT(ISNUMBER(_sign)), {#VALUE!},
+                            MAX(N(_sign = {-1,0,1})) = 0, {#VALUE!},
+                            _sign = 0, 0,
+                            TRUE, _sign * (_days + (_hours / 24) + (_minutes / 1440) + (_seconds / 86400))
+                        )
+                    )
+                )
+            )
         )
     )
 );
@@ -1089,13 +1228,15 @@ ROUND_TIMESPAN
 
 Returns a decimal timespan value rounded to the specified low order component and precision level.
 
+Array compatible: TimeSpan_D only
+
 Output
 ----------------------------------------------------------------------------------------------------------------
  1 | decimal | TimeSpan
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-TimeSpan    | decimal | Decimal timespan where a day = 1
+TimeSpan_D  | decimal | Decimal timespan where a day = 1
 [LowOrder]  | integer | Lowest-order component to round at. Defaults to Second.
             | [1..4]  |  1 - Day
             |         |  2 - Hour
@@ -1105,36 +1246,39 @@ TimeSpan    | decimal | Decimal timespan where a day = 1
             | [0..9]  | Defaults to 0
 [Truncate]  | switch  | Round to precision by truncating components. Default is rounding to nearest.
 --------------------------------------------------------------------------------------------------------------*/
-ROUND_TIMESPAN = LAMBDA(TimeSpan, [LowOrder], [Precision], [Truncate],
-    IFS(
-        IS_EMPTY(TimeSpan), "",
-        NOT(ISNUMBER(TimeSpan)), {#VALUE!},
-        TimeSpan = 0, 0,
-        TRUE, LET(
-            _lowOrder, IFS(
-                NOT(ISNUMBER(LowOrder)), 4,
-                LowOrder < 1, 1,
-                LowOrder > 4, 4,
-                TRUE, INT(LowOrder)
-            ),
-            _precision, IFS(
-                NOT(ISNUMBER(Precision)), 0,
-                Precision < 0, 0,
-                Precision > 9, 9,
-                TRUE, INT(Precision)
-            ),
-            IF(N(Truncate) = 0,
+ROUND_TIMESPAN = LAMBDA(TimeSpan_D, [LowOrder], [Precision], [Truncate],
+    LET(
+        _lowOrder, IFS(
+            NOT(ISNUMBER(LowOrder)), 4,
+            LowOrder < 1, 1,
+            LowOrder > 4, 4,
+            TRUE, INT(LowOrder)
+        ),
+        _precision, IFS(
+            NOT(ISNUMBER(Precision)), 0,
+            Precision < 0, 0,
+            Precision > 9, 9,
+            TRUE, INT(Precision)
+        ),
+        _truncate, N(Truncate) <> 0,
+        MAP(TimeSpan_D, 
+            LAMBDA(_timeSpan,
                 IFS(
-                    _lowOrder = 1, ROUND(TimeSpan, _precision),
-                    _lowOrder = 2, ROUND(TimeSpan * 24, _precision) / 24,
-                    _lowOrder = 3, ROUND(TimeSpan * 1440, _precision) / 1440,
-                    _lowOrder = 4, ROUND(TimeSpan * 86400, _precision) / 86400
-                ),
-                IFS(
-                    _lowOrder = 1, ROUNDDOWN(TimeSpan, _precision),
-                    _lowOrder = 2, ROUNDDOWN(TimeSpan * 24, _precision) / 24,
-                    _lowOrder = 3, ROUNDDOWN(TimeSpan * 1440, _precision) / 1440,
-                    _lowOrder = 4, ROUNDDOWN(TimeSpan * 86400, _precision) / 86400
+                    IS_EMPTY(_timeSpan), "",
+                    NOT(ISNUMBER(_timeSpan)), {#VALUE!},
+                    _timeSpan = 0, 0,
+                    _truncate, IFS(
+                        _lowOrder = 1, ROUNDDOWN(_timeSpan, _precision),
+                        _lowOrder = 2, ROUNDDOWN(_timeSpan * 24, _precision) / 24,
+                        _lowOrder = 3, ROUNDDOWN(_timeSpan * 1440, _precision) / 1440,
+                        _lowOrder = 4, ROUNDDOWN(_timeSpan * 86400, _precision) / 86400
+                    ),
+                    TRUE, IFS(
+                        _lowOrder = 1, ROUND(_timeSpan, _precision),
+                        _lowOrder = 2, ROUND(_timeSpan * 24, _precision) / 24,
+                        _lowOrder = 3, ROUND(_timeSpan * 1440, _precision) / 1440,
+                        _lowOrder = 4, ROUND(_timeSpan * 86400, _precision) / 86400
+                    )
                 )
             )
         )
@@ -1142,12 +1286,13 @@ ROUND_TIMESPAN = LAMBDA(TimeSpan, [LowOrder], [Precision], [Truncate],
 );
 
 
-
 /*--------------------------------------------------------------------------------------------------------------
 RESOLVE_TIMESPAN
 
 Returns the sexagesimal representation of a timespan value expressed from the specified high order component
 and the given lowest order component rounded to the specified precision.
+
+Array compatible: TimeSpan_D as column
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -1159,7 +1304,7 @@ Output
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-TimeSpan      | decimal | Decimal timespan where a day = 1
+TimeSpan_D    | decimal | Decimal timespan where a day = 1
 [HighOrder]   | integer | Highest-order component. Defaults to Day.
               | [1..4]  |  1 - Day
               |         |  2 - Hour
@@ -1174,8 +1319,10 @@ TimeSpan      | decimal | Decimal timespan where a day = 1
               | [0..9]  | Null - Floating
 [Truncate]    | switch  | Round to precision by truncating components. Default is rounding to nearest.
 --------------------------------------------------------------------------------------------------------------*/
-RESOLVE_TIMESPAN = LAMBDA(TimeSpan, [HighOrder], [LowOrder], [Precision], [Truncate],
+RESOLVE_TIMESPAN = LAMBDA(TimeSpan_D, [HighOrder], [LowOrder], [Precision], [Truncate],
     LET(
+        _maxPrecision, 9,
+        
         _lowOrder, IFS(
             NOT(ISNUMBER(LowOrder)), 4,
             LowOrder < 1, 4,
@@ -1193,261 +1340,213 @@ RESOLVE_TIMESPAN = LAMBDA(TimeSpan, [HighOrder], [LowOrder], [Precision], [Trunc
             IF(_high > _lowOrder, _lowOrder, _high)
         ),
         
-        IFS(
-            TimeSpan = "", {"", "", "", "", ""},
-            NOT(ISNUMBER(TimeSpan)), {#VALUE!, "", "", "", ""},
-            TimeSpan = 0, CHOOSECOLS({0, 0, 0, 0, 0, "", "", ""}, SEQUENCE(1, 5, 5 - _lowOrder)), 
-            TRUE, LET(
-                _truncate, N(Truncate) <> 0,
-                _absTimeSpan, ABS(TimeSpan),
-                _sign, SIGN(TimeSpan),
-                _precision, IFS(
-                    Precision = "", "",
-                    Precision < 0, 0,
-                    Precision > 9, 9,
-                    TRUE, INT(Precision)
-                ),
-                IFS(
-                    _highOrder = 1, IFS(
-                        _lowOrder = 4, LET(
-                            _seconds, _absTimeSpan * 86400,
-                            _minutes, INT(_seconds / 60),
-                            _decSecond, _seconds - (_minutes * 60),
-                            _hours, INT(_minutes / 60),
-                            _rMinute, _minutes - (_hours * 60),
-                            _rDay, INT(_hours / 24),
-                            _rHour, _hours - (_rDay * 24),
-                            // Round second last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Second checked for rounding up to minute.
-                            _rSecond, IFS(
-                                _precision = "", _decSecond,
-                                _truncate, ROUNDDOWN(_decSecond, _precision),
-                                TRUE, ROUND(_decSecond, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rSecond > 0, _sign,
-                                _rMinute > 0, _sign,
-                                _rHour > 0, _sign,
-                                _rDay > 0, _sign,
-                                TRUE, 0
-                            ),
-                            IFS(
-                                _rSecond < 60, HSTACK(_rSign, _rDay, _rHour, _rMinute, _rSecond),
-                                _rMinute <= 58, HSTACK(_rSign, _rDay, _rHour, _rMinute + 1, 0),
-                                _rHour <= 22, HSTACK(_rSign, _rDay, _rHour + 1, 0, 0),
-                                TRUE, HSTACK(_rSign, _rDay + 1, 0, 0, 0)
-                            )
-                        ),
-                    
-                        _lowOrder = 3, LET(
-                            _minutes, _absTimeSpan * 1440,
-                            _hours, INT(_minutes / 60),
-                            _decMinute, _minutes - (_hours * 60),
-                            _rDay, INT(_hours / 24),
-                            _rHour, _hours - (_rDay * 24),
-                            // Round minute last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Minute checked for rounding up to hour.
-                            _rMinute, IFS(
-                                _precision = "", _decMinute,
-                                _truncate, ROUNDDOWN(_decMinute, _precision),
-                                TRUE, ROUND(_decMinute, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rMinute > 0, _sign,
-                                _rHour > 0, _sign,
-                                _rDay > 0, _sign,
-                                TRUE, 0
-                            ),
-                            IFS(
-                                _rMinute < 60, HSTACK(_rSign, _rDay, _rHour, _rMinute, ""),
-                                _rHour <= 22, HSTACK(_rSign, _rDay, _rHour + 1, 0, ""),
-                                TRUE, HSTACK(_rSign, _rDay + 1, 0, 0, "")
-                            )
-                        ),
-                        _lowOrder = 2, LET(
-                            _hours, _absTimeSpan * 24,
-                            _rDay, INT(_hours / 24),
-                            _decHour, _hours - (_rDay * 24),
-                            // Round hour last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Hour checked for rounding up to day.
-                            _rHour, IFS(
-                                _precision = "", _decHour,
-                                _truncate, ROUNDDOWN(_decHour, _precision),
-                                TRUE, ROUND(_decHour, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rHour > 0, _sign,
-                                _rDay > 0, _sign,
-                                TRUE, 0
-                            ),
-                            IFS(
-                                _rHour < 24, HSTACK(_rSign, _rDay, _rHour, "", ""),
-                                TRUE, HSTACK(_rSign, _rDay + 1, 0, "", "")
-                            )
-                        ),
-                        _lowOrder = 1, LET(
-                            _decDay, _absTimeSpan,
-                            _rDay, IFS(
-                                _precision = "", _decDay,
-                                _truncate, ROUNDDOWN(_decDay, _precision),
-                                TRUE, ROUND(_decDay, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rDay > 0, _sign,
-                                TRUE, 0
-                            ),
-                            HSTACK(_rSign, _rDay, "", "", "")
-                        )
-                    ),
+        _float, NOT(ISNUMBER(Precision)),
+        _truncate, ISNUMBER(Precision) * (N(Truncate) <> 0),
+        _precision, IFS(
+            NOT(ISNUMBER(Precision)), "",
+            Precision < 0, 0,
+            Precision > _maxPrecision, _maxPrecision,
+            TRUE, INT(Precision)
+        ),
+        
+        fnRoundLastComponent, LAMBDA(_number,
+            IFS(
+                _float, _number,
+                _truncate, ROUNDDOWN(_number, _precision),
+                TRUE, ROUND(_number, _precision)
+            )
+        ),
 
-                    _highOrder = 2, IFS(
-                        _lowOrder = 4, LET(
-                            _seconds, _absTimeSpan * 86400,
-                            _minutes, INT(_seconds / 60),
-                            _decSecond, _seconds - (_minutes * 60),
-                            _rHour, INT(_minutes / 60),
-                            _rMinute, _minutes - (_rHour * 60),
-                            // Round second last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Second checked for rounding up to minute.
-                            _rSecond, IFS(
-                                _precision = "", _decSecond,
-                                _truncate, ROUNDDOWN(_decSecond, _precision),
-                                TRUE, ROUND(_decSecond, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rSecond > 0, _sign,
-                                _rMinute > 0, _sign,
-                                _rHour > 0, _sign,
-                                TRUE, 0
-                            ),
-                            IFS(
-                                _rSecond < 60, HSTACK(_rSign, "", _rHour, _rMinute, _rSecond),
-                                _rMinute <= 58, HSTACK(_rSign, "", _rHour, _rMinute + 1, 0),
-                                TRUE, HSTACK(_rSign, "", _rHour + 1, 0, 0)
-                            )
-                        ),
-                    
-                        _lowOrder = 3, LET(
-                            _minutes, _absTimeSpan * 1440,
-                            _rHour, INT(_minutes / 60),
-                            _decMinute, _minutes - (_rHour * 60),
-                            // Round minute last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Minute checked for rounding up to hour.
-                            _rMinute, IFS(
-                                _precision = "", _decMinute,
-                                _truncate, ROUNDDOWN(_decMinute, _precision),
-                                TRUE, ROUND(_decMinute, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rMinute > 0, _sign,
-                                _rHour > 0, _sign,
-                                TRUE, 0
-                            ),
-                            IF(_rMinute < 60,
-                                HSTACK(_rSign, "", _rHour, _rMinute, ""),
-                                HSTACK(_rSign, "", _rHour + 1, 0, "")
-                            )
-                        ),
-                        _lowOrder = 2, LET(
-                            _decHour, _absTimeSpan * 24,
-                            // Round hour last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Hour checked for rounding up to day.
-                            _rHour, IFS(
-                                _precision = "", _decHour,
-                                _truncate, ROUNDDOWN(_decHour, _precision),
-                                TRUE, ROUND(_decHour, _precision)
-                            ),
-                            _rSign, IF(_rHour > 0,
-                                _sign,
-                                0
-                            ),
-                            HSTACK(_rSign, "", _rHour, "", "")
-                        )
-                    ),
-
-                    _highOrder = 3, IFS(
-                        _lowOrder = 4, LET(
-                            _seconds, _absTimeSpan * 86400,
-                            _rMinute, INT(_seconds / 60),
-                            _decSecond, _seconds - (_rMinute * 60),
-                            // Round second last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Second checked for rounding up to minute.
-                            _rSecond, IFS(
-                                _precision = "", _decSecond,
-                                _truncate, ROUNDDOWN(_decSecond, _precision),
-                                TRUE, ROUND(_decSecond, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rSecond > 0, _sign,
-                                _rMinute > 0, _sign,
-                                TRUE, 0
-                            ),
-                            IF(_rSecond < 60,
-                                HSTACK(_rSign, "", "", _rMinute, _rSecond),
-                                HSTACK(_rSign, "", "", _rMinute + 1, 0)
-                            )
-                        ),
-                    
-                        _lowOrder = 3, LET(
-                            _minutes, _absTimeSpan * 1440,
-                            _rHour, INT(_minutes / 60),
-                            _decMinute, _minutes - (_rHour * 60),
-                            // Round minute last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Minute checked for rounding up to hour.
-                            _rMinute, IFS(
-                                _precision = "", _decMinute,
-                                _truncate, ROUNDDOWN(_decMinute, _precision),
-                                TRUE, ROUND(_decMinute, _precision)
-                            ),
-                            _rSign, IFS(
-                                _rMinute > 0, _sign,
-                                _rHour > 0, _sign,
-                                TRUE, 0
-                            ),
-                            IF(_rMinute < 60,
-                                HSTACK(_rSign, "", _rHour, _rMinute, ""),
-                                HSTACK(_rSign, "", _rHour + 1, 0, "")
-                            )
-                        )
-                    ),
-
-                    _highOrder = 4, IFS(
-                        _lowOrder = 4, LET(
-                            _decSecond, _absTimeSpan * 86400,
-                            // Round second last because arithmetic rounding of the timespan decimal value
-                            // can bring in floating point errors.
-                            // Sign checked for rounding down to zero.
-                            // Second checked for rounding up to minute.
-                            _rSecond, IFS(
-                                _precision = "", _decSecond,
-                                _truncate, ROUNDDOWN(_decSecond, _precision),
-                                TRUE, ROUND(_decSecond, _precision)
-                            ),
-                            _rSign, IF(_rSecond > 0,
-                                _sign,
-                                0
-                            ),
-                            HSTACK(_rSign, "", "", "", _rSecond)
+        fnCheckSign, LAMBDA(_sign, _d, _h, _m, _s,
+            IFS(
+                _s > 0, _sign,
+                _m > 0, _sign,
+                _h > 0, _sign,
+                _d > 0, _sign,
+                TRUE, 0
+            )
+        ),
+           
+        fnResolveTimeSpan, LAMBDA(_timeSpan,
+            IFS(
+                _timeSpan = "", {"", "", "", "", ""},
+                NOT(ISNUMBER(_timeSpan)), {#VALUE!, "", "", "", ""},
+                _timeSpan = 0, MAP(SEQUENCE(1,5),
+                    LAMBDA(_n,
+                        IFS(
+                            _n = 1, 0,
+                            _n - 1 < _highOrder, "",
+                            _n - 1 > _lowOrder, "",
+                            TRUE, 0
                         )
                     )
-                )                    
+                ),
+                TRUE, LET(
+                    _absTimeSpan, ABS(_timeSpan),
+                    _sign, SIGN(_timeSpan),
+                    IFS(
+                        _highOrder = 1, IFS(
+                            _lowOrder = 4, LET(
+                                _rDay, INT(_absTimeSpan),
+                                _hours, MOD(_absTimeSpan, 1) * 24,
+                                _rHour, INT(_hours),
+                                _minutes, MOD(_hours, 1) * 60,
+                                _rMinute, INT(_minutes),
+                                _seconds, MOD(_minutes, 1) * 60,
+                                // Round second last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Second checked for rounding up to minute.
+                                _rSecond, fnRoundLastComponent(_seconds),
+                                _rSign, fnCheckSign(_sign, _rDay, _rHour, _rMinute, _rSecond),
+                                IFS(
+                                    _rSecond < 60, HSTACK(_rSign, _rDay, _rHour, _rMinute, _rSecond),
+                                    _rMinute <= 58, HSTACK(_rSign, _rDay, _rHour, _rMinute + 1, 0),
+                                    _rHour <= 22, HSTACK(_rSign, _rDay, _rHour + 1, 0, 0),
+                                    TRUE, HSTACK(_rSign, _rDay + 1, 0, 0, 0)
+                                )
+                            ),
+                        
+                            _lowOrder = 3, LET(
+                                _rDay, INT(_absTimeSpan),
+                                _hours, MOD(_absTimeSpan, 1) * 24,
+                                _rHour, INT(_hours),
+                                _minutes, MOD(_hours, 1) * 60,
+                                // Round minute last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Minute checked for rounding up to hour.
+                                _rMinute, fnRoundLastComponent(_minutes),
+                                _rSign, fnCheckSign(_sign, _rDay, _rHour, _rMinute, 0),
+                                IFS(
+                                    _rMinute < 60, HSTACK(_rSign, _rDay, _rHour, _rMinute, ""),
+                                    _rHour <= 22, HSTACK(_rSign, _rDay, _rHour + 1, 0, ""),
+                                    TRUE, HSTACK(_rSign, _rDay + 1, 0, 0, "")
+                                )
+                            ),
+                            _lowOrder = 2, LET(
+                                _rDay, INT(_absTimeSpan),
+                                _hours, MOD(_absTimeSpan, 1) * 24,
+                                // Round hour last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Hour checked for rounding up to day.
+                                _rHour, fnRoundLastComponent(_hours),
+                                _rSign, fnCheckSign(_sign, _rDay, _rHour, 0, 0),
+                                IFS(
+                                    _rHour < 24, HSTACK(_rSign, _rDay, _rHour, "", ""),
+                                    TRUE, HSTACK(_rSign, _rDay + 1, 0, "", "")
+                                )
+                            ),
+                            _lowOrder = 1, LET(
+                                _rDay, fnRoundLastComponent(_absTimeSpan),
+                                _rSign, fnCheckSign(_sign, _rDay, 0, 0, 0),
+                                HSTACK(_rSign, _rDay, "", "", "")
+                            )
+                        ),
+
+                        _highOrder = 2, IFS(
+                            _lowOrder = 4, LET(
+                                _hours, _absTimeSpan * 24,
+                                _rHour, INT(_hours),
+                                _minutes, MOD(_hours, 1) * 60,
+                                _rMinute, INT(_minutes),
+                                _seconds, MOD(_minutes, 1) * 60,
+                                // Round second last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Second checked for rounding up to minute.
+                                _rSecond, fnRoundLastComponent(_seconds),
+                                _rSign, fnCheckSign(_sign, 0, _rHour, _rMinute, _rSecond),
+                                IFS(
+                                    _rSecond < 60, HSTACK(_rSign, "", _rHour, _rMinute, _rSecond),
+                                    _rMinute <= 58, HSTACK(_rSign, "", _rHour, _rMinute + 1, 0),
+                                    TRUE, HSTACK(_rSign, "", _rHour + 1, 0, 0)
+                                )
+                            ),
+                        
+                            _lowOrder = 3, LET(
+                                _hours, _absTimeSpan * 24,
+                                _rHour, INT(_hours),
+                                _minutes, MOD(_hours, 1) * 60,
+                                // Round minute last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Minute checked for rounding up to hour.
+                                _rMinute, fnRoundLastComponent(_minutes),
+                                _rSign, fnCheckSign(_sign, 0, _rHour, _rMinute, 0),
+                                IF(_rMinute < 60,
+                                    HSTACK(_rSign, "", _rHour, _rMinute, ""),
+                                    HSTACK(_rSign, "", _rHour + 1, 0, "")
+                                )
+                            ),
+                            _lowOrder = 2, LET(
+                                _hours, _absTimeSpan * 24,
+                                // Round hour last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Hour checked for rounding up to day.
+                                _rHour, fnRoundLastComponent(_hours),
+                                _rSign, fnCheckSign(_sign, 0, _rHour, 0, 0),
+                                HSTACK(_rSign, "", _rHour, "", "")
+                            )
+                        ),
+
+                        _highOrder = 3, IFS(
+                            _lowOrder = 4, LET(
+                                _minutes, _absTimeSpan * 1440,
+                                _rMinute, INT(_minutes),
+                                _seconds, MOD(_minutes, 1) * 60,
+                                // Round second last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Second checked for rounding up to minute.
+                                _rSecond, fnRoundLastComponent(_seconds),
+                                _rSign, fnCheckSign(_sign, 0, 0, _rMinute, _rSecond),
+                                IF(_rSecond < 60,
+                                    HSTACK(_rSign, "", "", _rMinute, _rSecond),
+                                    HSTACK(_rSign, "", "", _rMinute + 1, 0)
+                                )
+                            ),
+                        
+                            _lowOrder = 3, LET(
+                                _minutes, _absTimeSpan * 1440,
+                                // Round minute last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Minute checked for rounding up to hour.
+                                _rMinute, fnRoundLastComponent(_minutes),
+                                _rSign, fnCheckSign(_sign, 0, 0, _rMinute, 0),
+                                HSTACK(_rSign, "", "", _rMinute, "")
+                            )
+                        ),
+
+                        _highOrder = 4, IFS(
+                            _lowOrder = 4, LET(
+                                _seconds, _absTimeSpan * 86400,
+                                // Round second last because arithmetic rounding of the timespan decimal value
+                                // can bring in floating point errors.
+                                // Sign checked for rounding down to zero.
+                                // Second checked for rounding up to minute.
+                                _rSecond, fnRoundLastComponent(_seconds),
+                                _rSign, fnCheckSign(_sign, 0, 0, 0, _seconds),
+                                HSTACK(_rSign, "", "", "", _rSecond)
+                            )
+                        )
+                    )
+                )
             )
+        ),
+        _rowCount, ROWS(TimeSpan_D),
+        DROP(
+            REDUCE({""}, SEQUENCE(_rowCount),
+                LAMBDA(_acc, _curr,
+                    VSTACK(
+                        _acc,
+                        fnResolveTimeSpan(INDEX(TimeSpan_D, _curr, 1))
+                    )
+                )
+            ), 1
         )
     )
 );
@@ -1457,6 +1556,8 @@ RESOLVE_TIMESPAN = LAMBDA(TimeSpan, [HighOrder], [LowOrder], [Precision], [Trunc
 PARSE_TIMESPAN
 
 Parses a text timespan expression into sexagesimal components.
+
+Array compatible: TimeSpanText as column
 
 Output
 ----------------------------------------------------------------------------------------------------------------
@@ -1486,340 +1587,152 @@ Returns: #NUM!  i.e. range is 0 to 24 hours
 PARSE_TIMESPAN = LAMBDA(TimeSpanText, [AsComplication],
     LET(
         _asValue, N(AsComplication) = 0,
-        IFS(
-            TimeSpanText = "", IF(_asValue, "", {"", "", "", "", ""}),
-            _asValue * ISNUMBER(TimeSpanText), TimeSpanText, 
-            TRUE, LET(
-                fnParseModernFmt, LAMBDA(_text,
-                    LET(
-                        _split, SPLIT_AROUND_CHARS("0123456789", _text),
-                        _pattern, INDEX(_split, 1),
-                        IFS(
-                            // d.hh:mm:ss.000
-                            _pattern = ".::.", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 6)), 9),
-                                HSTACK(
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)),
-                                    VALUE(INDEX(_split, 4)),
-                                    VALUE(INDEX(_split, 5)) + (VALUE(LEFT(INDEX(_split, 6), _decimals)) / (10 ^ _decimals))
-                                )
-                            ),
-                            // d.hh:mm:ss
-                            _pattern = ".::", HSTACK(
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                VALUE(INDEX(_split, 4)),
-                                VALUE(INDEX(_split, 5))
-                            ),
-                            // d.hh:mm
-                            _pattern = ".:", HSTACK(
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                VALUE(INDEX(_split, 4)),
-                                ""
-                            ),
-                            // h:mm:ss.000
-                            _pattern = "::.", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 5)), 9),
-                                HSTACK(
-                                    "",
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)),
-                                    VALUE(INDEX(_split, 4)) + (VALUE(LEFT(INDEX(_split, 5), _decimals)) / (10 ^ _decimals))
-                                )
-                            ),
-                            // h:mm:ss
-                            _pattern = "::", HSTACK(
-                                "",
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                VALUE(INDEX(_split, 4))
-                            ),
-                            // m:ss.000
-                            _pattern = ":.", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 4)), 9),
-                                HSTACK(
-                                    "",
-                                    "",
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)) + (VALUE(LEFT(INDEX(_split, 4), _decimals)) / (10 ^ _decimals))
-                                )
-                            ),
-                            // h:mm
-                            _pattern = ":", HSTACK(
-                                "",
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                ""
-                            ),
-                            // d.000
-                            _pattern = ".", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 3)), 9),
-                                HSTACK(
-                                    VALUE(INDEX(_split, 2)) + (VALUE(LEFT(INDEX(_split, 3), _decimals)) / (10 ^ _decimals)),
-                                    "",
-                                    "",
-                                    ""
-                                )
-                            ),
-                            TRUE, {#VALUE!}
-                        )
+        _logicTable, {
+            // terms, pattern, high, low, skipLastCol, hasDecimal
+            5, ".::.", 1, 4, FALSE, TRUE;    // d.hh:mm:ss.000
+            4, ".::", 1, 4, FALSE, FALSE;    // d.hh:mm:ss
+            4, "::.", 2, 4, FALSE, TRUE;     // h:mm:ss.000
+            3, ".:", 1, 3, FALSE, FALSE;     // d.hh:mm
+            3, "::", 2, 4, FALSE, FALSE;     // h:mm:ss
+            3, ":.", 3, 4, FALSE, TRUE;      // m:ss.000
+            2, ":", 2, 3, FALSE, FALSE;      // h:mm
+            2, ".", 1, 1, FALSE, TRUE;       // d.000
+            1, "", 1, 1, FALSE, FALSE;       // d
+            6, "dh'.""", 1, 4, TRUE, TRUE;  // 0d00h00'00.000"
+            5, "dh'""", 1, 4, TRUE, FALSE;  // 0d00h00'00"
+            5, "dh.'", 1, 3, TRUE, TRUE;    // 0d00h00.000'
+            5, "h'.""", 2, 4, TRUE, TRUE;   // 0h00'00.000"
+            4, "dh'", 1, 3, TRUE, FALSE;    // 0d00h00'
+            4, "h'""", 2, 4, TRUE, FALSE;   // 0h00'00"
+            4, "d.h", 1, 2, TRUE, TRUE;     // 0d00.000h
+            4, "h.'", 2, 3, TRUE, TRUE;     // 0h00.000'
+            4, "'.""", 3, 4, TRUE, TRUE;    // 0'00.000"
+            3, "dh", 1, 2, TRUE, FALSE;     // 0d00h
+            3, "h'", 2, 3, TRUE, FALSE;     // 0h00'
+            3, "'""", 3, 4, TRUE, FALSE;    // 0'00"
+            3, ".d", 1, 1, TRUE, TRUE;      // 0.000d
+            3, ".h", 2, 2, TRUE, TRUE;      // 0.000h
+            3, ".'", 3, 3, TRUE, TRUE;      // 0.000'
+            3, ".""", 4, 4, TRUE, TRUE;     // 0.000"
+            2, "d", 1, 1, TRUE, FALSE;      // 0d
+            2, "h", 2, 2, TRUE, FALSE;      // 0h
+            2, "'", 3, 3, TRUE, FALSE;      // 0'
+            2, """", 4, 4, TRUE, FALSE      // 0"
+        },
+        fnParseComplication, LAMBDA(_timeSpanText,
+            LET(
+                _timeSpanText1, IF(IFERROR(FIND(" ", _timeSpanText), 0) = 0,
+                    _timeSpanText,
+                    IF(FIND_NTH_CHAR(_timeSpanText, "dh'""", 1) > 0,
+                        SUBSTITUTE(_timeSpanText, " ", ""),
+                        {#VALUE!}
                     )
                 ),
-
-                fnParseTraditionalFmt, LAMBDA(_text,
-                    LET(
-                        _text1, SUBSTITUTE(_text, " ", ""),
-                        _split, SPLIT_AROUND_CHARS("0123456789", _text1),
-                        _pattern, INDEX(_split, 1),
-                        IFS(
-                            // 0d00h00'00.000"
-                            _pattern = "dh'.""", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 6)), 9),
-                                HSTACK(
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)),
-                                    VALUE(INDEX(_split, 4)),
-                                    VALUE(INDEX(_split, 5)) + (VALUE(LEFT(INDEX(_split, 6), _decimals)) / (10 ^ _decimals))
-                                )
-                            ),
-                            // 0d00h00'00"
-                            _pattern = "dh'""", HSTACK(
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                VALUE(INDEX(_split, 4)),
-                                VALUE(INDEX(_split, 5))
-                            ),
-                            // 0d00h00.000'
-                            _pattern = "dh.'", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 5)), 9),
-                                HSTACK(
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)),
-                                    VALUE(INDEX(_split, 4)) + (VALUE(LEFT(INDEX(_split, 5), _decimals)) / (10 ^ _decimals)),
-                                    ""
-                                )
-                            ),
-                            // 0d00h00'
-                            _pattern = "dh'", HSTACK(
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                VALUE(INDEX(_split, 4)),
-                                ""
-                            ),
-                            // 0d00.000h
-                            _pattern = "d.h", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 4)), 9),
-                                HSTACK(
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)) + (VALUE(LEFT(INDEX(_split, 4), _decimals)) / (10 ^ _decimals)),
-                                    "",
-                                    ""
-                                )
-                            ),
-                            // 0d00h
-                            _pattern = "dh", HSTACK(
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                "",
-                                ""
-                            ),
-                            // 0.000d
-                            _pattern = ".d", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 3)), 9),
-                                HSTACK(
-                                    VALUE(INDEX(_split, 2)) + (VALUE(LEFT(INDEX(_split, 3), _decimals)) / (10 ^ _decimals)),
-                                    "",
-                                    "",
-                                    ""
-                                )
-                            ),
-                            // 0d
-                            _pattern = "d", HSTACK(
-                                VALUE(INDEX(_split, 2)),
-                                "",
-                                "",
-                                ""
-                            ),
-                            // 0h00'00.000"
-                            _pattern = "h'.""", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 5)), 9),
-                                HSTACK(
-                                    "",
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)),
-                                    VALUE(INDEX(_split, 4)) + (VALUE(LEFT(INDEX(_split, 5), _decimals)) / (10 ^ _decimals))
-                                )
-                            ),
-                            // 0h00'00"
-                            _pattern = "h'""", HSTACK(
-                                "",
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                VALUE(INDEX(_split, 4))
-                            ),
-                            // 0h00.000'
-                            _pattern = "h.'", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 4)), 9),
-                                HSTACK(
-                                    "",
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)) + (VALUE(LEFT(INDEX(_split, 4), _decimals)) / (10 ^ _decimals)),
-                                    ""
-                                )
-                            ),
-                            // 0h00'
-                            _pattern = "h'", HSTACK(
-                                "",
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3)),
-                                ""
-                            ),
-                            // 0.000h
-                            _pattern = ".h", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 3)), 9),
-                                HSTACK(
-                                    "",
-                                    VALUE(INDEX(_split, 2)) + (VALUE(LEFT(INDEX(_split, 3), _decimals)) / (10 ^ _decimals)),
-                                    "",
-                                    ""
-                                )
-                            ),
-                            // 0h
-                            _pattern = "h", HSTACK(
-                                "",
-                                VALUE(INDEX(_split, 2)),
-                                "",
-                                ""
-                            ),
-                            // 0'00.000"
-                            _pattern = "'.""", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 4)), 9),
-                                HSTACK(
-                                    "",
-                                    "", 
-                                    VALUE(INDEX(_split, 2)),
-                                    VALUE(INDEX(_split, 3)) + (VALUE(LEFT(INDEX(_split, 4), _decimals)) / (10 ^ _decimals))
-                                )
-                            ),
-                            // 0'00"
-                            _pattern = "'""", HSTACK(
-                                "",
-                                "", 
-                                VALUE(INDEX(_split, 2)),
-                                VALUE(INDEX(_split, 3))
-                            ),
-                            // 0.000'
-                            _pattern = ".'", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 3)), 9),
-                                HSTACK(
-                                    "",
-                                    "",
-                                    VALUE(INDEX(_split, 2)) + (VALUE(LEFT(INDEX(_split, 3), _decimals)) / (10 ^ _decimals)),
-                                    ""
-                                )
-                            ),
-                            // 0'
-                            _pattern = "'", HSTACK(
-                                "",
-                                "",
-                                VALUE(INDEX(_split, 2)),
-                                ""
-                            ),
-                            // 0.000"
-                            _pattern = ".""", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 3)), 9),
-                                HSTACK(
-                                    "",
-                                    "",
-                                    "",
-                                    VALUE(INDEX(_split, 2)) + (VALUE(LEFT(INDEX(_split, 3), _decimals)) / (10 ^ _decimals))
-                                )
-                            ),
-                            // 0"
-                            _pattern = """", HSTACK(
-                                "",
-                                "",
-                                "",
-                                VALUE(INDEX(_split, 2))
-                            ),
-                            // 0.000
-                            _pattern = ".", LET(
-                                _decimals, MIN(LEN(INDEX(_split, 3)), 9),
-                                HSTACK(
-                                    VALUE(INDEX(_split, 2)) + (VALUE(LEFT(INDEX(_split, 3), _decimals)) / (10 ^ _decimals)),
-                                    "",
-                                    "",
-                                    ""
-                                )
-                            ),
-                            // 0
-                            _pattern = "", HSTACK(
-                                VALUE(INDEX(_split, 2)),
-                                "",
-                                "",
-                                ""
-                            ),
-                            TRUE, {#VALUE!}
-                        )
-                    )
+                _firstChar, LEFT(_timeSpanText1, 1),
+                _hasSign, IFS(
+                    _firstChar = "+", TRUE,
+                    _firstChar = "-", TRUE,
+                    _firstChar = UNICHAR(8722), TRUE,
+                    TRUE, FALSE
                 ),
-
-                _complication, IF(ISNUMBER(TimeSpanText), RESOLVE_TIMESPAN(TimeSpanText),
-                    LET(
-                        _isModernFmt, IFERROR(FIND(":", TimeSpanText), 0) > 0,
-                        _timeSpanText, IF(_isModernFmt, TimeSpanText, SUBSTITUTE(TimeSpanText, " ", "")),
-                        _firstChar, LEFT(_timeSpanText, 1),
-                        _hasSign, IFS(
-                            _firstChar = "+", TRUE,
-                            _firstChar = "-", TRUE,
-                            _firstChar = UNICHAR(8722), TRUE,
-                            TRUE, FALSE
-                        ),
-                        _nominalSign, IFS(
-                            _firstChar = "-", -1,
-                            _firstChar = UNICHAR(8722), -1,
-                            TRUE, 1
-                        ),
-                        _uTimeSpan, IF(_hasSign, MID(_timeSpanText, 2, LEN(_timeSpanText) - 1), _timeSpanText),
-                        
-                        _tryParse, IF(_isModernFmt,
-                            fnParseModernFmt(_uTimeSpan),
-                            fnParseTraditionalFmt(_uTimeSpan)
-                        ),
-                        IF(ISERROR(INDEX(_tryParse, 1, 1)), {#VALUE!, "", "", "", ""},
+                _nominalSign, IFS(
+                    _firstChar = "-", -1,
+                    _firstChar = UNICHAR(8722), -1,
+                    TRUE, 1
+                ),
+                _uTimeSpan, IF(_hasSign, MID(_timeSpanText1, 2, LEN(_timeSpanText1) - 1), _timeSpanText1),
+                _split, SPLIT_FOR_CHARS(_uTimeSpan, "0123456789"),
+                _terms, INDEX(_split, 1, 1), 
+                _pattern, INDEX(_split, 1, 2),
+                _match, FILTER(_logicTable, (CHOOSECOLS(_logicTable, 1) = _terms) * (CHOOSECOLS(_logicTable, 2) = _pattern), ""),
+                IF(COLUMNS(_match) = 1, {#VALUE!},
+                    LET( 
+                        _high, INDEX(_match, 1, 3),
+                        _low, INDEX(_match, 1, 4),
+                        _nCols, _terms - N(INDEX(_match, 1, 5)),
+                        _lastCol, 2 + _nCols,
+                        _hasDecimals, INDEX(_match, 1, 6),
+                        _expressedTerms, if(_hasDecimals,
                             LET(
-                                _sign, IFS(
-                                    INDEX(_tryParse, 1, 1) > 0, _nominalSign,
-                                    INDEX(_tryParse, 1, 2) > 0, _nominalSign,
-                                    INDEX(_tryParse, 1, 3) > 0, _nominalSign,
-                                    INDEX(_tryParse, 1, 4) > 0, _nominalSign,
-                                    TRUE, 0
-                                ),
-                                VALIDATE_TIMESPAN(
-                                    _sign,
-                                    INDEX(_tryParse, 1, 1),
-                                    INDEX(_tryParse, 1, 2),
-                                    INDEX(_tryParse, 1, 3),
-                                    INDEX(_tryParse, 1, 4)
+                                _decimals, MIN(LEN(INDEX(_split, 1, _lastCol)), 9),
+                                IFS(
+                                    _nCols > 2,
+                                        HSTACK(
+                                            VALUE(DROP(TAKE(_split, 1, _lastCol - 2),, 2)),
+                                            VALUE(INDEX(_split, 1, _lastCol - 1)) + (VALUE(LEFT(INDEX(_split, 1, _lastCol), _decimals)) / (10 ^ _decimals))
+                                        ),
+                                    _nCols = 2,
+                                        HSTACK(
+                                            VALUE(INDEX(_split, 1, _lastCol - 1)) + (VALUE(LEFT(INDEX(_split, 1, _lastCol), _decimals)) / (10 ^ _decimals))
+                                        ),
+                                    TRUE, {#VALUE!}
                                 )
+                            ),
+                            HSTACK(
+                                VALUE(DROP(TAKE(_split, 1, _lastCol),, 2))
                             )
+                        ),
+                        _trueSign, IF(MAX(N(_expressedTerms > 0)) = 0, 0, _nominalSign), 
+                        IFS(
+                            (_high = 1) * (_low = 4),
+                                HSTACK(
+                                    _trueSign,   
+                                    _expressedTerms
+                                ),
+                            (_high > 1) * (_low = 4),
+                                HSTACK(
+                                    _trueSign,
+                                    TAKE({"","",""}, 1, _high - 1),
+                                    _expressedTerms
+                                ),
+                            (_high = 1) * (_low < 4),
+                                HSTACK(
+                                    _trueSign,
+                                    _expressedTerms,
+                                    TAKE({"","",""}, 1, 4 - _low)
+                                ),
+                            TRUE,
+                                HSTACK(
+                                    _trueSign,
+                                    TAKE({"","",""}, 1, _high - 1),
+                                    _expressedTerms,
+                                    TAKE({"","",""}, 1, 4 - _low)
+                                )
                         )
                     )
-                ),
-
-                IF(_asValue,
-                    TIMESPAN(
-                        INDEX(_complication, 1, 1),
-                        INDEX(_complication, 1, 2),
-                        INDEX(_complication, 1, 3),
-                        INDEX(_complication, 1, 4),
-                        INDEX(_complication, 1, 5)
-                    ),
-                    _complication
                 )
             )
+        ),
+        
+        DROP(
+            REDUCE({""}, SEQUENCE(ROWS(TimeSpanText)),
+                LAMBDA(_acc, _curr,
+                    LET(
+                        _ts, INDEX(TimeSpanText, _curr, ),
+                        _out, IF(_asValue,
+                            IFS(
+                                _ts = "", "",
+                                ISNUMBER(_ts), _ts,
+                                TRUE, LET(
+                                    _complication, fnParseComplication(_ts),
+                                    IF(ISERROR(INDEX(_complication, 1, 1)),
+                                        {#VALUE!},
+                                        TIMESPAN(_complication)
+                                    )
+                                )
+                            ),
+                            IF(
+                                _ts = "", {"", "", "", "", ""},
+                                fnParseComplication(_ts)
+                            )
+                        ),
+                        VSTACK(
+                            _acc,
+                            _out
+                        )
+                    )
+                )
+            ), 1
         )
     )
 );
@@ -1830,105 +1743,112 @@ FORMAT_TIMESPAN
 
 Returns a timespan as text in the specified format from a given decimal timespan.
 
+Array compatible: TimeSpan_D only
+
 Output
 ----------------------------------------------------------------------------------------------------------------
  1 | text    | Formatted timespan d.HH:mm:ss.000
 
 Parameters
 ----------------------------------------------------------------------------------------------------------------
-TimeSpan       | decimal | Decimal timespan where a day = 1
-[Options]      | text    | String with elements: [+][T][P][_][<][~][HighOrder][LowOrder][Precision]
+TimeSpan_D     | decimal | Decimal timespan where a day = 1
+[Options]      | text    | String with elements: [T|E][+][P][_][~|<][HighOrder][LowOrder][Precision]
+               |         |      T, E : Traditional or European Style. Modern style when not present.
                |         |         + : Display positive sign for non-negative values
-               |         |         T : Traditional Style. Modern style when not present
-               |         |         P : Pad leading values with zero.
-               |         |         _ : Insert spacing. Applicable to traditional style only.
-               |         |         < : Round by truncating components. Default is rounding to nearest.
-               |         |         ~ : Floating display of components. For modern style only has an effect when
-               |         |           : low order item is seconds, by allowing floating display of decimal seconds.
-               |         |           : For traditional style, floats from high order to low order.
-               |         | HighOrder : high order component
-               |         | LowOrder  : low order component
-               |         | HighOrder and LowOrder elements take the following:
-               |         |         D : Day
-               |         |         H : Hour
-               |         |         M : Minute
-               |         |         S : Second
-               |         | Precision : [0-9] For modern style only has an effect when low order component is seconds.
-               |         |           : For traditional style, decimals can be expressed on any low order component 
+               |         |         P : Modern style: pad leading value with zero.
+               |         |             Traditional and European styles: pad all values except first with zero.
+               |         |         _ : Insert spacing. Not applicable to modern style.
+               |         |      ~, < : Force rounding method of low order component: ~ round nearest, < round down
+               |         |             If neither specified then defaults to behaviour of the style.
+               |         |             Modern style: Round down for days, hours and minutes; round to nearest for seconds.
+               |         |             Traditional and European styles: When no precision specified round down for days,
+               |         |             hours and minutes; round to nearest for seconds.
+               |         | HighOrder : High order component. Upper case to set explicitly. Lower case allows floating
+               |         |             from expressing in the given component up to days as needed.
+               |         | LowOrder  : Low order component. Upper case to set explicitly. Lower case allows floating
+               |         |             from expressing in the given component down to seconds as needed.
+               |         | If only a single option is given, it is assumed to be LowOrder.
+               |         | Both elements take the following:
+               |         |      D, d : Day
+               |         |      H, h : Hour
+               |         |      M, m : Minute
+               |         |      S, s : Second
+               |         | Precision : [0-9]
+               |         |             Decimal places to display.
+               |         |             Modern style: Only applies to seconds.
+               |         |             Traditional and European styles: Applies to low order component.
 Examples
 ----------------------------------------------------------------------------------------------------------------
 FORMAT_TIMESPAN(1.7865, "")
-Returns: 1.18:52:34
+Returns: 1.18:52:33.6
 
 FORMAT_TIMESPAN(1.7865, "HS3")
 Returns: 42:52:33.600
 
 FORMAT_TIMESPAN(1.7865, "T+_HS")
-Returns: + 42h 52' 34"
+Returns: + 42h 52m 33s"
+
+FORMAT_TIMESPAN(1.7865, "ES")
+Returns: 1h18h52'34"
 --------------------------------------------------------------------------------------------------------------*/
-FORMAT_TIMESPAN = LAMBDA(TimeSpan, [Options],
-    IFS(
-        IS_EMPTY(TimeSpan), "",
-        NOT(ISNUMBER(TimeSpan)), {#VALUE!},
-        TRUE, LET(
-            _modernStyle, IFERROR(SEARCH("T", Options), 0) = 0,
-            _signPositive, IFERROR(FIND("+", Options), 0) > 0,
-            _fixed, IFERROR(FIND("~", Options), 0) = 0,
-            _padding, IFERROR(SEARCH("P", Options), 0) > 0,
-            _spacing, IFERROR(FIND("_", Options), 0) > 0,
-            _truncate, IFERROR(FIND("<", Options), 0) > 0,
-                    
-            _tryHighOrderChar, SEARCH_NTH_CHAR("DHMS", Options, 1, 1),
-            _passedHighOrder, IFS(
-                INDEX(_tryHighOrderChar, 1, 1) = 0, "",
-                INDEX(_tryHighOrderChar, 1, 2) = "D", 1,
-                INDEX(_tryHighOrderChar, 1, 2) = "H", 2,
-                INDEX(_tryHighOrderChar, 1, 2) = "M", 3,
-                INDEX(_tryHighOrderChar, 1, 2) = "S", 4
-            ),
+FORMAT_TIMESPAN = LAMBDA(TimeSpan_D, [Options],
+    LET(
+        _style, LEFT(SIFT_FOR_CHARS(Options, "TE", 1)),
+        _signPositive, IFERROR(FIND("+", Options), 0) > 0,
+        _padding, IFERROR(SEARCH("P", Options), 0) > 0,
+        _spacing, IFERROR(FIND("_", Options), 0) > 0,
+        _rounding, IFS(
+            IFERROR(FIND("~", Options), 0) > 0, 1,
+            IFERROR(FIND("<", Options), 0) > 0, -1,
+            TRUE, 0
+        ),
+        
+        // precision (max 9 decimals for nanoseconds)
+        _tryPrecision, FIND_NTH_CHAR(Options, "0123456789", 1, 0, 1),
+        _precision, IF(INDEX(_tryPrecision, 1, 1) = 0, "", VALUE(INDEX(_tryPrecision, 1, 2))),
+        
+        _orderSpec, SIFT_FOR_CHARS(Options, "DHMS", 2),
+        _high, IFS(
+            _orderSpec = "", {0; 0},
+            LEN(_orderSpec) = 1, {0; 0},
+            TRUE, LET(
+                _h, LEFT(_orderSpec, 1),
+                VSTACK(
+                    N(CODE(_h) < 100),
+                    XMATCH(_h, {"D", "H", "M", "S"}, 0)
+                )
+            )
+        ),
+        _hardHigh, INDEX(_high, 1),
+        _highOrder, INDEX(_high, 2),
 
-            _tryLowOrderChar, SEARCH_NTH_CHAR("DHMS", Options, 1, 1, INDEX(_tryHighOrderChar, 1, 1) + 1),
-            _passedLowOrder, IFS(
-                INDEX(_tryLowOrderChar, 1, 1) = 0, "",
-                INDEX(_tryLowOrderChar, 1, 2) = "D", 1,
-                INDEX(_tryLowOrderChar, 1, 2) = "H", 2,
-                INDEX(_tryLowOrderChar, 1, 2) = "M", 3,
-                INDEX(_tryLowOrderChar, 1, 2) = "S", 4
-            ),
-                                
-            // switch if needed
-            _lowOrder, IFS(
-                ISNUMBER(_passedLowOrder) * ISNUMBER(_passedHighOrder),
-                    MAX(_passedHighOrder, _passedLowOrder),
-                ISNUMBER(_passedLowOrder) * NOT(ISNUMBER(_passedHighOrder)),
-                    IF(_passedLowOrder <= 2, "", _passedLowOrder),
-                NOT(ISNUMBER(_passedLowOrder)) * ISNUMBER(_passedHighOrder),
-                    IF(_passedHighOrder >= 3, _passedHighOrder, ""),
-                TRUE, ""
-            ),
-                    
-            _highOrder, IFS(
-                ISNUMBER(_passedLowOrder) * ISNUMBER(_passedHighOrder),
-                    MIN(_passedHighOrder, _passedLowOrder),
-                ISNUMBER(_passedLowOrder) * NOT(ISNUMBER(_passedHighOrder)),
-                    IF(_passedLowOrder <= 2, _passedLowOrder, ""),
-                NOT(ISNUMBER(_passedLowOrder)) * ISNUMBER(_passedHighOrder),
-                    IF(_passedHighOrder >= 3, "", _passedHighOrder),
-                TRUE, ""
-            ),
-                
-            // precision (max 9 decimals for nanoseconds)
-            _tryPrecision, SEARCH_NTH_CHAR("0123456789", Options, 1, 1),
-            _precision, IF(INDEX(_tryPrecision, 1, 1) = 0, "", VALUE(INDEX(_tryPrecision, 1, 2))),
-            
-            _provider, IF(_modernStyle,
-                _FORMAT_PROVIDER_TIMESPAN_MODERN(TimeSpan, _signPositive, _fixed, _padding, _precision, _truncate, _highOrder, _lowOrder),
-                _FORMAT_PROVIDER_TIMESPAN_TRADITIONAL(TimeSpan, _signPositive, _fixed, _padding, _spacing, _precision, _truncate, _highOrder, _lowOrder)
-            ),
+        _low, IF(_orderSpec = "", {0; 0},
+            LET(
+                _h, RIGHT(LEFT(_orderSpec, 2), 1),
+                VSTACK(
+                    N(CODE(_h) < 100),
+                    XMATCH(_h, {"D", "H", "M", "S"}, 0)
+                )
+            )
+        ),
+        _hardLow, INDEX(_low, 1),
+        _lowOrder, INDEX(_low, 2),
 
-            _count, INDEX(_provider, 1, 2) - INDEX(_provider, 1, 1) + 1,
-            IF(_count < 1, "",
-                LET(
+        fnFormatTimeSpan, LAMBDA(_timeSpan,
+            IFS(
+                IS_EMPTY(_timeSpan), "",
+                NOT(ISNUMBER(_timeSpan)), {#VALUE!},
+                TRUE, LET(
+                    _provider, IFS(
+                        _style = "",
+                            _FORMAT_PROVIDER_TIMESPAN_MODERN(_timeSpan, _signPositive, _padding, _precision, _rounding, _hardHigh, _highOrder, _hardLow, _lowOrder),
+                        _style = "T",
+                            _FORMAT_PROVIDER_TIMESPAN_TRADITIONAL(_timeSpan, _signPositive, _padding, _spacing, _precision, _rounding, _hardHigh, _highOrder, _hardLow, _lowOrder),
+                        _style = "E",
+                            _FORMAT_PROVIDER_TIMESPAN_EUROPEAN(_timeSpan, _signPositive, _padding, _spacing, _precision, _rounding, _hardHigh, _highOrder, _hardLow, _lowOrder)
+                    ),
+
+                    _count, INDEX(_provider, 1, 2) - INDEX(_provider, 1, 1) + 1,
                     _designator, IF(INDEX(_provider, 2, 1) = "", "",
                         INDEX(_provider, 2, 1) & IF(INDEX(_provider, 1, 6), " ", "")
                     ),
@@ -1951,89 +1871,113 @@ FORMAT_TIMESPAN = LAMBDA(TimeSpan, [Options],
                     CONCAT(_designator, _parts)
                 )
             )
+        ),
+
+        MAP(TimeSpan_D,
+            LAMBDA(_element,
+                fnFormatTimeSpan(_element)
+            )
         )
     )
 );
 
-_FORMAT_PROVIDER_TIMESPAN_MODERN = LAMBDA(TimeSpan, SignPositive, Fixed, Padding, Precision, Truncate, HighOrder, LowOrder,
+_FORMAT_PROVIDER_TIMESPAN_MODERN = LAMBDA(TimeSpan_D, SignPositive, Padding, Precision, Rounding, HardHigh, HighOrder, HardLow, LowOrder,
+    // Rounding: -1 always round down (truncate = 1)
+    //            1 always round to nearest (truncate = 0)
+    //            0 default; if resolving to seconds then round to nearest, otherwise round down
+    
     LET(
-        _setHighOrder, ISNUMBER(HighOrder),
-        _setLowOrder, ISNUMBER(LowOrder),
-        _setPrecision, ISNUMBER(Precision),
+        fnExpressedOrder, LAMBDA(_timeSpan, _direction,
+            // _direction = -1 : low end
+            //               1 : high end
+            LET(
+                _sign, INDEX(_timeSpan, 1, 1),
+                IF(_sign = 0, {#N/A},
+                    LET(
+                        _nonZero, N((0 + DROP(_timeSpan, , 1)) <> 0),
+                        XMATCH(1, _nonZero, 0, _direction)
+                    )
+                )
+            )
+        ),
+
+        _maxPrecision, 9,
+
+        _resolveUsingSeconds, IFS(
+            HardLow = 0, TRUE,
+            LowOrder = 4, TRUE,
+            TRUE, FALSE
+        ),
+
+        _resolvePrecision, IFS(
+            NOT(_resolveUsingSeconds), 0,
+            ISNUMBER(Precision), Precision,
+            HardLow = 1, 0,
+            TRUE, _maxPrecision
+        ),
+        
+        _resolveTruncate, IFS(
+            Rounding = 1, FALSE,
+            Rounding = -1, TRUE,
+            TRUE, NOT(_resolveUsingSeconds)
+        ),
 
         _resolveHighOrder, IFS(
-            // modern style high order can only be days or hours
-            _setHighOrder * (HighOrder > 2), 2,
-            _setHighOrder, HighOrder,
-            // default to days
-            TRUE, 1
+            HardHigh = 0, 1,
+            // high order days or hours
+            HighOrder <= 2, HighOrder,
+            // modern style high order can only be minutes when seconds explicitly expressed with decimals
+            (HighOrder = 3) * (HardLow = 1) * (LowOrder = 4) * (N(Precision) > 0), 3, 
+            // otherwise high order is hours
+            TRUE, 2
         ),
 
         _resolveLowOrder, IFS(
+            HardLow = 0, 4,
             // modern style low order can only be minutes or seconds
-            _setLowOrder * (LowOrder < 3), 3,
-            _setLowOrder, LowOrder,
-            // default to seconds
-            TRUE, 4
+            LowOrder >= 3, LowOrder,
+            // otherwise low order is minutes
+            TRUE, 3
         ),
         
-        _resolvePrecision, IFS(
-            // modern style only seconds can have decimals
-            _resolveLowOrder < 4, 0,
-            _setPrecision, Precision,
-            // default to 0 for fixed
-            Fixed, 0,
-            // default to 9 for floating
-            TRUE, 9
-        ),
-        
-        _resolveTimeSpan, RESOLVE_TIMESPAN(TimeSpan, _resolveHighOrder, _resolveLowOrder, _resolvePrecision, Truncate),
-        
-        _showHighOrder, IF(Fixed, _resolveHighOrder,
+        _resolveTimeSpan, RESOLVE_TIMESPAN(TimeSpan_D, _resolveHighOrder, _resolveLowOrder, _resolvePrecision, _resolveTruncate),
+
+        _showLowOrder, IF(HardLow, _resolveLowOrder,
+            // floating
             LET(
-                // floating
-                _hasHighOrder, IFERROR(
-                    TIMESPAN_HIGH_ORDER(
-                        INDEX(_resolveTimeSpan, 1, 2),
-                        INDEX(_resolveTimeSpan, 1, 3),
-                        INDEX(_resolveTimeSpan, 1, 4),
-                        INDEX(_resolveTimeSpan, 1, 5)
-                    ), 2
-                ),
-                // effectively high order can be days or hours
-                MIN(2, MAX(_resolveHighOrder, _hasHighOrder))
+                // modern style low order can only be minutes or seconds
+                _minLowOrder, IF(LowOrder = 4, 4, 3),
+                _hasLowOrder, IFNA(fnExpressedOrder(_resolveTimeSpan, -1), _minLowOrder),
+                MAX(_minLowOrder, _hasLowOrder)
             )
         ),
-        
-        _showLowOrder, IF(Fixed, _resolveLowOrder,
-            LET(
-                // floating
-                _hasLowOrder, IFERROR(
-                    TIMESPAN_LOW_ORDER(
-                        INDEX(_resolveTimeSpan, 1, 2),
-                        INDEX(_resolveTimeSpan, 1, 3),
-                        INDEX(_resolveTimeSpan, 1, 4),
-                        INDEX(_resolveTimeSpan, 1, 5)
-                    ), 3
-                ),
-                // effectively low order can be minutes or seconds
-                MAX(3, MIN(_resolveLowOrder, _hasLowOrder))
-            )
+
+        _maxFractionalDigits, IFS(
+            ISNUMBER(Precision), Precision,
+            HardLow = 1, 0,
+            TRUE, _maxPrecision
         ),
-        
-        _showPrecision, IFS(
-            // if fixed then use resolved precision
-            Fixed, _resolvePrecision,
-            // floating without seconds
-            _showLowOrder < 4, 0,
-            // if floating then use lowest
-            TRUE, MIN(_resolvePrecision, DECIMALS(INDEX(_resolveTimeSpan, 1, 5)))
+
+        _showFractionalDigits, IFS(
+            NOT(_resolveUsingSeconds), 0,
+            HardLow = 1, _maxFractionalDigits,
+            TRUE, MIN(DECIMALS(INDEX(_resolveTimeSpan, 1, 5)), _maxFractionalDigits)
+        ),
+
+        _showHighOrder, IF(HardHigh, _resolveHighOrder,
+            // floating    
+            LET(
+                // modern style floating high order can only be days or hours
+                _maxHighOrder, IF(HighOrder = 1, 1, 2),
+                _hasHighOrder, IFNA(fnExpressedOrder(_resolveTimeSpan, 1), _maxHighOrder),
+                MIN(_maxHighOrder, _hasHighOrder)
+            )
         ),
         
         _leadFmt, IF(Padding, "00", "0"),
         _midFmt, "00",
-        _lastFmt, IF(_showPrecision = 0, _midFmt,
-            _midFmt & LEFT(".000000000", _showPrecision + 1)
+        _lastFmt, IF(_showFractionalDigits = 0, _midFmt,
+            _midFmt & LEFT(".000000000", _showFractionalDigits + 1)
         ),
         
         _designator, IFS(
@@ -2049,76 +1993,79 @@ _FORMAT_PROVIDER_TIMESPAN_MODERN = LAMBDA(TimeSpan, SignPositive, Fixed, Padding
         
         VSTACK(
             HSTACK(_showHighOrder, _showLowOrder, _leadFmt, _midFmt, _lastFmt, FALSE),
-            HSTACK(_designator, _delims),
+            HSTACK(_designator, _delims, _showFractionalDigits),
             _resolveTimeSpan
         )
     )
 );
 
-_FORMAT_PROVIDER_TIMESPAN_TRADITIONAL = LAMBDA(TimeSpan, SignPositive, Fixed, Padding, Spacing, Precision, Truncate, HighOrder, LowOrder,
+_FORMAT_PROVIDER_TIMESPAN_TRADITIONAL = LAMBDA(TimeSpan_D, SignPositive, Padding, Spacing, Precision, Rounding, HardHigh, HighOrder, HardLow, LowOrder,
+    // Rounding: -1 always round down (truncate = 1)
+    //            1 always round to nearest (truncate = 0)
+    //            0 default; when resolving to seconds round to nearest, otherwise round down, unless specifiing a precision
+    
     LET(
-        _setHighOrder, ISNUMBER(HighOrder),
-        _setLowOrder, ISNUMBER(LowOrder),
-        _setPrecision, ISNUMBER(Precision),
+        fnExpressedOrder, LAMBDA(_timeSpan, _direction,
+            // _direction = -1 : low end
+            //               1 : high end
+            LET(
+                _sign, INDEX(_timeSpan, 1, 1),
+                IF(_sign = 0, {#N/A},
+                    LET(
+                        _nonZero, N((0 + DROP(_timeSpan, , 1)) <> 0),
+                        XMATCH(1, _nonZero, 0, _direction)
+                    )
+                )
+            )
+        ),
 
-        // default high order to days
-        _resolveHighOrder, IF(_setHighOrder, HighOrder, 1),
-        
-        // default low order to seconds 
-        _resolveLowOrder, IF(_setLowOrder, LowOrder, 4),
-        
-        // default precision to 9
+        _maxPrecision, 9,
+
+        _setPrecision, ISNUMBER(Precision),
         _resolvePrecision, IFS(
             _setPrecision, Precision,
-            // default to 0 for fixed
-            Fixed, 0,
-            // default to 9 for floating
-            TRUE, 9
+            HardLow = 1, 0,
+            TRUE, _maxPrecision
         ),
+        
+        _resolveHighOrder, IF(HardHigh = 0, 1, HighOrder),
+        _resolveLowOrder, IF(HardLow = 0, 4, LowOrder),
 
-        _resolveTimeSpan, RESOLVE_TIMESPAN(TimeSpan, _resolveHighOrder, _resolveLowOrder, _resolvePrecision, Truncate),
+        _resolveTruncate, IFS(
+            Rounding = 1, FALSE,
+            Rounding = -1, TRUE,
+            _resolveLowOrder = 4, FALSE,
+            TRUE, (_resolvePrecision = 0)
+        ),
+        
+        _resolveTimeSpan, RESOLVE_TIMESPAN(TimeSpan_D, _resolveHighOrder, _resolveLowOrder, _resolvePrecision, _resolveTruncate),
 
-        _showLowOrder, IF(Fixed, _resolveLowOrder,
+        _showLowOrder, IF(HardLow, _resolveLowOrder,
+            // floating
             LET(
-                // floating
-                _hasLowOrder, IFERROR(
-                    TIMESPAN_LOW_ORDER(
-                        INDEX(_resolveTimeSpan, 1, 2),
-                        INDEX(_resolveTimeSpan, 1, 3),
-                        INDEX(_resolveTimeSpan, 1, 4),
-                        INDEX(_resolveTimeSpan, 1, 5)
-                    ), 4
-                ),
-                MIN(_resolveLowOrder, _hasLowOrder)
+                _hasLowOrder, IFNA(fnExpressedOrder(_resolveTimeSpan, -1), IF(LowOrder = 0, 4, LowOrder)),
+                MAX(LowOrder, _hasLowOrder)
             )
         ),
 
-        _showHighOrder, IF(Fixed, _resolveHighOrder,
+        _showFractionalDigits, IF(HardLow = 1, _resolvePrecision,
+            MIN(DECIMALS(INDEX(_resolveTimeSpan, 1, _showLowOrder + 1)), _resolvePrecision)
+        ),
+
+        _showHighOrder, IF(HardHigh, _resolveHighOrder,
+            // floating
             LET(
-                // floating
-                _hasHighOrder, IFERROR(
-                    TIMESPAN_HIGH_ORDER(
-                        INDEX(_resolveTimeSpan, 1, 2),
-                        INDEX(_resolveTimeSpan, 1, 3),
-                        INDEX(_resolveTimeSpan, 1, 4),
-                        INDEX(_resolveTimeSpan, 1, 5)
-                    ), _showLowOrder
-                ),
-                MAX(_resolveHighOrder, _hasHighOrder)
+                _hasHighOrder, IFNA(fnExpressedOrder(_resolveTimeSpan, 1), _showLowOrder),
+                IF(HighOrder = 0, _hasHighOrder, 
+                    MIN(HighOrder, _hasHighOrder)
+                )
             )
         ),
         
-        _showPrecision, IF(Fixed,
-            // if fixed then use resolved precision
-            _resolvePrecision,
-            // if floating then use lowest
-            MIN(_resolvePrecision, DECIMALS(INDEX(_resolveTimeSpan, 1, _showLowOrder + 1)))
-        ),
-
-        _leadFmt, IF(Padding, "00", "0"),
-        _midFmt, _leadFmt,
-        _lastFmt, IF(_showPrecision = 0, _midFmt,
-            _midFmt & LEFT(".000000000", _showPrecision + 1)
+        _leadFmt, "0",
+        _midFmt, IF(Padding, "00", "0"),
+        _lastFmt, IF(_showFractionalDigits = 0, _midFmt,
+            _midFmt & LEFT(".000000000", _showFractionalDigits + 1)
         ),
         
         _designator, IFS(
@@ -2127,28 +2074,29 @@ _FORMAT_PROVIDER_TIMESPAN_TRADITIONAL = LAMBDA(TimeSpan, SignPositive, Fixed, Pa
             TRUE, ""
         ),
 
-        _delims, {"d", "h", "'", """"},
+        _delims, {"d", "h", "m", "s"},
         
         VSTACK(
             HSTACK(_showHighOrder, _showLowOrder, _leadFmt, _midFmt, _lastFmt, Spacing),
-            HSTACK(_designator, _delims),
+            HSTACK(_designator, _delims, _showFractionalDigits),
             _resolveTimeSpan
         )
     )
 );
 
-
-
-
-
-
-
-
-
-
-
-
-
+_FORMAT_PROVIDER_TIMESPAN_EUROPEAN = LAMBDA(TimeSpan_D, SignPositive, Padding, Spacing, Precision, Rounding, HardHigh, HighOrder, HardLow, LowOrder,
+    LET(
+        _provider, _FORMAT_PROVIDER_TIMESPAN_TRADITIONAL(TimeSpan_D, SignPositive, Padding, Spacing, Precision, Rounding, HardHigh, HighOrder, HardLow, LowOrder),
+        _designator, INDEX(_provider, 2, 1),
+        _showFractionalDigits, INDEX(_provider, 2, 6),
+        _delims, {"d", "h", "'", """"},
+        VSTACK(
+            CHOOSEROWS(_provider, 1),
+            HSTACK(_designator, _delims, _showFractionalDigits),
+            CHOOSEROWS(_provider, 3)
+        )
+    )
+);
 
 
 
@@ -2464,7 +2412,7 @@ Returns: {2023, 2, 29} i.e. Feb 29, 1900 is valid in the Julian calendar
 PARSE_ISO_CALENDAR_DATE = LAMBDA(ISOCalendarDate, [JulianCalendar],
     IFS(
         ISOCalendarDate = "", {"", "", ""},
-        NOT(VALIDATE_CHARSET("+-0123456789" & UNICHAR(8722), ISOCalendarDate)), {#VALUE!, "", ""},
+        NOT(VALIDATE_CHARSET(ISOCalendarDate, "+-0123456789" & UNICHAR(8722))), {#VALUE!, "", ""},
         TRUE, LET(
             _firstChar, LEFT(ISOCalendarDate, 1),
             _isSigned, IFS(
@@ -3131,10 +3079,7 @@ PARSE_ISO_TZO = LAMBDA(ISOTimeZoneOffset,
                         )), {#NUM!},
                         TRUE, TIMESPAN_TO_TZO(
                             _sign * TIMESPAN(
-                                1, 0,
-                                INDEX(_tryParse, 1, 1),
-                                INDEX(_tryParse, 1, 2),
-                                INDEX(_tryParse, 1, 3)
+                                HSTACK(_sign, 0, _tryParse)
                             )
                         )
                     )
@@ -3883,16 +3828,10 @@ PARSE_ISO_TIME = LAMBDA(ISOTime, [AsComplication],
                                 INDEX(_tryParse, 1, 3), 1
                             )
                         ), IF(_asValue, {#NUM!}, {#NUM!, "", ""}),
-                        _asValue, TIMESPAN(1, 0, 
-                            INDEX(_tryParse, 1, 1),
-                            INDEX(_tryParse, 1, 2),
-                            INDEX(_tryParse, 1, 3)
+                        _asValue, TIMESPAN( 
+                            HSTACK(1, 0 , _tryParse)
                         ),
-                        TRUE, HSTACK( 
-                            INDEX(_tryParse, 1, 1),
-                            INDEX(_tryParse, 1, 2),
-                            INDEX(_tryParse, 1, 3)
-                        )
+                        TRUE, _tryParse
                     )
                 )
             )
@@ -3938,7 +3877,7 @@ FORMAT_ISO_TIME = LAMBDA(Time, [Options],
         TRUE, LET(
             _basic, IFERROR(SEARCH("B", Options), 0) > 0,
             _truncate, IFERROR(FIND("<", Options), 0) > 0,
-            _tryLowOrderChar, SEARCH_NTH_CHAR("HMS", Options, 1, 1),
+            _tryLowOrderChar, FIND_NTH_CHAR(Options, "HMS", 1, 1, 1),
             _lowOrder, IFS(
                 INDEX(_tryLowOrderChar, 1, 1) = 0, 4,
                 INDEX(_tryLowOrderChar, 1, 2) = "H", 2,
@@ -3947,7 +3886,7 @@ FORMAT_ISO_TIME = LAMBDA(Time, [Options],
             ),
             _precision, IF(_lowOrder < 4, 0,
                 LET(
-                    _tryPrecisionChar, SEARCH_NTH_CHAR("0123456789", Options, 1, 1),
+                    _tryPrecisionChar, FIND_NTH_CHAR(Options, "0123456789", 1, 0, 1),
                     IF(INDEX(_tryPrecisionChar, 1, 1) = 0, 0,
                         VALUE(INDEX(_tryPrecisionChar, 1, 2))
                     )
@@ -4022,7 +3961,7 @@ Returns: {2023, 5, 23, , 540}
 PARSE_ISO_DATETIME = LAMBDA(ISODateTime, [AllowMixedStyles], [JulianCalendar],
     IFS(
         IS_EMPTY(ISODateTime), {"", "", "", "", ""},
-        NOT(VALIDATE_CHARSET("+,-.0123456789:TWZ" & UNICHAR(8722), ISODateTime)), {#VALUE!, "", "", "", ""},
+        NOT(VALIDATE_CHARSET(ISODateTime, "+,-.0123456789:TWZ" & UNICHAR(8722), 1)), {#VALUE!, "", "", "", ""},
         TRUE, LET(
             _Tpos, IFERROR(FIND("T", ISODateTime), 0),
             _parts, IF(_Tpos = 0, 
@@ -4030,7 +3969,7 @@ PARSE_ISO_DATETIME = LAMBDA(ISODateTime, [AllowMixedStyles], [JulianCalendar],
                 LET(
                     _len, LEN(ISODateTime),
                     _datePart, LEFT(ISODateTime, _Tpos - 1),
-                    _TZpos, FIND_NTH_CHAR("Z+-" & UNICHAR(8722), ISODateTime, 1, 0, _Tpos + 1),
+                    _TZpos, FIND_NTH_CHAR(ISODateTime, "Z+-" & UNICHAR(8722), 1, 1, 0, _Tpos + 1),
                     IFS(
                         _TZpos = 0,
                         HSTACK(
@@ -4142,7 +4081,7 @@ FORMAT_ISO_DATETIME = LAMBDA(YearCE, Month, Day, [Time], [TZOMinutes], [Options]
                 LET(
                     _basic, IFERROR(SEARCH("B", Options), 0) > 0,
                     _truncate, IFERROR(FIND("<", Options), 0) > 0,
-                    _tryLowOrderChar, SEARCH_NTH_CHAR("DHMS", Options, 1, 1),
+                    _tryLowOrderChar, FIND_NTH_CHAR(Options, "DHMS", 1, 0, 1),
                     _lowOrder, IFS(
                         INDEX(_tryLowOrderChar, 1, 1) = 0, IF(_hasTime, 4, 1),
                         INDEX(_tryLowOrderChar, 1, 2) = "D", 1,
@@ -4152,7 +4091,7 @@ FORMAT_ISO_DATETIME = LAMBDA(YearCE, Month, Day, [Time], [TZOMinutes], [Options]
                     ),
                     _precision, IF(_lowOrder < 4, 0,
                         LET(
-                            _tryPrecisionChar, FIND_NTH_CHAR("0123456789", Options, 1, 1),
+                            _tryPrecisionChar, FIND_NTH_CHAR(Options, "0123456789", 1, 0, 1),
                             IF(INDEX(_tryPrecisionChar, 1, 1) = 0, 0,
                                 VALUE(INDEX(_tryPrecisionChar, 1, 2))
                             )
@@ -4221,7 +4160,7 @@ LiteraryYear | text | Literary year
 PARSE_LITERARY_YEAR = LAMBDA(LiteraryYear,
     IFS(
         IS_EMPTY(LiteraryYear), "",
-        NOT(VALIDATE_CHARSET(" -+0123456789BCE" & UNICHAR(8722), LiteraryYear)), {#VALUE!},
+        NOT(VALIDATE_CHARSET(LiteraryYear, " -+0123456789BCE" & UNICHAR(8722))), {#VALUE!},
         TRUE, LET(
             fnYearValue, LAMBDA(_text,
                 LET(
@@ -4503,7 +4442,7 @@ Returns: {2023, 12, 31, 1}
 PARSE_US_DATE = LAMBDA(USDate, [JulianCalendar], 
     IFS(
         IS_EMPTY(USDate), {"", "", "", ""},
-        NOT(VALIDATE_CHARSET(" ,-./0123456789:AMPTamp_" & UNICHAR(8722), USDate)), {#VALUE!},
+        NOT(VALIDATE_CHARSET(USDate, " ,-./0123456789:AMPTamp_" & UNICHAR(8722), 1)), {#VALUE!},
         TRUE, LET(
             _tryDate, DATEVALUE(USDate),
             _tryTime, TIMEVALUE(USDate),
@@ -4530,10 +4469,10 @@ PARSE_US_DATE = LAMBDA(USDate, [JulianCalendar],
                         )
                     ),
 
-                    _pos1, FIND_NTH_CHAR(",./-_", USDate, 1),
-                    _pos2, FIND_NTH_CHAR(",./-_", USDate, 2),
-                    _pos3, IF(_pos2 = 0, 0, FIND_NTH_CHAR(",./-_T ", USDate, 1, 0, _pos2 + 2)),
-                    _pos4, IF(_pos3 = 0, 0, FIND_NTH_CHAR("0123456789", USDate, 1, 0, MAX(_pos2, _pos3) + 1)),
+                    _pos1, FIND_NTH_CHAR(USDate, ",./-_", 1),
+                    _pos2, FIND_NTH_CHAR(USDate, ",./-_", 2),
+                    _pos3, IF(_pos2 = 0, 0, FIND_NTH_CHAR(USDate, ",./-_T ", 1, 1, 0, _pos2 + 2)),
+                    _pos4, IF(_pos3 = 0, 0, FIND_NTH_CHAR(USDate, "0123456789", 1, 0, 0, MAX(_pos2, _pos3) + 1)),
                     _month, IF(_pos1 = 0, {#VALUE!},
                         INT(VALUE(LEFT(USDate, _pos1 - 1)))
                     ),
@@ -4638,7 +4577,7 @@ FORMAT_US_DATE = LAMBDA(YearCE, Month, Day, [Time], [Options], [JulianCalendar],
                     _truncate, IFERROR(FIND("<", Options), 0) > 0,
                     _lowOrder, IF(NOT(_hasTime), 1,
                         LET(
-                            _tryLowOrderChar, SEARCH_NTH_CHAR("DHMST", Options, 1, 1),
+                            _tryLowOrderChar, FIND_NTH_CHAR(Options, "DHMST", 1, 0, 1),
                             IFS(
                                 INDEX(_tryLowOrderChar, 1, 1) = 0, 3,
                                 INDEX(_tryLowOrderChar, 1, 2) = "D", 1,
@@ -4652,11 +4591,11 @@ FORMAT_US_DATE = LAMBDA(YearCE, Month, Day, [Time], [Options], [JulianCalendar],
                     _useLowOrder, IF(_lowOrder = 5, 4, _lowOrder),
                     _precision, IF(_lowOrder = 5, 3, 0),
             
-                    _tryDateSepChar, FIND_NTH_CHAR(",./-_", Options, 1, 1),
+                    _tryDateSepChar, FIND_NTH_CHAR(Options, ",./-_", 1, 0, 1),
                     _dateSeparator, IF(INDEX(_tryDateSepChar, 1, 1) = 0, "/",
                         INDEX(_tryDateSepChar, 1, 2)
                     ),
-                    _tryTimeSepChar, FIND_NTH_CHAR(",.:-_", Options, 1, 1, INDEX(_tryDateSepChar, 1, 1) + 1),
+                    _tryTimeSepChar, FIND_NTH_CHAR(Options, ",.:-_", 1, 0, 1, INDEX(_tryDateSepChar, 1, 1) + 1),
                     _timeSeparator, IF(INDEX(_tryTimeSepChar, 1, 1) = 0, ":",
                         INDEX(_tryTimeSepChar, 1, 2)
                     ),
@@ -4719,7 +4658,7 @@ PARSE_MIL_DTG = LAMBDA(DTG,
         _DTG, SUBSTITUTE(DTG, " ", ""),
         IFS(
             IS_EMPTY(_DTG), {"", "", "", "", ""},
-            NOT(VALIDATE_CHARSET("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", _DTG)), {#VALUE!, "", "", "", ""},
+            NOT(VALIDATE_CHARSET(_DTG, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 1)), {#VALUE!, "", "", "", ""},
             TRUE, LET(
                 fnYear, LAMBDA(_sYear,
                     LET(
@@ -4730,7 +4669,9 @@ PARSE_MIL_DTG = LAMBDA(DTG,
 
                 fnTime, LAMBDA(_hour, _minute, _second,
                     IF(NOT(IS_VALID_TIME_OF_DAY(_hour, _minute, _second, 0)), {#NUM!},
-                        TIMESPAN(1, 0, _hour, _minute, _second)
+                        TIMESPAN(
+                            HSTACK(1, 0, _hour, _minute, _second)
+                        )
                     )
                 ),
 
@@ -4975,7 +4916,7 @@ Returns: {2023, 366} i.e. 1900 was a leap year in the Julian calendar
 PARSE_ISO_ORDINAL_DATE = LAMBDA(ISOOrdinalDate, [JulianCalendar],
     IFS(
         IS_EMPTY(ISOOrdinalDate), {"", ""},
-        NOT(VALIDATE_CHARSET("+-0123456789" & UNICHAR(8722), ISOOrdinalDate)), {#VALUE!, ""},
+        NOT(VALIDATE_CHARSET(ISOOrdinalDate, "+-0123456789" & UNICHAR(8722))), {#VALUE!, ""},
         TRUE, LET(
             _firstChar, LEFT(ISOOrdinalDate, 1),
             _isSigned, IFS(
@@ -5565,7 +5506,7 @@ Returns: {2023, 5, 1}
 PARSE_ISO_WEEK_DATE = LAMBDA(ISOWeekDate, [JulianCalendar],
     IFS(
         IS_EMPTY(ISOWeekDate), {"", "", ""},
-        NOT(VALIDATE_CHARSET("+-0123456789W" & UNICHAR(8722), ISOWeekDate)), {#VALUE!, "", ""},
+        NOT(VALIDATE_CHARSET(ISOWeekDate, "+-0123456789W" & UNICHAR(8722), 1)), {#VALUE!, "", ""},
         TRUE, LET(
             _firstChar, LEFT(ISOWeekDate, 1),
             _isSigned, IFS(
