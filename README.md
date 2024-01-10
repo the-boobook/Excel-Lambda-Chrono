@@ -9,9 +9,7 @@ Module for working with dates in the Gregorian and Julian calendars outside the 
 
 ## Placeholder
 
-CALENDAR DATES
-JULIAN_DAY_NUMBER
+PARSE_ISO_TZO
 
 ## To Do
 
-VALIDATE_TIMESPAN, IS_VALID_TIMESPAN  in later fns
