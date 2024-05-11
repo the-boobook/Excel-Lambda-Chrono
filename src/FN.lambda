@@ -1,0 +1,1584 @@
+/*##############################################################################################################
+# FN v3.0                                                                                                      #
+#                                                                                                              #
+# Module of general functions.                                                                                 #
+#                                                                                                              #
+# Dependencies: None                                                                                           #
+#                                                                                                              #
+# TYPE CONVERSION                                                                                              #
+# ------------------------------------------------------------------------------------------------------------ #
+# NULLIFY               Ensures an empty cell reference is not resolved to zero.                               #
+# COERCE                Coerce a value of any type to a numeric value. Empty resolves to 0, non-numeric values #
+#                       resolve to 1, errors pass through.                                                     #
+# LANGUAGE_ID           Converts a well-known language code to its hexadecimal ID. If instead a hexadecimal    #
+#                       value in the valid range is provided then it is passed through.                        #
+# NORTH_AMERICAN_REGION Detects if the local regional setting for Excel is North American.                     #
+#                                                                                                              #
+# LOGICAL                                                                                                      #
+# ------------------------------------------------------------------------------------------------------------ #
+# IS_EMPTY              Tests if the parameter has an empty value. Errors return FALSE.                        #
+# IS_NUMERIC_NULL       Tests if the parameter has a numeric value or is empty. Errors return FALSE.           #
+# IS_INTEGER            Tests if a number is an integer or very close to an integer. Use in place of MOD(N, 1) #
+#                       where N can be within a large range of magnitudes.                                     #
+# IS_DECIMAL            Tests if a value is a non-integer number.                                              #
+#                                                                                                              #
+# NUMERIC                                                                                                      #
+# ------------------------------------------------------------------------------------------------------------ #
+# DECIMALS              Returns the number of decimal places for a rational number.                            #
+# ORDINAL_VALUE         Returns the positive integer value of an ordinal represented as text.                  #
+# FORMAT_ORDINAL        Returns an ordinal text representation of a positive integer value.                    #
+#                                                                                                              #
+# TEXT                                                                                                         #
+# ------------------------------------------------------------------------------------------------------------ #
+# ESCAPE_SEARCH_TERM    Escapes wildcard characters in a search string to perform a literal text match in a    #
+#                       SEARCH function.                                                                       #
+# FIND_LITERAL          Finds the position of a literal text string within another. Does not support wildcard  #
+#                       matching. Case insensitive by default.                                                 #
+# VALIDATE_CHARSET      Validates that the given text only contains characters in the specified character set. #
+#                       Matching is case-insensitive by default.                                               #
+# REPLACE_CHARS         Replaces each instance of a set of characters within text with another character.      #
+#                       Matching is case-insensitive by default. Note can be used to remove characters by      #
+#                       supplying an empty CharReplaceWith.                                                    #
+# SUBSTITUTE_I          Case-insensitive substitution of text. Similar to SUBSTITUTE function which is         #
+#                       case-sensitive.                                                                        #
+# FIND_NTH_CHAR         Locates the position of the Nth count of any one of a set of characters within the     #
+#                       given text. The search is case-insensitive by default.                                 #
+# SPLIT                 Splits text into columns at a given delimiter up to the specified limit. First element #
+#                       returned is the count, followed by each substring element. Matching is                 #
+#                       case-insensitive by default.                                                           #
+# SPLIT_AT_ANY          Splits text at any character in the given set. First element returned is the count of  #
+#                       substring elements, followed by the sequence of matched separator characters, followed #
+#                       by each substring element. Matching is case-insensitive by default.                    #
+# SPLIT_AROUND          Splits text at any character not in the given set. First element returned is the count #
+#                       of substring elements, followed by the sequence of unmatched characters, followed by   #
+#                       each substring element. Matching is case-insensitive by default.                       #
+# SIFT_FOR_CHARS        Returns the characters found in a text string found from a given set of characters. An #
+#                       An upper limit can be set on the number of times any character can be matched.         #
+#                       Matching is case-insensitive by default.                                               #
+# CONDENSE_WHITESPACE   Replaces continuous whitespace characters in text with a single space. Line breaks can #
+#                       be excluded from matching as whitespace.                                               #
+#                                                                                                              #
+##############################################################################################################*/
+
+
+
+
+
+
+/*##############################################################################################################
+# TYPE CONVERSION                                                                                              #
+##############################################################################################################*/
+
+/*--------------------------------------------------------------------------------------------------------------
+NULLIFY
+
+Ensures an empty cell reference is not resolved to zero.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | variant | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Reference | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+NULLIFY(A1), where A1 is empty
+Returns ""
+--------------------------------------------------------------------------------------------------------------*/
+NULLIFY = LAMBDA(Reference,
+    IF(ISOMITTED(Reference), "",
+        IF(ISBLANK(Reference), "", Reference)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+COERCE
+
+Coerce a value of any type to a numeric value. Empty resolves to 0, non-numeric values resolve to 1, errors pass through.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | decimal |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Expression | variant |
+--------------------------------------------------------------------------------------------------------------*/
+COERCE = LAMBDA(Expression,
+    IF(ISOMITTED(Expression), 0,
+        IF(ISERROR(Expression), Expression * {1},
+            IF(ISBLANK(Expression), 0,
+                IF(Expression = "", 0,
+                    IF(ISNUMBER(Expression), Expression,
+                        IF(ISLOGICAL(Expression), N(Expression),
+                            IFERROR(VALUE(Expression), 1)
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+LANGUAGE_ID
+
+Converts a well-known language code to its hexadecimal ID. If instead a hexadecimal value in the valid range is
+provided then it is passed through.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | hexadecimal |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+LanguageCode | variant |
+--------------------------------------------------------------------------------------------------------------*/
+LANGUAGE_ID = LAMBDA(LanguageCode,
+    LET(
+        _commonCodes, {
+            "AF", "0036";  // Afrikaans
+            "AR", "0001";  // Arabic
+            "CS", "0005";  // Czech
+            "DE", "0007";  // German
+            "EL", "0008";  // Greek
+            "EN", "0009";  // English
+            "ES", "000A";  // Spanish
+            "FA", "0029";  // Farsi
+            "FI", "000B";  // Finnsih
+            "FR", "000C";  // French
+            "GA", "003C";  // Irish
+            "HE", "000D";  // Hebrew
+            "HI", "0039";  // Hindi
+            "HU", "000E";  // Hungarian
+            "ID", "0021";  // Indonesian
+            "IT", "0010";  // Italian 
+            "JA", "0011";  // Japanese
+            "KO", "0012";  // Korean
+            "NL", "0013";  // Dutch
+            "NO", "0014";  // Norwegian
+            "PT", "0016";  // Portugese
+            "RU", "0019";  // Russian
+            "SV", "001D";  // Swedish
+            "SW", "0041";  // Kiswahili
+            "TH", "001E";  // Thai
+            "VI", "002A";  // Vietnamese
+            "ZH", "7804"   // Chinese
+        },
+        
+        fnLanguageCode, LAMBDA(_LanguageCode,
+            IF(ISERROR(_languageCode), _languageCode * {1},
+                IF(_languageCode = "", "",
+                    LET(
+                        _hc, XLOOKUP(_languageCode, INDEX(_commonCodes, , 1), INDEX(_commonCodes, , 2), #N/A, 0),
+                        IF(NOT(ISNA(_hc)), _hc,
+                            LET(
+                                _dc, HEX2DEC(_languageCode),
+                                IF(NOT(ISNUMBER(_dc)), {#VALUE!},
+                                    IF((_dc >= 1) * (_dc <= 65535), _languageCode, {#NUM!})
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        MAP(FN.NULLIFY(LanguageCode),
+            LAMBDA(_element,
+                fnLanguageCode(_element)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+NORTH_AMERICAN_REGION
+
+Detects if the local regional setting for Excel is North American.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | TRUE for North American
+--------------------------------------------------------------------------------------------------------------*/
+NORTH_AMERICAN_REGION = LAMBDA(
+    ISNUMBER(DATEVALUE("12/31/2000"))
+);
+
+
+
+
+/*##############################################################################################################
+# LOGICAL                                                                                                      #
+##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_EMPTY
+
+Tests if the parameter has an empty value. Errors return FALSE.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Expression | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_EMPTY("")
+Returns TRUE
+
+IS_EMPTY(1)
+Returns FALSE
+
+IS_EMPTY(#N/A)
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_EMPTY = LAMBDA(Expression,
+    IF(ISOMITTED(Expression), TRUE,
+        IF(ISERROR(Expression), FALSE,
+            IF(ISBLANK(Expression), TRUE,
+                Expression = ""
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_NUMERIC_NULL
+
+Tests if the parameter has a numeric value or is empty. Errors return FALSE.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Expression | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_NUMERIC_NULL(1)
+Returns TRUE
+
+IS_NUMERIC_NULL("")
+Returns TRUE
+
+IS_NUMERIC_NULL("X")
+Returns FALSE
+
+IS_NUMERIC_NULL(#VALUE!)
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_NUMERIC_NULL = LAMBDA(Expression,
+    IF(ISOMITTED(Expression), FALSE,
+        IF(ISERROR(Expression), FALSE,
+            IF(Expression = "", TRUE,
+                ISNUMBER(Expression)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_INTEGER
+
+Tests if a number is an integer or very close to an integer. Use in place of MOD(N, 1) > 0 where N
+can be within a large range of magnitudes.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+N | decimal | 
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_INTEGER(1)
+Returns TRUE
+
+IS_INTEGER(0.5)
+Returns FALSE
+
+IS_INTEGER("3")
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_INTEGER = LAMBDA(N,
+    IF(NOT(ISNUMBER(N)), FALSE,
+        LET(
+            _integer, INT(N),
+            ROUNDDOWN(N - _integer, 15) = 0
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_DECIMAL
+
+Tests if a value is a non-integer number.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+N | decimal | 
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_DECIMAL(1)
+Returns FALSE
+
+IS_DECIMAL(0.5)
+Returns TRUE
+
+IS_DECIMAL("X")
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_DECIMAL = LAMBDA(N,
+    IF(NOT(ISNUMBER(N)), FALSE,
+        LET(
+            _integer, INT(N),
+            ROUNDDOWN(N - _integer, 15) <> 0
+        )
+    )
+);
+
+
+
+
+
+
+/*##############################################################################################################
+# NUMERIC                                                                                                      #
+##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
+DECIMALS
+
+Returns the number of decimal places for a rational number.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer [0..] | max value 15 for values > 1
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+N | decimal | 
+--------------------------------------------------------------------------------------------------------------*/
+DECIMALS = LAMBDA(N,
+    IF(ISERROR(N), N * {1},
+        IF(FN.IS_EMPTY(N), "",
+            IF(NOT(ISNUMBER(N)), {#VALUE!},
+                IF(N = 0, 0,
+                    LET(
+                        // IEEE 754 floating point arithmetic introduces errors in the mathematical algorithm:
+                        // num -> frac = MOD(num, 1); smallest n where frac * 10^n = INT(frac * 10^n)
+                        // MOD involves subraction, which for a numbers >> 1 with a small decimal part produces
+                        // an error margin that results in a much larger n 
+                        // eg num = 10^12 + 0.1 ; MOD(num, 1) - 0.1 = -0.000244...
+                        // n should = 1, however the algorithm results in a run-away n
+                        // Using Excel string formatting instead
+                        _num1, ABS(N),
+                        _frac1, _num1 - INT(_num1),
+                        _shift, IFERROR(CEILING(-LOG10(_frac1), 1) - 1, 0),
+                        _num2, _num1 * POWER(10, _shift),
+                        _sNum2, TEXT(_num2,"0.000000000000000"),
+                        _sFrac, RIGHT(_sNum2, 15),
+                        IF(_sFrac = "000000000000000", 0,
+                            LET(
+                                _last, REDUCE("", SEQUENCE(15,,15, -1),
+                                    LAMBDA(_acc, _curr,
+                                        IF(_acc <> "", _acc,
+                                            IF(MID(_sFrac, _curr, 1) = "0", "", _curr)
+                                        )
+                                    )
+                                ),
+                                _last + _shift
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+ORDINAL_VALUE
+
+Returns the positive integer value of an ordinal represented as text.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer [0..] |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Expression | variant | Ordinal representation
+--------------------------------------------------------------------------------------------------------------*/
+ORDINAL_VALUE = LAMBDA(Expression,
+    IF(ISERROR(Expression), Expression * {1},
+        IF(FN.IS_EMPTY(Expression), "",
+            IF(ISNUMBER(Expression), IF(Expression < 0, {#NUM!}, INT(Expression)),
+                IF(NOT(FN.VALIDATE_CHARSET(Expression, "0123456789,.dhnrst")), {#VALUE!},
+                    LET(
+                        _val, VALUE(Expression),
+                        IF(ISNUMBER(_val), IF(_val < 0, {#NUM!}, INT(_val)),
+                            IF(LEN(Expression) < 3, {#VALUE!},
+                                LET(
+                                    _ordinalVal, VALUE(LEFT(Expression, LEN(Expression) - 2)),
+                                    IF(NOT(ISNUMBER(_ordinalVal)), {#VALUE!},
+                                        IF(_ordinalVal < 0, {#NUM!},
+                                            IF(NOT(FN.IS_INTEGER(_ordinalVal)), {#NUM!},
+                                                LET(
+                                                    _sfx, RIGHT(Expression, 2),
+                                                    _dig2, MOD(INT(_ordinalVal / 10), 10),
+                                                    IF((_dig2 = 1) * (_sfx = "th"), _ordinalVal,
+                                                        LET(
+                                                            _dig1, MOD(_ordinalVal, 10),
+                                                            _correctSfx, SWITCH(_dig1, 1, "st", 2, "nd", 3, "rd", "th"),
+                                                            IF(_sfx = _correctSfx, _ordinalVal,
+                                                                {#VALUE!}
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+FORMAT_ORDINAL
+
+Returns an ordinal text representation of a positive integer value.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text | Ordinal representation
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+N | integer [0..] |
+--------------------------------------------------------------------------------------------------------------*/
+FORMAT_ORDINAL = LAMBDA(N,
+    IF(ISERROR(N), N * {1},
+        IF(FN.IS_EMPTY(N), "",
+            LET(
+                _nominalNum, IF(ISNUMBER(N), N, VALUE(N)),
+                IF(NOT(ISNUMBER(_nominalNum)), {#VALUE!},
+                    IF(_nominalNum < 0, {#NUM!},
+                        IF(NOT(FN.IS_INTEGER(_nominalNum)), {#NUM!},
+                            LET(
+                                _numPart, TEXT(_nominalNum, "#,##0"),
+                                _dig2, MOD(INT(_nominalNum / 10), 10),
+                                _ordinalPart, IF(_dig2 = 1, "th",
+                                    LET(
+                                        _dig1, MOD(_nominalNum, 10),
+                                        SWITCH(_dig1, 1, "st", 2, "nd", 3, "rd", "th")
+                                    )
+                                ),
+                                _numPart & _ordinalPart
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+
+
+
+
+
+
+/*##############################################################################################################
+# TEXT                                                                                                         #
+##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
+ESCAPE_SEARCH_TERM
+
+Escapes wildcard characters in a search string to perform a literal text match in a SEARCH function.
+~, * and ? characters are escaped to ~~, ~* and ~? respectively.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+SearchText | text   | Search text to escape
+--------------------------------------------------------------------------------------------------------------*/
+ESCAPE_SEARCH_TERM = LAMBDA(SearchText,
+    SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SearchText, "~", "~~"), "*", "~*"), "?", "~?")
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+FIND_LITERAL
+
+Finds the position of a literal text string within another. Does not support wildcard matching.
+Case insensitive by default.
+
+Array compatible: FindText only
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | 0 for no match.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+FindText        | text    | Text to search for.
+WithinText      | text    | Text to be searched.
+[CaseSensitive] | switch  | Match on letter case.
+[StartPosition] | integer | Position to start search from. Defaults to 1.
+--------------------------------------------------------------------------------------------------------------*/
+FIND_LITERAL = LAMBDA(FindText, WithinText, [CaseSensitive], [StartPosition],
+    LET(
+        _withinText, FN.NULLIFY(INDEX(WithinText, 1, 1)),
+        _caseSensitive, INDEX(FN.COERCE(CaseSensitive), 1, 1),
+        _startPosition, LET(
+            _sp, INDEX(FN.COERCE(StartPosition), 1, 1),
+            IF(_sp < 1, 1, INT(_sp))
+        ),
+        IF(ISERROR(FindText), 0,
+            IF(ISERROR(_withinText), 0,
+                IF(FindText = "", 0,
+                    IF(_withinText = "", 0,
+                        IF(_caseSensitive,
+                            IFERROR(FIND(FindText, _withinText, _startPosition), 0),
+                            LET(
+                                _escapedFindText, FN.ESCAPE_SEARCH_TERM(FindText),
+                                IFERROR(SEARCH(_escapedFindText, _withinText, _startPosition), 0)
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+VALIDATE_CHARSET
+
+Validates that the given text only contains characters in the specified character set.
+Matching is case-insensitive by default.
+
+Array compatible: TextValue parameter only
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextValue       | text   | Text to validate
+CharSet         | text   | Valid characters
+[CaseSensitive] | switch | Match on letter case
+--------------------------------------------------------------------------------------------------------------*/
+VALIDATE_CHARSET = LAMBDA(TextValue, CharSet, [CaseSensitive],
+    LET(
+        _ignoreCase, FN.COERCE(CaseSensitive) = 0,
+        _chars, "" & IF(_ignoreCase, UPPER(CharSet), CharSet),
+        _xpath, "//s[translate(.,'" & _chars & "','')='']",
+        
+        fnValidateCharSet, LAMBDA(_textElement,
+            IF(_chars = "", FALSE,
+                IF(FN.IS_EMPTY(_textElement), FALSE,
+                    LET(
+                        _textElementCased, IF(_ignoreCase, UPPER(_textElement), _textElement),
+                        _escapeText, SUBSTITUTE(SUBSTITUTE(_textElementCased, "&", "&amp;"), "<", "&lt;"),
+                        _xml, "<xml><s>" & _escapeText & "</s></xml>",
+                        NOT(ISERROR(FILTERXML(_xml, _xpath)))
+                    )
+                )
+            )
+        ),
+
+        MAP(FN.NULLIFY(TextValue),
+            LAMBDA(_element,
+                fnValidateCharSet(_element)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+REPLACE_CHARS
+
+Replaces each instance of a set of characters within text with another character.
+Matching is case-insensitive by default. Note can be used to remove characters by supplying an empty CharReplaceWith.
+
+Array compatible: TextValue parameter only
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Text Value      | text   | Text within which to replace characters
+CharSet         | text   | Set of characters to be replaced
+CharReplaceWith | text   | Target character with which to replace each character in CharSet
+[CaseSensitive] | switch | Match on letter case
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+REPLACE_CHARS("abc:def/g/h", ":/", "")
+Returns: abcdefgh
+
+REPLACE_CHARS("abc:def/g/h", ":/", "_")
+Returns: abc_def_g_h
+--------------------------------------------------------------------------------------------------------------*/
+REPLACE_CHARS = LAMBDA(TextValue, CharSet, CharReplaceWith, [CaseSensitive],
+    LET(
+        _charSet, FN.NULLIFY(CharSet),
+        _charNew, LEFT(CharReplaceWith),
+        _ignoreCase, FN.COERCE(CaseSensitive) = 0,
+        
+        fnReplaceChars, LAMBDA(_textElement,
+            IF(_charSet = "", _textElement,
+                IF(_textElement = "", "",
+                    IF(_ignoreCase,
+                        REDUCE(_textElement, SEQUENCE(LEN(_charSet)),
+                            LAMBDA(acc, curr,
+                                LET(
+                                    _charL, LOWER(MID(_charSet, curr, 1)),
+                                    _textElementL, SUBSTITUTE(acc, _charL, _charNew),
+                                    SUBSTITUTE(_textElementL, UPPER(_charL), _charNew)
+                                )
+                            )
+                        ),
+                        REDUCE(_textElement, SEQUENCE(LEN(_charSet)),
+                            LAMBDA(acc, curr,
+                                SUBSTITUTE(acc, MID(_charSet, curr, 1), _charNew)
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        MAP(FN.NULLIFY(TextValue),
+            LAMBDA(_element,
+                fnReplaceChars(_element)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+SUBSTITUTE_I
+
+Case-insensitive substitution of text. Similar to SUBSTITUTE function which is case-sensitive.
+
+Array compatible: TextValue parameter only
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextValue     | text    | Text within which to replace matched text
+OldText       | text    | Text to be replaced
+NewText       | text    | Text with which to replace OldText
+[InstanceNum] | integer | Specifiy which occurance to replace. If omitted or 0 then all occurances are replaced.
+              |         | Negative instance matches from end.
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+SUBSTITUTE_I("abc:def:ghi:jkl", ":", "")
+Returns: abcdefghijkl
+
+SUBSTITUTE_I("abc:def:ghi:jkl", ":", "-", 2)
+Returns: abc:def-ghi:jkl
+--------------------------------------------------------------------------------------------------------------*/
+SUBSTITUTE_I = LAMBDA(TextValue, OldText, NewText, [InstanceNum],
+    LET(
+        _oldText, FN.NULLIFY(OldText),
+        _searchTerm, FN.ESCAPE_SEARCH_TERM(_oldText),
+        _newText, FN.NULLIFY(NewText),
+        _oldLen, LEN(_oldText),
+        _lenDiff, LEN(_newText) - _oldLen,
+        _instance, INT(FN.COERCE(InstanceNum)),
+        
+        fnSubstitute_I, LAMBDA(_textElement,
+            IF(_textElement = "", "",
+                IF(_oldLen = 0, _textElement,
+                    LET(
+                        _maxInstance, INT(LEN(_textElement) / _oldLen),
+                        _pos, SCAN(0, SEQUENCE(1, _maxInstance),
+                            LAMBDA(_acc, _curr,
+                                IF(_acc = "", "", IFERROR(SEARCH(_searchTerm, _textElement, _acc + 1), ""))
+                            )
+                        ),
+                        _count, COUNT(_pos),
+                        IF(_count = 0, _textElement,
+                            IF(ABS(_instance) > _count, _textElement,
+                                IF(_instance > 0, REPLACE(_textElement, INDEX(_pos, 1, _instance), _oldLen, _newText),
+                                    IF(_instance < 0, REPLACE(_textElement, INDEX(_pos, 1, _count + _instance + 1), _oldLen, _newText),
+                                        LET(
+                                            _nPos, TAKE(_pos, 1, _count) + SEQUENCE(1, _count, 0, _lenDiff),
+                                            REDUCE(_textElement, _nPos,
+                                                LAMBDA(_acc, _curr,
+                                                    REPLACE(_acc, _curr, _oldLen, _newText)
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        MAP(NULLIFY(TextValue),
+            LAMBDA(_element,
+                fnSubstitute_I(_element)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+FIND_NTH_CHAR
+
+Locates the position of the Nth count of any one of a set of characters within the given text.
+Search is case-insensitive by default.
+
+Array compatible: TextToSearch parameter as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Character position in text.
+ 2 | char    | Character found. Returned if ReturnChar is set
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextToSearch    | text             | Text to search within
+Chars           | text             | Characters to search for
+[N]             | integer          | Nth count of any of the characters. Defaults to 1st.
+                |                  | Negative values will perform a reverse search from the end of the text.
+[CaseSensitive] | switch           | Search is case-sensitive.           
+[ReturnChar]    | switch           | Also return the character found
+[LowerPos]      | integer          | Position to start the search from.
+                | [1..LEN(Text)]   | Negative values are relative to the end of the text.
+                | [-LEN(Text)..-1] | Defaults to beginning of the text.
+[UpperPos]      | integer          | Position limit of the search.
+                | [1..LEN(Text)]   | Negative values are relative to the end of the text.
+                | [-LEN(Text)..-1] | Defaults to end of the text.
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+FIND_NTH_CHAR("1234_A_B_A_0", "AB")
+Returns: 6 i.e. 1st A or B is at position 6
+
+FIND_NTH_CHAR("1234_A_b_a_0", "ab", 2, 1)
+Returns: 10 i.e. 2nd a or b, case-sensitive is at position 10
+
+FIND_NTH_CHAR("1234_A_B_A_0", "ab", 2, 0, 1, 7)
+Returns: {10, A} i.e. 2nd a or b, case-insensitive is at position 10, searching from position 7. A was found.
+
+FIND_NTH_CHAR("1234_A_B_A_0", "AB", -2, 1, 1, -4)
+Returns: {6, A} i.e. 2nd A or B, case-sensitive is at position 6, using reverse search from 4 characters from end.
+         A was found
+--------------------------------------------------------------------------------------------------------------*/
+FIND_NTH_CHAR = LAMBDA(TextToSearch, Chars, [N], [CaseSensitive], [ReturnChar], [LowerPos], [UpperPos],
+    LET(
+        _chars, FN.NULLIFY(Chars),
+        _n, IF(ISOMITTED(N), 1, INT(N(N))),
+        _ignoreCase, FN.COERCE(CaseSensitive) = 0,
+        _returnChar, N(FN.COERCE(ReturnChar) <> 0),
+        _lowPos, LET(
+            _lp, INT(FN.COERCE(LowerPos)),
+            IF(_lp = 0, 1, _lp)
+        ),
+        _highPos, IF(ISNUMBER(UpperPos), INT(UpperPos), ""),
+        _charArray, MID(
+            IF(_ignoreCase, UPPER(_chars), _chars),
+            SEQUENCE(LEN(_chars)), 1
+        ),
+
+        fnCountCharMatches, LAMBDA(_casedText,
+            LET(
+                _searchLen, LEN(_casedText),
+                _removed, REDUCE(_casedText, _charArray,
+                    LAMBDA(_acc, _curr,
+                        SUBSTITUTE(_acc, _curr, "")
+                    )
+                ),
+                _searchLen - LEN(_removed)
+            )
+        ),
+
+        fnNthChar, LAMBDA(_textElement,
+            IF(ISERROR(_textElement), _textElement * {1, 2},
+                IF(_chars = "", {0, ""},
+                    IF(_n = 0, {0, ""},
+                        LET(
+                            _len, LEN(_textElement),
+                            _startPos, IF(_lowPos < 1, _len + _lowPos + 1, _lowPos),
+                            _endPos, IF(_highPos = "", _len,
+                                IF(_highPos > 0, _highPos,
+                                    IF(_highPos < 0, _len + _highPos + 1, 0)
+                                )
+                            ),
+                            IF(_startPos > _len, {0, ""},
+                                IF(_startPos > _endPos, {0, ""},
+                                    LET(
+                                        _searchText, MID(_textElement, _startPos, _endPos - _startPos + 1),
+                                        _casedText, IF(_ignoreCase, UPPER(_searchText), _searchText),
+                                        _findCount, fnCountCharMatches(_casedText),
+                                        IF(_findCount < ABS(_n), {0, ""},
+                                            LET(
+                                                // nth can count from end backwards
+                                                _nth, IF(_n > 0, _n, _findCount + _n + 1),
+                                                _nthPos, REDUCE(0, SEQUENCE(_nth),
+                                                    LAMBDA(_acc, _curr,
+                                                        IF(_acc < 0, -1,
+                                                            LET(
+                                                                _nextPosChars, IFERROR(FIND(_charArray, _casedText, _acc + 1), 0),
+                                                                _nextPos, MIN(FILTER(_nextPosChars, _nextPosChars > 0, 0)),
+                                                                IF(_nextPos = 0, -1, _nextPos)
+                                                            )
+                                                        )
+                                                    )
+                                                ),
+                                                _outPos, _nthPos + _startPos - 1,
+                                                IF(_outPos < 1, {0, ""},
+                                                    HSTACK(_outPos, MID(_searchText, _nthPos, 1))
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+        
+        _textColumn, FN.NULLIFY(INDEX(TextToSearch, , 1)),
+        _rowCount, ROWS(_textColumn),
+        _byRow, REDUCE(0, SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnNthChar(INDEX(_textColumn, _curr))
+                )
+            )
+        ),
+        _result, DROP(_byRow, 1),
+        _returnCols, INDEX(_returnChar + 1, 1, 1),
+        TAKE(_result, , _returnCols)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+SPLIT
+
+Splits text into columns at a given delimiter up to the specified limit. First element returned is the count, 
+followed by each substring element. Matching is case-insensitive by default.
+
+Array compatible: TextToSplit parameter as column
+
+Output C[2..]
+----------------------------------------------------------------------------------------------------------------
+ 1   | integer | Count of substrings.
+ 2.. | text    | Array of substrings.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextToSplit     | text    | Text to split
+ColumnSeparator | text    | Substring to split at
+[CaseSensitive] | boolean | Match letter case
+[IgnoreEmpty]   | switch  | ignore empty elements
+[SplitLimit]    | integer | Limit at which to stop splitting
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+SPLIT("ABC|DEF||G", "|", , TRUE)
+Returns: {3, "ABC", "DEF", "G"}
+
+SPLIT("123abcabc456ABC789", "abc", TRUE)
+Returns: {3, "123", "", "456ABC789"}
+--------------------------------------------------------------------------------------------------------------*/
+SPLIT = LAMBDA(TextToSplit, ColumnSeparator, [CaseSensitive], [IgnoreEmpty], [SplitLimit],
+    LET(
+        _caseSensitive, FN.COERCE(CaseSensitive) <> 0,
+        _columnSeparator, FN.NULLIFY(INDEX(ColumnSeparator, 1, 1)),
+        _escapedColumnSeparator, FN.ESCAPE_SEARCH_TERM(_columnSeparator),
+        _ignoreEmpty, FN.COERCE(IgnoreEmpty) <> 0,
+        _splitLimit, MAX(INT(FN.COERCE(SplitLimit)), 0),
+        
+        fnBoundaryPositions, LAMBDA(_textToSplit,
+            LET(
+                _textLen, LEN(_textToSplit),
+                _separatorLen, LEN(_columnSeparator),
+                IF((_textLen = 0) + (_separatorLen = 0) + (_splitLimit = 1), HSTACK(0, _textLen + 1),
+                    LET(
+                        fnSeparatorPos, LAMBDA(_lastPos,
+                            LET(
+                                _fromPos, IF(_lastPos = 0, 1, _lastPos + _separatorLen),
+                                IFERROR(
+                                    IF(_caseSensitive,
+                                        FIND(_columnSeparator, _textToSplit, _fromPos),
+                                        SEARCH(_escapedColumnSeparator, _textToSplit, _fromPos)
+                                    ), 0
+                                )
+                            )
+                        ),
+
+                        _idx, SEQUENCE(_textLen),
+                        _separatorLimit, IF(_splitLimit = 0, _textLen, _splitLimit - 1),
+                        
+                        _separatorPositions, REDUCE({0, 0}, _idx,
+                            LAMBDA(_acc, _curr,
+                                LET(
+                                    _count, INDEX(_acc, 1, 1),
+                                    IF((_count = _separatorLimit) + (_count = -1), _acc,
+                                        LET(
+                                            _lastPos, INDEX(_acc, 1, COLUMNS(_acc)),
+                                            IF(_lastPos > _textLen, _acc,
+                                                LET(
+                                                    _thisPos, fnSeparatorPos(_lastPos),
+                                                    IF(_thisPos = 0, HSTACK(-1, DROP(_acc, , 1)),
+                                                        LET(
+                                                            _thisCount, _count + IF(NOT(_ignoreEmpty), 1, N((_lastPos + _separatorLen) < _thisPos)),
+                                                            HSTACK(
+                                                                _thisCount,
+                                                                DROP(_acc, , 1),
+                                                                _thisPos
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+
+                        HSTACK(DROP(_separatorPositions, , 1), _textLen + 1)
+                    )
+                )
+            )
+        ),
+
+        fnElements, LAMBDA(_textToSplit, _boundaryPositions,
+            LET(
+                _starts, HSTACK(1, DROP(DROP(_boundaryPositions,, 1),, -1) + LEN(_columnSeparator)),
+                _ends, DROP(_boundaryPositions,, 1),
+                _numChars, _ends - _starts,
+                _elements, IF(NOT(_ignoreEmpty), MID(_textToSplit, _starts, _numChars),
+                    LET(
+                        _startsF, FILTER(_starts, _numChars > 0, {#N/A}),
+                        IF(ISNA(INDEX(_startsF, 1, 1)), {#N/A},
+                            LET(
+                                _numCharsF, FILTER(_numChars, _numChars > 0),
+                                MID(_textToSplit, _startsF, _numCharsF)
+                            )
+                        )
+                    )
+                ),
+                
+                _elementCount, IF(ISNA(INDEX(_elements, 1, 1)), 0, COLUMNS(_elements)),
+                IF(_elementCount = 0, {0, ""},
+                    HSTACK(_elementCount, _elements)
+                )
+            )
+        ),
+
+        fnSplit, LAMBDA(_textToSplit,
+            IF(ISERROR(_textToSplit), _textToSplit * {1, 2},
+                IF(ISERROR(_columnSeparator), _columnSeparator * {1, 2},
+                    IF(_textToSplit = "", {0, ""},
+                        IF((_splitLimit = 1) + (_columnSeparator = ""), HSTACK(1, _textToSplit),
+                            LET(
+                                _boundaryPos, fnBoundaryPositions(_textToSplit),
+                                IF(COLUMNS(_boundaryPos) = 2, HSTACK(1, _textToSplit),
+                                    fnElements(_textToSplit, _boundaryPos)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+            
+        _textColumn, FN.NULLIFY(INDEX(TextToSplit, , 1)),
+        _rowCount, ROWS(_textColumn),
+        _byRow, REDUCE("", SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnSplit(INDEX(_textColumn, _curr))
+                )
+            )
+        ),
+        _arrayRaw, DROP(_byRow, 1),
+
+        IF((ROWS(_arrayRaw) = 1) + (COLUMNS(_arrayRaw) <= 2), _arrayRaw,
+            HSTACK(TAKE(_arrayRaw, , 2), IFNA(DROP(_arrayRaw, , 2), ""))
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+SPLIT_AT_ANY
+
+Splits text at any character in the given set. First element returned is the count of substring elements, followed
+by the sequence of matched separator characters, followed by each substring element. Matching is case-insensitive
+by default.
+
+Array compatible: TextToSplit parameter as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Number of substrings (n)
+ 2 | text    | Separator characters
+ 3 | text    | Array of substring elements [1..n]
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextToSplit     | text    | Text to split
+CharSet         | text    | Characters to split at
+[CaseSensitive] | boolean | Match letter case
+[IgnoreEmpty]   | switch  | 0 : capture empty elements (default)
+                |         | 1 : ignore empty elements and corresponding separators
+                |         | 2 : ignore empty elements but return all separators
+[SplitLimit]    | integer | Limit at which to stop splitting
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+SPLIT_AT_ANY("ABC-DE/FGH", "/-")
+Returns: {3, "-/", "ABC", "DE", "FGH"}
+--------------------------------------------------------------------------------------------------------------*/
+SPLIT_AT_ANY = LAMBDA(TextToSplit, CharSet, [CaseSensitive], [IgnoreEmpty], [SplitLimit],
+    LET(
+        _charSet, FN.NULLIFY(INDEX(CharSet, 1, 1)),
+        _caseSensitive, FN.COERCE(CaseSensitive) <> 0,
+        _splitLimit, MAX(INT(FN.COERCE(SplitLimit)), 0),
+        _ignoreEmpty, FN.COERCE(IgnoreEmpty),
+        _includeEmptyElements, _ignoreEmpty = 0,
+        _includeEmptyElementSeparators, _ignoreEmpty <> 1,
+        
+        fnBoundaryPositions, LAMBDA(_textToSplit,
+            LET(
+                _textLen, LEN(_textToSplit),
+                IF((_textToSplit = "") + (_charSet = "") + (_splitLimit = 1), HSTACK(0, _textLen + 1),
+                    LET(
+                        _idx, SEQUENCE(_textLen),
+                        _separatorLimit, IF(_splitLimit = 0, _textLen, _splitLimit - 1),
+                        
+                        _separatorPositions, REDUCE({0, 0}, _idx,
+                            LAMBDA(_acc, _curr,
+                                LET(
+                                    _count, INDEX(_acc, 1, 1),
+                                    IF(_count = _separatorLimit, _acc,
+                                        LET(
+                                            _char, MID(_textToSplit, _curr, 1),
+                                            IF(NOT(FN.FIND_LITERAL(_char, _charSet, _caseSensitive)), _acc,
+                                                LET(
+                                                    _lastPos, INDEX(_acc, 1, COLUMNS(_acc)),
+                                                    _thisCount, IF(((_lastPos + 1) < _curr) + N(_includeEmptyElements), _count + 1, _count),
+                                                    HSTACK(
+                                                        _thisCount,
+                                                        DROP(_acc, , 1),
+                                                        _curr
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+
+                        HSTACK(DROP(_separatorPositions, , 1), _textLen + 1)
+                    )
+                )
+            )
+        ),
+
+        fnSeparators, LAMBDA(_textToSplit, _boundaryPositions,
+            IF(COLUMNS(_boundaryPositions) <= 2, "",
+                IF(_includeEmptyElementSeparators, CONCAT(MID(_textToSplit, DROP(DROP(_boundaryPositions,, 1),, -1), 1)),
+                    LET(
+                        _starts, DROP(_boundaryPositions,, -1),
+                        _ends, DROP(_boundaryPositions,, 1),
+                        _diffs, _ends - _starts,
+                        _includeDelimPos, FILTER(_starts, _diffs > 1, {#N/A}),
+                        IF(ISNA(INDEX(_includeDelimPos, 1, 1)), "",
+                            IF(COLUMNS(_includeDelimPos) = 1, "",
+                                CONCAT(MID(_textToSplit, DROP(_includeDelimPos,, 1), 1))
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        fnElements, LAMBDA(_textToSplit, _boundaryPositions,
+            IF(COLUMNS(_boundaryPositions) <= 2, {0, ""},
+                LET(
+                    _starts, DROP(_boundaryPositions,, -1) + 1,
+                    _ends, DROP(_boundaryPositions,, 1),
+                    _numChars, _ends - _starts,
+                    _elements, IF(_includeEmptyElements, MID(_textToSplit, _starts, _numChars),
+                        LET(
+                            _startsF, FILTER(_starts, _numChars > 0, {#N/A}),
+                            IF(ISNA(INDEX(_startsF, 1, 1)), {#N/A},
+                                LET(
+                                    _numCharsF, FILTER(_numChars, _numChars > 0),
+                                    MID(_textToSplit, _startsF, _numCharsF)
+                                )
+                            )
+                        )
+                    ),
+                    
+                    _elementCount, IF(ISNA(INDEX(_elements, 1, 1)), 0, COLUMNS(_elements)),
+                    IF(_elementCount = 0, {0, ""},
+                        HSTACK(_elementCount, _elements)
+                    )
+                )
+            )
+        ),
+
+        fnSplitAtAny, LAMBDA(_textToSplit,
+            IF(ISERROR(_textToSplit), _textToSplit * {1, 2},
+                IF(ISERROR(_charSet), _charSet * {1, 2},
+                    LET(
+                        _boundaryPos, fnBoundaryPositions(_textToSplit),
+                        _separators, fnSeparators(_textToSplit, _boundaryPos),
+                        _elements, fnElements(_textToSplit, _boundaryPos),
+                        _elementCount, INDEX(_elements, 1, 1),
+                        IF(_elementCount = 0, HSTACK(0, _separators),
+                            HSTACK(_elementCount, _separators, DROP(_elements,, 1))
+                        )
+                    )
+                )
+            )
+        ),
+
+        _textColumn, FN.NULLIFY(INDEX(TextToSplit, , 1)),
+        _rowCount, ROWS(_textColumn),
+        _byRow, REDUCE("", SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnSplitAtAny(INDEX(_textColumn, _curr))
+                )
+            )
+        ),
+        _arrayRaw, DROP(_byRow, 1),
+
+        IF((ROWS(_arrayRaw) = 1) + (COLUMNS(_arrayRaw) <= 2), _arrayRaw,
+            HSTACK(TAKE(_arrayRaw, , 2), IFNA(DROP(_arrayRaw, , 2), ""))
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+SPLIT_AROUND
+
+Splits text at any character not in the given set. First element returned is the count of substring elements,
+followed by the sequence of unmatched characters, followed by each substring element. Matching is case-insensitive
+by default.
+
+Array compatible: TextToSplit parameter as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Number of substring elements (n)
+ 2 | text    | Unmatched characters
+ 3 | text    | Array of substring elements [1..n]
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextTosplit     | text    | Text to split
+CharSet         | text    | Valid characters for each substring
+[CaseSensitive] | boolean | Match letter case
+[SplitLimit]    | integer | Limit at which to stop splitting
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+SPLIT_FOR_CHARS("A12b34B56", "AB")
+Returns: {3, "123456", "A", "b", "B"}
+--------------------------------------------------------------------------------------------------------------*/
+SPLIT_AROUND = LAMBDA(TextToSplit, CharSet, [CaseSensitive], [SplitLimit],
+    LET(
+        _charSet, FN.NULLIFY(INDEX(CharSet, 1, 1)),
+        _caseSensitive, FN.COERCE(CaseSensitive) <> 0,
+        _splitLimit, MAX(INT(FN.COERCE(SplitLimit)), 0),
+        
+        fnElementPositions, LAMBDA(_textToSplit,
+            IF((_textToSplit = "") + (_charSet = ""), {0, 0; 0, 0},
+                LET(
+                    _textLen, LEN(_textToSplit),
+                    _elementLimit, IF(_splitLimit = 0, _textLen, _splitLimit),
+                    _idx, SEQUENCE(_textLen),
+                    
+                    _elementPos, REDUCE({0, 0; 0, 0}, _idx,
+                        LAMBDA(_acc, _curr,
+                            LET(
+                                _count, INDEX(_acc, 1, 1),
+                                IF(_count = _elementLimit, _acc,
+                                    LET(
+                                        _flgLastMatch, INDEX(_acc, 2, 1),
+                                        _char, MID(_textToSplit, _curr, 1),
+                                        IF(FN.FIND_LITERAL(_char, _charSet, _caseSensitive) > 0,
+                                            IF(_flgLastMatch,
+                                                LET(
+                                                    // continuing match
+                                                    _lastCol, COLUMNS(_acc),
+                                                    _startPos, INDEX(_acc, 1, _lastCol),
+                                                    _lastLen, INDEX(_acc, 2, _lastCol),
+                                                    HSTACK(
+                                                        DROP(_acc, , -1),
+                                                        VSTACK(_startPos, _lastLen + 1)
+                                                    )
+                                                ),
+                                                // new match
+                                                HSTACK(
+                                                    VSTACK(_count, 1),
+                                                    DROP(_acc, , 1),
+                                                    VSTACK(_curr, 1)
+                                                )
+                                            ),
+                                            IF(_flgLastMatch,
+                                                // end of match
+                                                HSTACK(
+                                                    VSTACK(_count + 1, 0),
+                                                    DROP(_acc, , 1)
+                                                ),
+                                                // continuing unmatched
+                                                _acc
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    
+                    _elementCount, COLUMNS(_elementPos) - 2,
+                    IF(_elementCount = 0, _elementPos,
+                        HSTACK(_elementCount, DROP(_elementPos, , 2))
+                    )
+                )
+            )
+        ),
+
+        fnUnmatched, LAMBDA(_textToSplit, _elementPos,
+            LET(
+                _elementCount, INDEX(_elementPos, 1, 1),
+                IF(_elementCount = 0, _textToSplit,
+                    LET(
+                        _starts, HSTACK(1,
+                            DROP(_elementPos, -1, 1) + DROP(_elementPos, 1, 1)
+                        ),
+                        _ends, HSTACK(DROP(_elementPos, -1, 1), LEN(_textToSplit) + 1),
+                        _numChars, _ends - _starts,
+                        _startsF, FILTER(_starts, _numChars > 0, #N/A),
+                        IF(ISNA(INDEX(_startsF, 1, 1)), "",
+                            LET(
+                                _numCharsF, FILTER(_numChars, _numChars > 0),
+                                CONCAT(MID(_textToSplit, _startsF, _numCharsF))
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        fnSplitAround, LAMBDA(_textToSplit,
+            IF(ISERROR(_textToSplit), _textToSplit * {1, 2},
+                IF(ISERROR(_charSet), _charSet * {1, 2},
+                    IF(_textToSplit = "", {0, ""},
+                        IF(_charSet = "", HSTACK(0, _textToSplit),
+                            LET(
+                                _elementPos, fnElementPositions(_textToSplit),
+                                _unmatched, fnUnmatched(_textToSplit, _elementPos),
+                                _elementCount, INDEX(_elementPos, 1, 1),
+                                IF(_elementCount = 0, HSTACK(0, _unmatched),
+                                    LET(
+                                        _elements, MID(_textToSplit, DROP(_elementPos, -1, 1), DROP(_elementPos, 1, 1)),
+                                        HSTACK(_elementCount, _unmatched, _elements)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        _textColumn, FN.NULLIFY(INDEX(TextToSplit,, 1)),
+        _rowCount, ROWS(_textColumn),
+        _byRow, REDUCE(0, SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnSplitAround(INDEX(_textColumn, _curr))
+                )
+            )
+        ),
+        _arrayRaw, DROP(_byRow, 1),
+
+        IF((ROWS(_arrayRaw) = 1) + (COLUMNS(_arrayRaw) <= 2), _arrayRaw,
+            HSTACK(TAKE(_arrayRaw, , 2), IFNA(DROP(_arrayRaw, , 2), ""))
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+SIFT_FOR_CHARS
+
+Returns the characters found in a text string found from a given set of characters. An upper limit can be set
+on the number of instances any character can be matched. Matching is case-insensitive by default.
+
+Array compatible: TextToSift parameter only
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text | Matched characters, sorted
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextToSift      | text    | Text to sift
+Chars           | text    | Characters to match
+[CaseSensitive] | switch  | Match letter case
+[Sort]          | switch  | Sort matched characters
+[InstanceLimit] | integer | Upper limit on instances for each character match
+                |         | 0 for no limit
+                |         | Defaults to 1
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+SIFT_FOR_CHARS("CDA_b_B", "abc")
+Returns: "CAb"
+
+SIFT_FOR_CHARS("CDA_b_B_CDA_b_B", "AB", TRUE, TRUE, 0)
+Returns: "AABB"
+--------------------------------------------------------------------------------------------------------------*/
+SIFT_FOR_CHARS = LAMBDA(TextToSift, CharSet, [CaseSensitive], [Sort], [InstanceLimit],
+    LET(
+        _charSet, FN.NULLIFY(INDEX(CharSet, 1, 1)),
+        _caseSensitive, FN.COERCE(CaseSensitive) <> 0,
+        _sort, FN.COERCE(Sort) <> 0,
+        _instanceLimit, IF(ISNUMBER(InstanceLimit), MAX(INT(InstanceLimit), 0), 1),
+        
+        fnSiftChars, LAMBDA(_textToSift,
+            IF(ISERROR(_textToSift), _textToSift * {1},
+                IF(ISERROR(_charSet), _charSet * {1},
+                    IF(_textToSift = "", "",
+                        IF(_charSet = "", _textToSift,
+                            LET(
+                                _textLen, LEN(_textToSift),
+                                _searchChars, MID(_textToSift, SEQUENCE(_textLen), 1),
+                                _matches,  FN.FIND_LITERAL(_searchChars, _charSet, _caseSensitive),
+                                _sifted, FILTER(_searchChars, _matches, {#N/A}),
+                                IF(ISNA(INDEX(_sifted, 1, 1)), "",
+                                    IF((_instanceLimit = 0) * NOT(_sort), CONCAT(_sifted),
+                                        LET(
+                                            _count, ROWS(_sifted),
+                                            _idx, SEQUENCE(_count),
+                                            _siftedIndexed, HSTACK(_sifted, _idx),
+                                            _siftedSorted, IF(_caseSensitive,
+                                                SORTBY(_siftedIndexed, _sifted, 1, CODE(_sifted), 1),
+                                                SORTBY(_siftedIndexed, _sifted, 1)
+                                            ),
+                                            _limitedSifts, IF(_instanceLimit = 0, _siftedSorted,
+                                                LET(
+                                                    _instances, SCAN(0, _idx,
+                                                        LAMBDA(_acc, _curr,
+                                                            IF(_curr = 1, 1,
+                                                                LET(
+                                                                    _isRepeat, IF(_caseSensitive,
+                                                                        CODE(INDEX(_siftedSorted, _curr, 1)) = CODE(INDEX(_siftedSorted, _curr - 1, 1)),
+                                                                        INDEX(_siftedSorted, _curr, 1) = INDEX(_siftedSorted, _curr - 1, 1)
+                                                                    ),
+                                                                    IF(_isRepeat, _acc + 1, 1)
+                                                                )
+                                                            )
+                                                        )
+                                                    ),
+                                                    FILTER(_siftedSorted, _instances <= _instanceLimit)
+                                                )
+                                            ),
+
+                                            _result, IF(_sort,
+                                                // already sorted, return sifted matches
+                                                INDEX(_limitedSifts, , 1),
+                                                // sort back to index in order found and return matches
+                                                INDEX(
+                                                    SORTBY(_limitedSifts, INDEX(_limitedSifts, , 2), 1),
+                                                    , 1
+                                                )
+                                            ),
+
+                                            CONCAT(_result)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        _textToSift, FN.NULLIFY(TextToSift),
+        MAP(_textToSift,
+            LAMBDA(_element,
+                fnSiftChars(_element)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+CONDENSE_WHITESPACE
+
+Replaces continuous whitespace characters in text with a single space. Line breaks can be excluded from matching
+as whitespace.
+
+Array compatible: TextToCondense
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | text | Condensed text
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+TextToCondense      | text    | Text to condense
+[ExcludeLineBreaks] | switch  | Exclude line breaks from matching for whitespace.
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+CONDENSE_WHITESPACE("a  b    c    ")
+Returns: "a b c "
+--------------------------------------------------------------------------------------------------------------*/
+CONDENSE_WHITESPACE = LAMBDA(TextToCondense, [ExcludeLineBreaks],
+    LET(
+        _excludeLineBreaks, FN.COERCE(ExcludeLineBreaks) <> 0,
+
+        fnCondenseWhitespace, LAMBDA(_textToCondense,
+            IF(ISERROR(_textToCondense), _textToCondense * {1},
+                IF(_textToCondense = "", "",
+                    LET(
+                        _charArray, MID(_textToCondense, SEQUENCE(LEN(_textToCondense)), 1),
+                        _condenseWhitespace, REDUCE({""; 0}, _charArray,
+                            LAMBDA(_acc, _currChar,
+                                LET(
+                                    _currCharCode, CODE(_currChar),
+                                    _isWhiteSpace, SWITCH(_currCharCode,
+                                        32, TRUE, // space
+                                        9, TRUE,  // tab
+                                        IF(_excludeLineBreaks, FALSE,
+                                            SWITCH(_currCharCode,
+                                                10, TRUE, // line feed 
+                                                13, TRUE, // carriage return
+                                                FALSE
+                                            )
+                                        )
+                                    ),
+
+                                    IF(_isWhiteSpace,
+                                        IF(INDEX(_acc, 2),
+                                            _acc,
+                                            VSTACK(INDEX(_acc, 1) & " ", 1)
+                                        ),
+                                        VSTACK(INDEX(_acc, 1) & _currChar, 0)
+                                    )
+                                )
+                            )
+                        ),
+                        INDEX(_condenseWhitespace, 1)
+                    )
+                )
+            )
+        ),
+
+        _textToCondense, FN.NULLIFY(TextToCondense),
+        MAP(_textToCondense,
+            LAMBDA(_element,
+                fnCondenseWhitespace(_element)
+            )
+        )
+    )
+);
+
+/*##############################################################################################################
+# END FN MODULE                                                                                                #
+##############################################################################################################*/

@@ -1,17 +1,62 @@
 /*##############################################################################################################
-# CALENDAR v3.0                                                                                                #
+# CHRONO v3.0                                                                                                  #
 #                                                                                                              #
-# Module for working with dates in the Gregorian and Julian calendars outside the range of the Excel Date/Time #
-# type.                                                                                                        #
+# Module for working with dates and times in the Gregorian and Julian calendars outside the range of the       #
+# Excel Date/Time type.                                                                                        #
 #                                                                                                              #
 # Dependencies: FN module, ARRAYS module                                                                       #
+#                                                                                                              #
+# TIMESPAN                                                                                                     #
+# ------------------------------------------------------------------------------------------------------------ #
+# IS_VALID_TIMESPAN          Tests if a sexagesimal complication is a valid timespan. A component can exceed   #
+#                            its modulus if no higher order element is provided.                               #
+# TIMESPAN                   Returns a decimal timespan as a fraction of a day from a sexagesimal complication.#
+#                            Note components exceeding their modulus will carry.                               #
+# ROUND_TIMESPAN             Returns a decimal timespan value rounded to the specified precision on a low      #
+#                            order component.                                                                  #
+# TIMESPAN_TO_DHMS           Returns a sexagesimal complication from a decimal timespan expressed from the     #
+#                            specified high to low order components.                                           #
+# RESOLVE_TIMESPAN_DHMS      Resolves a timespan sexagesimal complication so that each component is within its #
+#                            modulus.                                                                          #
+# PARSE_TIMESPAN_DHMS        Parses a text timespan expression as a sexagesimal complication.                  #
+# PARSE_TIMESPAN             Parses a text timespan expression as a decimal value.                             #
+# FORMAT_TIMESPAN            Returns a timespan as text in the specified format from a given decimal value.    #
 #                                                                                                              #
 # COMPLICATIONS                                                                                                #
 # ------------------------------------------------------------------------------------------------------------ #
 # VALIDATE_DT                Validate a day and time complication.                                             #
+# IS_VALID_DT                Tests if a day and time complication is valid.                                    #
 # RESOLVE_DT                 Resolves a day and time complication, where time can exceed its modulus.          #
-# COMBINE_DT                 Combines a day and time complication as a decimal day.                            #
-# DT_COMPLICATION
+# COMBINE_DT                 Combines a day and time complication to a decimal day value.                      #
+# DT_COMPLICATION            Resolves a day and time complication from a decimal day value.                    #
+# ROUND_TO_DT                Takes a decimal day value and returns a day and time complication rounded to a    #
+#                            specified low order component.                                                    #
+# IS_VALID_TIME_OF_DAY       Tests if a sexagesimal complication is a valid time of day.                       #
+# TIME_OF_DAY                Returns a decimal time of day value from a time complication.                     #
+# DAY_AND_TIME_TO_DHMS       Returns the sexagesimal complication from a day and time value expressed to a     #
+#                            specified low order component.                                                    #
+# RESOLVE_DHMS               Resolves a sexagesimal complication to represent day and time of day so that each #
+#                            component is within its modulus.                                                  #
+# PARSE_TIME_OF_DAY_HMS      Parses a formatted time of day into a time complication.                          #                                                                     #
+# PARSE_TIME_OF_DAY          Parses a formatted time of day as a decimal value.                                #
+# FORMAT_TIME_OF_DAY         Returns a formatted sexagesimal complication from a decimal time of day.          #
+#                                                                                                              #
+
+# TIME ZONE                                                                                                    #
+# ------------------------------------------------------------------------------------------------------------ #
+# IS_VALID_TZO               Tests if a time zone offset in minutes is within the range -900..+900             #
+# TIMESPAN_TO_TZO            Converts a deimal timespan into time zone offset minutes.                         #
+# TZO_TO_TIMESPAN            Converts time zone offset minutes into a decimal timespan.                        #
+# PARSE_ISO_TZO              Parses an ISO formatted time zone offset into a decimal timespan.                 #
+# FORMAT_ISO_TZO             Returns a time zone offset as text in ISO format.                                 #
+# MILITARY_TZO               Returns the time zone offset in minutes of a military time zone designator.       #
+# TZO_TO_MILITARY            Returns the closest military time zone designator, its offset in minutes and the  #
+#                            time adjustment to that time zone for the provided time zone offset in minutes.   #
+# SHIFT_TIMEZONE             Translates a Modified Julian Date from one time zone to another. If a time zone   #
+#                            is omitted it is assumed to be UTC.                                               #
+
+
+
 
 # JULIAN DATES                                                                                                 #
 # ------------------------------------------------------------------------------------------------------------ #
@@ -27,6 +72,18 @@
 # MODIFIED_TO_JDN            Converts a Modified Julian Day Number (MJDN) to a Julian Day Number (JDN).        #
 
 
+# JULIAN DATES                                                                                                 #
+# ------------------------------------------------------------------------------------------------------------ #
+# JULIAN_DAY_NUMBER          Returns the Julian Day Number (JDN) of the provided date in the specified         #
+#                            calendar. Note the Julian Day Number is an integer type and is an ordinal day     #
+#                            number referenced from January 1, 4713 BC in the proleptic Julian calendar. It    #
+#                            does not include any value for time of day.                                       #
+# MODIFIED_JULIAN_DAY_NUMBER Returns the Modified Julian Day Number (MJDN) of the provided date in the         #
+#                            specified calendar. Note the Modified Julian Day Number is an integer type and    #
+#                            is an ordinal day number referenced from November 17, 1858 in the proleptic       #
+#                            Gregorian calendar. It does not include any value for time of day.                #
+# JDN_TO_MODIFIED            Converts a Julian Day Number (JDN) to a Modified Julian Day Number (MJDN).        #
+# MODIFIED_TO_JDN            Converts a Modified Julian Day Number (MJDN) to a Julian Day Number (JDN).        #
 # JDN_TO_CALENDAR_DATE       Converts a Julian Day Number (JDN) to a date in the specified calendar.           #
 # MJDN_TO_CALENDAR_DATE      Converts a Modified Julian Day Number (MJDN) to a date in the specified calendar. #
 # JDN_TO_WEEKDAY             Returns the ISO weekday number for a given Julian Day Number (JDN).               #
@@ -56,48 +113,6 @@
 #                            expressed in UTC rather than local time, then results may be inconsistent due to  #
 #                            the bounds of calendar days.                                                      #
 #                                                                                                              #
-# TIMESPAN                                                                                                     #
-# ------------------------------------------------------------------------------------------------------------ #
-# IS_VALID_TIMESPAN          Tests if a sexagesimal complication is a valid timespan. A component can exceed   #
-#                            its modulus if no higher order element is provided.                               #
-# TIMESPAN                   Returns a decimal timespan as a fraction of a day from a sexagesimal complication.#
-#                            Note components exceeding their modulus will carry.                               #
-# ROUND_TIMESPAN             Returns a decimal timespan value rounded to the specified precision on a low      #
-#                            order component.                                                                  #
-# TIMESPAN_TO_DHMS           Returns a sexagesimal complication from a decimal timespan expressed from the     #
-#                            specified high to low order components.                                           #
-# RESOLVE_TIMESPAN_DHMS      Resolves a timespan sexagesimal complication so that each component is within its #
-#                            modulus.                                                                          #
-# PARSE_TIMESPAN_DHMS        Parses a text timespan expression as a sexagesimal complication.                  #
-# PARSE_TIMESPAN             Parses a text timespan expression as a decimal value.                             #
-# FORMAT_TIMESPAN            Returns a timespan as text in the specified format from a given decimal value.    #
-#                                                                                                              #
-# TIME OF DAY                                                                                                  #
-# ------------------------------------------------------------------------------------------------------------ #
-# IS_VALID_TOD_HMS           Tests if a sexagesimal complication is a valid time of day.                       #
-# TIME_OF_DAY                Returns a decimal time of day as a fraction of a day from a time complication.    #
-# ROUND_DAY_AND_TIME         Returns a decimal day and time of day value rounded to a specified low order      #
-#                            component.                                                                        #
-# DAY_AND_TIME_TO_DHMS       Returns the sexagesimal complication from a time of day value expressed to a      #
-#                            specified low order component.                                                    #
-# RESOLVE_DAY_AND_TIME_DHMS  Resolves a sexagesimal complication to represent day and time of day so that each #
-#                            component is within its modulus.                                                  #
-# PARSE_TIME_OF_DAY_HMS      Parses a formatted time of day into a time complication.                          #                                                                     #
-# PARSE_TIME_OF_DAY          Parses a formatted time of day as a decimal value.                                #
-# FORMAT_TIME_OF_DAY         Returns a formatted sexagesimal complication from a decimal time of day.          #
-#                                                                                                              #
-# TIME ZONE                                                                                                    #
-# ------------------------------------------------------------------------------------------------------------ #
-# IS_VALID_TZO               Tests if a time zone offset in minutes is within the range -900..+900             #
-# TIMESPAN_TO_TZO            Converts a deimal timespan into time zone offset minutes.                         #
-# TZO_TO_TIMESPAN            Converts time zone offset minutes into a decimal timespan.                        #
-# PARSE_ISO_TZO              Parses an ISO formatted time zone offset into a decimal timespan.                 #
-# FORMAT_ISO_TZO             Returns a time zone offset as text in ISO format.                                 #
-# MILITARY_TZO               Returns the time zone offset in minutes of a military time zone designator.       #
-# TZO_TO_MILITARY            Returns the closest military time zone designator, its offset in minutes and the  #
-#                            time adjustment to that time zone for the provided time zone offset in minutes.   #
-# SHIFT_TIMEZONE             Translates a Modified Julian Date from one time zone to another. If a time zone   #
-#                            is omitted it is assumed to be UTC.                                               #
 #                                                                                                              #
 # YEAR                                                                                                         #
 # ------------------------------------------------------------------------------------------------------------ #
@@ -247,6 +262,730 @@
 #                            time.                                                                             #
 #                                                                                                              #
 ##############################################################################################################*/
+
+
+
+
+
+
+
+/*##############################################################################################################
+# COMPLICATIONS                                                                                                #
+##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
+VALIDATE_DT
+
+Validate a day and time complication.
+
+Array compatible: DT as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer        | Day
+ 2 | decimal [0..1] | Time
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+DT        | array   C[1..2] |
+   [Day]  | integer         | 
+   [Time] | decimal [0..1]  |
+--------------------------------------------------------------------------------------------------------------*/
+VALIDATE_DT = LAMBDA(DT,
+    LET(
+        fnValidateDT, LAMBDA(_DT,
+            IF(COLUMNS(_DT) > 2, {#REF!, #REF!},
+                IF(ARRAYS.IS_EMPTY(_DT), {"", ""},
+                    LET(
+                        _expandDT, EXPAND(_DT, 1, 2, ""),
+                        _d, INDEX(_expandDT, 1, 1),
+                        _t, INDEX(_expandDT, 1, 2),
+                        _dayHasTimeComponent, IF(NOT(ISNUMBER(_d)), FALSE,
+                            NOT(FN.IS_INTEGER(_d))
+                        ),
+                        _hasTimeComponent, IF(_dayHasTimeComponent, TRUE,
+                            NOT(FN.IS_EMPTY(_t))
+                        ),
+                        _dayAndTimeCollison, _dayHasTimeComponent * NOT(FN.IS_EMPTY(_t)) <> 0, 
+                        _day, IF(ISERROR(_d), _d * {1},
+                            IF(_dayAndTimeCollison, {#NUM!},
+                                IF(_d = "", "",
+                                    IF(NOT(ISNUMBER(_d)), {#VALUE!}, INT(_d))
+                                )
+                            )
+                        ),
+                        _time, IF(ISERROR(_t), _t * {1},
+                            IF(_dayAndTimeCollison, {#NUM!},
+                                IF(_t = "",
+                                    IF(_dayHasTimeComponent, MOD(_d, 1), ""),
+                                    IF(NOT(ISNUMBER(_t)), {#VALUE!},
+                                        IF((_t >= 0) * (_t <= 1), _t, {#NUM!})
+                                    )
+                                )
+                            )
+                        ),
+                        
+                        HSTACK(_day, _time)
+                    )
+                )
+            )
+        ),
+
+        _DT, FN.NULLIFY(DT),
+        _rowCount, ROWS(_DT),
+        _byRow, REDUCE("", SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnValidateDT(INDEX(_DT, _curr,))
+                )
+            )
+        ),
+        DROP(_byRow, 1)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+RESOLVE_DT
+
+Resolves a day and time complication, where time can exceed its modulus.
+
+Array compatible: DT as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer        | Day
+ 2 | decimal [0..1] | Time
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+DT        | array   C[1..2] |
+   [Day]  | decimal         | 
+   [Time] | decimal         |
+--------------------------------------------------------------------------------------------------------------*/
+RESOLVE_DT = LAMBDA(DT,
+    LET(
+        fnResolveDT, LAMBDA(_DT,
+            IF(COLUMNS(_DT) > 2, {#REF!, #REF!},
+                IF(ARRAYS.IS_EMPTY(_DT), {"", ""},
+                    LET(
+                        _expandDT, EXPAND(_DT, 1, 2, ""),
+                        _d, INDEX(_expandDT, 1, 1),
+                        _t, INDEX(_expandDT, 1, 2),
+                        _dayHasTimeComponent, IF(NOT(ISNUMBER(_d)), FALSE,
+                            NOT(FN.IS_INTEGER(_d))
+                        ),
+                        _time, IF(ISERROR(_t), _t * {1},
+                            IF(_t = "",
+                                IF(_dayHasTimeComponent, MOD(_d, 1), ""),
+                                IF(ISNUMBER(_t), MOD(_t, 1), {#VALUE!})
+                            )
+                        ),
+                        _carryDay, IF(ISNUMBER(_t), INT(_t), 0),
+                        _day, IF(ISERROR(_d), _d * {1},
+                            IF(_d = "", 1 + _carryDay,
+                                IF(NOT(ISNUMBER(_d)), {#VALUE!},
+                                    INT(_d) + _carryDay
+                                )
+                            )
+                        ),
+                        
+                        HSTACK(_day, _time)
+                    )
+                )
+            )
+        ),
+
+        _DT, FN.NULLIFY(DT),
+        _rowCount, ROWS(_DT),
+        _byRow, REDUCE("", SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnResolveDT(INDEX(_DT, _curr, ))
+                )
+            )
+        ),
+        DROP(_byRow, 1)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+COMBINE_DT
+
+Combines a day and time complication as a decimal day.
+
+Array compatible: DT as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | decimal | Day
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+DT        | array   C[1..2] |
+   [Day]  | decimal         | 
+   [Time] | decimal         |
+--------------------------------------------------------------------------------------------------------------*/
+COMBINE_DT = LAMBDA(DT,
+    LET(
+        fnCombineDT, LAMBDA(_DT,
+            IF(COLUMNS(_DT) > 2, {#REF!},
+                IF(ARRAYS.IS_EMPTY(_DT), {""},
+                    LET(
+                        _expandDT, EXPAND(_DT, 1, 2, 0),
+                        _d, INDEX(_expandDT, 1, 1),
+                        _t, INDEX(_expandDT, 1, 2),
+                        _day, IF(FN.IS_EMPTY(_d), 1, _d),
+                        _time, IF(FN.IS_EMPTY(_t), 0, _t),
+                        _day + _time
+                    )
+                )
+            )
+        ),
+
+        BYROW(FN.NULLIFY(DT),
+            LAMBDA(_row,
+                fnCombineDT(_row)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+DT_COMPLICATION
+
+Resolves a day and time complication from a decimal day value.
+
+Array compatible: Day_D as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer        | Day
+ 2 | decimal [0..1] | Time
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Day_D | decimal | Day decimal
+--------------------------------------------------------------------------------------------------------------*/
+DT_COMPLICATION = LAMBDA(Day_D,
+    LET(
+        fnDTcomplication, LAMBDA(_day_D,
+            IF(ISERROR(_day_D), _day_D * {1, 2},
+                IF(_day_D = "", {"", ""},
+                    IF(NOT(ISNUMBER(_day_D)), {#VALUE!},
+                        LET(
+                            _day, INT(_day_D),
+                            _time, MOD(_day_D, 1),
+                            HSTACK(_day, _time)
+                        )
+                    )
+                )
+            )
+        ),
+
+        _day_D, FN.NULLIFY(INDEX(Day_D, , 1)),
+        _rowCount, ROWS(_day_D),
+        _byRow, REDUCE("", SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnDTcomplication(INDEX(_day_D, _curr, 1))
+                )
+            )
+        ),
+        DROP(_byRow, 1)
+    )
+);
+
+
+
+/*##############################################################################################################
+# JULIAN DATES                                                                                                 #
+##############################################################################################################*/
+
+
+_JULIAN_DAY_NUMBER = LAMBDA(_yearCE, _month, _day, _julianCalendar,
+    LET(
+        _YEAR4801BCE, -4800,
+        _G4801BCE_JD, -32045,
+        _J4801BCE_JD, -32083,
+        _DaysIn5MonthsFromMarch, 153,
+        _iMonth, INT(_month),
+        _MarchShiftYear, INT((14 - _iMonth) / 12),
+        _years, INT(_yearCE) - _YEAR4801BCE - _MarchShiftYear,
+        _MarchShiftMonth, _iMonth + (12 * _MarchShiftYear) - 3,
+        _days, 365 * _years + INT(_years / 4) + INT((_DaysIn5MonthsFromMarch * _MarchShiftMonth + 2) / 5) + INT(_day),
+        _days + IF(_julianCalendar,
+            _J4801BCE_JD,
+            _G4801BCE_JD - INT(_years / 100) + INT(_years / 400)
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+JDN
+
+Returns the Julian Day Number (JDN) of the provided date in the specified calendar.
+Note the Julian Day Number is an integer type and is an ordinal day number referenced from January 1,
+4713 BC in the proleptic Julian calendar. It does not include any value for time of day.
+If month and day are empty then returns JDN for January 1st of the year.
+
+Array compatible: Date_YMDT as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Julian Day Number
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Date_YMDT        | array   C[1..4] |
+   YearCE        | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]       | integer [1..12] | Month of year. Can be empty.
+   [Day]         | decimal [0..32) | Day. Can be empty.
+   [TimeOfDay]   | decimal [0..1)  | Time of day. Optional and is ignored.
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+JDN = LAMBDA(Date_YMDT, [JulianCalendar],
+    LET(
+        _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
+
+        fnResolveJDN, LAMBDA(_date_YMDT,
+            IF(ARRAYS.IS_EMPTY(_date_YMDT), "",
+                LET(
+                    _validateDate, CALENDAR.VALIDATE_YMDT(_date_YMDT, _julianCalendar),
+                    _firstError, ARRAYS.H_ERROR(_validateDate),
+                    IF(ISERROR(_firstError), _firstError * {1},
+                        LET(
+                            _y, INDEX(_validateDate, 1, 1),
+                            _m, INDEX(_validateDate, 1, 2),
+                            _d, INDEX(_validateDate, 1, 3),
+                            IF(_m = "",
+                                LET(
+                                    _JDN_JAN0, _JULIAN_DAY_NUMBER(_y, 1, 0, _julianCalendar),
+                                    _JDN_JAN0 + IF(_d = "", 1, _d)
+                                ),
+                                IF(_d = "", 
+                                    _JULIAN_DAY_NUMBER(_y, _m, 1, _julianCalendar),
+                                    _JULIAN_DAY_NUMBER(_y, _m, _d, _julianCalendar)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+                        
+        _date_YMDT, FN.NULLIFY(Date_YMDT),
+        BYROW(_date_YMDT,
+            LAMBDA(_row,
+                fnResolveJDN(_row)
+            )
+        )
+    )
+);
+
+
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MODIFIED_JULIAN_DAY_NUMBER
+
+Returns the Modified Julian Day Number (MJDN) of the provided date in the specified calendar.
+Note the Modified Julian Day Number is an integer type and is an ordinal day number referenced from November 17,
+1858 in the proleptic Gregorian calendar. It does not include any value for time of day.
+If month and day are empty then returns MJDN for January 1st of the year.
+
+Array compatible: Date_YMD as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Modified Julian Day Number
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Date_YMD         | array   C[1..3] |
+   YearCE        | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]       | integer [1..12] | Month of year. Can be empty.
+   [Day]         | decimal [0..32) | Day. Can be empty.
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+MODIFIED_JULIAN_DAY_NUMBER = LAMBDA(Date_YMD, [JulianCalendar],
+    CALENDAR.JDN_TO_MODIFIED(
+        CALENDAR.JULIAN_DAY_NUMBER(Date_YMD, JulianCalendar)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+JDN_TO_MODIFIED
+
+Converts a Julian Day Number (JDN) to a Modified Julian Day Number (MJDN).
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Modified Julian Day Number
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+JDN | integer | Julian Day Number
+--------------------------------------------------------------------------------------------------------------*/
+JDN_TO_MODIFIED = LAMBDA(JDN,
+    LET(
+        _JDN, FN.NULLIFY(JDN),
+        IF(ISERROR(_JDN), _JDN * {1},
+            IF(_JDN = "", "",
+                INT(_JDN + 0.5) - 2400001
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MODIFIED_TO_JDN
+
+Converts a Modified Julian Day Number (MJDN) to a Julian Day Number (JDN).
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Julian Day Number
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDN | integer | Modified Julian Day Number
+--------------------------------------------------------------------------------------------------------------*/
+MODIFIED_TO_JDN = LAMBDA(MJDN,
+    LET(
+        _MJDN, FN.NULLIFY(MJDN),
+        IF(ISERROR(_MJDN), _MJDN * {1},
+            IF(_MJDN = "", "",
+                INT(_MJDN) + 2400001
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+JDN_TO_CALENDAR_DATE
+
+Converts a Julian Day Number to a date in the specified calendar.
+
+Array compatible: JDN as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day of month
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+JDN              | integer | Julian Day Number
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+JDN_TO_CALENDAR_DATE = LAMBDA(JDN, [JulianCalendar],
+    LET(
+        _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
+
+        fnJDNtoCalendarDate, LAMBDA(_JDN,
+            IF(ISERROR(_JDN), _JDN * {1, 2, 3},
+                IF(_JDN = "", {"", "", ""},
+                    IF(NOT(ISNUMBER(_JDN)), {#VALUE!, #VALUE!, #VALUE!},
+                        LET(
+                            _YEAR4801BCE, -4800,
+                            _DaysIn4Year, 1461,
+                            _DaysInYear, 365,
+                            _MonthCorrectionDays, 308,
+                            _DaysIn4Months, 122,
+                            _DaysIn5MonthsFromMarch, 153,
+                            IF(_julianCalendar,
+                                LET(
+                                    _J4801BCE_JD0, -32083,
+                                    _days0, INT(_JDN) - _J4801BCE_JD0 - 1,
+                                    _quadYr, INT(_days0 / _DaysIn4Year),
+                                    _days1, _days0 - _quadYr * _DaysIn4Year,
+                                    _remYr, INT((INT(_days1 / _DaysInYear) + 1) * 0.75),
+                                    _days2, _days1 - _remYr * _DaysInYear,
+                                    _y, _quadYr * 4 + _remYr,
+                                    _m, INT((_days2 * 5 + _MonthCorrectionDays) / _DaysIn5MonthsFromMarch) - 2,
+                                    _day, _days2 - INT((_m + 4) * _DaysIn5MonthsFromMarch / 5) +
+                                        _DaysIn4Months + 1,
+                                    _year, _YEAR4801BCE + _y + INT((_m + 2) / 12),
+                                    _month, MOD(_m + 2, 12) + 1,
+                                    HSTACK(_year, _month, _day)
+                                ),
+                                LET(
+                                    _G4801BCE_JD0, -32045,
+                                    _GregDaysIn400Year, 146097,
+                                    _GregDaysIn100Year, 36524,
+                                    _days0, INT(_JDN) - _G4801BCE_JD0 - 1,
+                                    _quadCent, INT(_days0 / _GregDaysIn400Year),
+                                    _days1, _days0 - _quadCent * _GregDaysIn400Year,
+                                    _remCent, INT((INT(_days1 / _GregDaysIn100Year) + 1) * 0.75),
+                                    _days2, _days1 - _remCent * _GregDaysIn100Year,
+                                    _quadYr, INT(_days2 / _DaysIn4Year),
+                                    _days3, _days2 - _quadYr * _DaysIn4Year,
+                                    _remYr, INT((INT(_days3 / _DaysInYear) + 1) * 0.75),
+                                    _days4, _days3 - _remYr * _DaysInYear,
+                                    _y, _quadCent * 400 + _remCent * 100 + _quadYr * 4 + _remYr,
+                                    _m, INT((_days4 * 5 + _MonthCorrectionDays) / _DaysIn5MonthsFromMarch) - 2,
+                                    _day, _days4 - INT((_m + 4) * _DaysIn5MonthsFromMarch / 5) +
+                                        _DaysIn4Months + 1,
+                                    _year, _YEAR4801BCE + _y + INT((_m + 2) / 12),
+                                    _month, MOD(_m + 2, 12) + 1,
+                                    HSTACK(_year, _month, _day)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+
+        _JDNcolumn, FN.NULLIFY(INDEX(JDN, , 1)),
+        _rowCount, ROWS(_JDNcolumn),
+        _byRow, REDUCE("", SEQUENCE(_rowCount),
+            LAMBDA(_acc, _curr,
+                VSTACK(
+                    _acc,
+                    fnJDNtoCalendarDate(INDEX(_JDNcolumn, _curr, 1))
+                )
+            )
+        ),
+        DROP(_byRow, 1)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDN_TO_CALENDAR_DATE
+
+Converts a Modified Julian Day Number (MJDN) to a date in the specified calendar.
+
+Array compatible: MJDN as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day of month
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDN             | integer | Modified Julian Day Number
+[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |         | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+MJDN_TO_CALENDAR_DATE = LAMBDA(MJDN, [JulianCalendar],
+    LET(
+        _JDN, CALENDAR.MODIFIED_TO_JDN(MJDN),
+        CALENDAR.JDN_TO_CALENDAR_DATE(_JDN, JulianCalendar)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+JDN_TO_WEEKDAY
+
+Returns the ISO weekday number for a given Julian Day Number (JDN).
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer [1..7] | ISO weekday number
+   |                | Monday..Sunday
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+JDN | integer | Julian Day Number. Fractional numbers will be trunctated.
+--------------------------------------------------------------------------------------------------------------*/
+JDN_TO_WEEKDAY = LAMBDA(JDN,
+    LET(
+        _MJDN, CALENDAR.JDN_TO_MODIFIED(JDN),
+        CALENDAR.MJDN_TO_WEEKDAY(_MJDN)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDN_TO_WEEKDAY
+
+Returns the ISO weekday number for a given Modified Julian Day Number (MJDN).
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer [1..7] | ISO weekday number
+   |                | Monday..Sunday
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDN | integer | Modified Julian Day Number. Fractional numbers will be trunctated.
+--------------------------------------------------------------------------------------------------------------*/
+MJDN_TO_WEEKDAY = LAMBDA(MJDN,
+    LET(
+        fnISOWeekday, LAMBDA(_MJDN,
+            IF(ISERROR(_MJDN), _MJDN * {1},
+                IF(_MJDN = "", "",
+                    IF(NOT(ISNUMBER(_MJDN)), {#VALUE!},
+                        LET(
+                            _iMJDN, INT(_MJDN),
+                            MOD(_iMJDN + 2, 7) + 1
+                        )
+                    )
+                )
+            )
+        ),
+
+        MAP(FN.NULLIFY(MJDN),
+            LAMBDA(_element,
+                fnISOWeekday(_element)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+GREGORIAN_TO_JULIAN
+
+Translates a date in the Gregorian proleptic calendar to the Julian proleptic calendar.
+
+Array compatible: Date_YMD as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Date_YMD         | array   C[2..3]  |
+   YearCE        | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]       | integer [1..12]  | Month of year. Can be empty.
+   [Day]         | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
+--------------------------------------------------------------------------------------------------------------*/
+GREGORIAN_TO_JULIAN = LAMBDA(Date_YMD,
+    LET(
+        _JDN, CALENDAR.JULIAN_DAY_NUMBER(Date_YMD, 0),
+        CALENDAR.JDN_TO_CALENDAR_DATE(_JDN, 1)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+JULIAN_TO_GREGORIAN
+
+Translates a date in the Julian proleptic calendar to the Gregorian proleptic calendar.
+
+Array compatible: Date_YMD as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+ 2 | integer [1..12] | Month
+ 3 | integer [1..31] | Day
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Date_YMD         | array   C[2..3]  |
+   YearCE        | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]       | integer [1..12]  | Month of year. Can be empty.
+   [Day]         | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
+--------------------------------------------------------------------------------------------------------------*/
+JULIAN_TO_GREGORIAN = LAMBDA(Date_YMD,
+    LET(
+        _JDN, CALENDAR.JULIAN_DAY_NUMBER(Date_YMD, 1),
+        CALENDAR.JDN_TO_CALENDAR_DATE(_JDN, 0)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+SECULAR_DIFFERENCE
+
+Returns the number of days the Gregorian proleptic calendar is ahead of the Julian proleptic calendar for
+a given date.
+
+Array compatible: Date_YMD as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Days difference. Negative values are when the Julian proleptic calender is ahead.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Date_YMD             | array   C[1..3]  |
+   YearCE            | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+   [Month]           | integer [1..12]  | Month of year. Can be empty.
+   [Day]             | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
+[FromJulianCalendar] | switch           | Provided date is in Julian calendar.
+                     |                  | Default is the Gregorian calendar.
+--------------------------------------------------------------------------------------------------------------*/
+SECULAR_DIFFERENCE = LAMBDA(Date_YMD, [FromJulianCalendar],
+    LET(
+        _fromJulianCalendar, FN.COERCE(FromJulianCalendar) <> 0,
+        
+        fnFromGregorian, LAMBDA(_date_YMD,
+            LET(
+                _JDN_G, CALENDAR.JULIAN_DAY_NUMBER(_date_YMD, 0),
+                IF(ISERROR(_JDN_G), _JDN_G * {1},
+                    IF(_JDN_G = "", "",
+                        LET(
+                            _year, INDEX(_date_YMD, 1, 1),
+                            _month, IFERROR(INDEX(_date_YMD, 1, 2), 1),
+                            _day, IFERROR(INDEX(_date_YMD, 1, 3), 1),
+                            _JDN_J, IF((_month = 2) * (_day = 29) * NOT(CALENDAR.IS_LEAP_YEAR(_year, 1)),
+                                CALENDAR.JULIAN_DAY_NUMBER(HSTACK(_year, 2, 28), 1),
+                                CALENDAR.JULIAN_DAY_NUMBER(_date_YMD, 1)
+                            ),
+                            _JDN_J - _JDN_G
+                        )
+                    )
+                )
+            )
+        ),
+        
+        fnFromJulian, LAMBDA(_date_YMD,
+            LET(
+                _date_G, CALENDAR.JULIAN_TO_GREGORIAN(_date_YMD),
+                IF(ISERROR(INDEX(_date_G, 1, 1)), INDEX(_date_G, 1, 1) * {1},
+                    IF(INDEX(_date_G, 1, 1) = "", "",
+                        fnFromGregorian(_date_G)
+                    )
+                )
+            )
+        ),
+
+        IF(_fromJulianCalendar,
+            BYROW(Date_YMD,
+                LAMBDA(_row, fnFromJulian(_row))
+            ),
+            BYROW(Date_YMD,
+                LAMBDA(_row, fnFromGregorian(_row))
+            )
+        )
+    )
+);
+
+
 
 
 
@@ -1918,486 +2657,6 @@ FORMAT_LITERARY_DATE = LAMBDA(Date_YMDTW, [Options], [LanguageCode], [JulianCale
 
 
 
-/*##############################################################################################################
-# JULIAN DATES                                                                                                 #
-##############################################################################################################*/
-
-
-_JULIAN_DAY_NUMBER = LAMBDA(_yearCE, _month, _day, _julianCalendar,
-    LET(
-        _YEAR4801BCE, -4800,
-        _G4801BCE_JD, -32045,
-        _J4801BCE_JD, -32083,
-        _DaysIn5MonthsFromMarch, 153,
-        _iMonth, INT(_month),
-        _MarchShiftYear, INT((14 - _iMonth) / 12),
-        _years, INT(_yearCE) - _YEAR4801BCE - _MarchShiftYear,
-        _MarchShiftMonth, _iMonth + (12 * _MarchShiftYear) - 3,
-        _days, 365 * _years + INT(_years / 4) + INT((_DaysIn5MonthsFromMarch * _MarchShiftMonth + 2) / 5) + INT(_day),
-        _days + IF(_julianCalendar,
-            _J4801BCE_JD,
-            _G4801BCE_JD - INT(_years / 100) + INT(_years / 400)
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-JULIAN_DAY_NUMBER
-
-Returns the Julian Day Number (JDN) of the provided date in the specified calendar.
-Note the Julian Day Number is an integer type and is an ordinal day number referenced from January 1,
-4713 BC in the proleptic Julian calendar. It does not include any value for time of day.
-If month and day are empty then returns JDN for January 1st of the year.
-
-Array compatible: Date_YMDT as column
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer | Julian Day Number
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Date_YMD         | array   C[1..3] |
-   YearCE        | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-   [Month]       | integer [1..12] | Month of year. Can be empty.
-   [Day]         | decimal [0..32) | Day. Can be empty.
-   [TimeOfDay]   | decimal [0..1)  | Time of day. Can be empty.
-[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |                 | proleptic calendar.
---------------------------------------------------------------------------------------------------------------*/
-JULIAN_DAY_NUMBER = LAMBDA(Date_YMDT, [JulianCalendar],
-    LET(
-        _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
-            
-        fnResolveJDN, LAMBDA(_date,
-            IF(ARRAYS.IS_EMPTY(_date), "",
-                LET(
-                    _validateDate, CALENDAR.VALIDATE_CALENDAR_DATE(_date, _julianCalendar),
-                    _firstError, ARRAYS.H_ERROR(_validateDate),
-                    IF(ISERROR(_firstError), _firstError * {1},
-                        LET(
-                            _y, INDEX(_validateDate, 1, 1),
-                            _m, INDEX(_validateDate, 1, 2),
-                            _d, INDEX(_validateDate, 1, 3),
-                            IF(_m = "",
-                                LET(
-                                    _JDN_JAN0, _JULIAN_DAY_NUMBER(_y, 1, 0, _julianCalendar),
-                                    _JDN_JAN0 + IF(_d = "", 1, _d)
-                                ),
-                                IF(_d = "", 
-                                    _JULIAN_DAY_NUMBER(_y, _m, 1, _julianCalendar),
-                                    _JULIAN_DAY_NUMBER(_y, _m, _d, _julianCalendar)
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        ),
-                        
-        _date_YMDT, FN.NULLIFY(Date_YMDT),
-        BYROW(_date_YMDT,
-            LAMBDA(_row,
-                fnResolveJDN(_row)
-            )
-        )
-    )
-);
-
-
-
-
-/*--------------------------------------------------------------------------------------------------------------
-MODIFIED_JULIAN_DAY_NUMBER
-
-Returns the Modified Julian Day Number (MJDN) of the provided date in the specified calendar.
-Note the Modified Julian Day Number is an integer type and is an ordinal day number referenced from November 17,
-1858 in the proleptic Gregorian calendar. It does not include any value for time of day.
-If month and day are empty then returns MJDN for January 1st of the year.
-
-Array compatible: Date_YMD as column
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer | Modified Julian Day Number
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Date_YMD         | array   C[1..3] |
-   YearCE        | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-   [Month]       | integer [1..12] | Month of year. Can be empty.
-   [Day]         | decimal [0..32) | Day. Can be empty.
-[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |                 | proleptic calendar.
---------------------------------------------------------------------------------------------------------------*/
-MODIFIED_JULIAN_DAY_NUMBER = LAMBDA(Date_YMD, [JulianCalendar],
-    CALENDAR.JDN_TO_MODIFIED(
-        CALENDAR.JULIAN_DAY_NUMBER(Date_YMD, JulianCalendar)
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-JDN_TO_MODIFIED
-
-Converts a Julian Day Number (JDN) to a Modified Julian Day Number (MJDN).
-
-Array compatible: Yes
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer | Modified Julian Day Number
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-JDN | integer | Julian Day Number
---------------------------------------------------------------------------------------------------------------*/
-JDN_TO_MODIFIED = LAMBDA(JDN,
-    LET(
-        _JDN, FN.NULLIFY(JDN),
-        IF(ISERROR(_JDN), _JDN * {1},
-            IF(_JDN = "", "",
-                INT(_JDN + 0.5) - 2400001
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-MODIFIED_TO_JDN
-
-Converts a Modified Julian Day Number (MJDN) to a Julian Day Number (JDN).
-
-Array compatible: Yes
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer | Julian Day Number
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-MJDN | integer | Modified Julian Day Number
---------------------------------------------------------------------------------------------------------------*/
-MODIFIED_TO_JDN = LAMBDA(MJDN,
-    LET(
-        _MJDN, FN.NULLIFY(MJDN),
-        IF(ISERROR(_MJDN), _MJDN * {1},
-            IF(_MJDN = "", "",
-                INT(_MJDN) + 2400001
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-JDN_TO_CALENDAR_DATE
-
-Converts a Julian Day Number to a date in the specified calendar.
-
-Array compatible: JDN as column
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer [1..12] | Month
- 3 | integer [1..31] | Day of month
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-JDN              | integer | Julian Day Number
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |         | proleptic calendar.
---------------------------------------------------------------------------------------------------------------*/
-JDN_TO_CALENDAR_DATE = LAMBDA(JDN, [JulianCalendar],
-    LET(
-        _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
-
-        fnJDNtoCalendarDate, LAMBDA(_JDN,
-            IF(ISERROR(_JDN), _JDN * {1, 2, 3},
-                IF(_JDN = "", {"", "", ""},
-                    IF(NOT(ISNUMBER(_JDN)), {#VALUE!, #VALUE!, #VALUE!},
-                        LET(
-                            _YEAR4801BCE, -4800,
-                            _DaysIn4Year, 1461,
-                            _DaysInYear, 365,
-                            _MonthCorrectionDays, 308,
-                            _DaysIn4Months, 122,
-                            _DaysIn5MonthsFromMarch, 153,
-                            IF(_julianCalendar,
-                                LET(
-                                    _J4801BCE_JD0, -32083,
-                                    _days0, INT(_JDN) - _J4801BCE_JD0 - 1,
-                                    _quadYr, INT(_days0 / _DaysIn4Year),
-                                    _days1, _days0 - _quadYr * _DaysIn4Year,
-                                    _remYr, INT((INT(_days1 / _DaysInYear) + 1) * 0.75),
-                                    _days2, _days1 - _remYr * _DaysInYear,
-                                    _y, _quadYr * 4 + _remYr,
-                                    _m, INT((_days2 * 5 + _MonthCorrectionDays) / _DaysIn5MonthsFromMarch) - 2,
-                                    _day, _days2 - INT((_m + 4) * _DaysIn5MonthsFromMarch / 5) +
-                                        _DaysIn4Months + 1,
-                                    _year, _YEAR4801BCE + _y + INT((_m + 2) / 12),
-                                    _month, MOD(_m + 2, 12) + 1,
-                                    HSTACK(_year, _month, _day)
-                                ),
-                                LET(
-                                    _G4801BCE_JD0, -32045,
-                                    _GregDaysIn400Year, 146097,
-                                    _GregDaysIn100Year, 36524,
-                                    _days0, INT(_JDN) - _G4801BCE_JD0 - 1,
-                                    _quadCent, INT(_days0 / _GregDaysIn400Year),
-                                    _days1, _days0 - _quadCent * _GregDaysIn400Year,
-                                    _remCent, INT((INT(_days1 / _GregDaysIn100Year) + 1) * 0.75),
-                                    _days2, _days1 - _remCent * _GregDaysIn100Year,
-                                    _quadYr, INT(_days2 / _DaysIn4Year),
-                                    _days3, _days2 - _quadYr * _DaysIn4Year,
-                                    _remYr, INT((INT(_days3 / _DaysInYear) + 1) * 0.75),
-                                    _days4, _days3 - _remYr * _DaysInYear,
-                                    _y, _quadCent * 400 + _remCent * 100 + _quadYr * 4 + _remYr,
-                                    _m, INT((_days4 * 5 + _MonthCorrectionDays) / _DaysIn5MonthsFromMarch) - 2,
-                                    _day, _days4 - INT((_m + 4) * _DaysIn5MonthsFromMarch / 5) +
-                                        _DaysIn4Months + 1,
-                                    _year, _YEAR4801BCE + _y + INT((_m + 2) / 12),
-                                    _month, MOD(_m + 2, 12) + 1,
-                                    HSTACK(_year, _month, _day)
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        ),
-
-        _JDNcolumn, FN.NULLIFY(INDEX(JDN, , 1)),
-        _rowCount, ROWS(_JDNcolumn),
-        _byRow, REDUCE("", SEQUENCE(_rowCount),
-            LAMBDA(_acc, _curr,
-                VSTACK(
-                    _acc,
-                    fnJDNtoCalendarDate(INDEX(_JDNcolumn, _curr, 1))
-                )
-            )
-        ),
-        DROP(_byRow, 1)
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-MJDN_TO_CALENDAR_DATE
-
-Converts a Modified Julian Day Number (MJDN) to a date in the specified calendar.
-
-Array compatible: MJDN as column
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer [1..12] | Month
- 3 | integer [1..31] | Day of month
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-MJDN             | integer | Modified Julian Day Number
-[JulianCalendar] | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |         | proleptic calendar.
---------------------------------------------------------------------------------------------------------------*/
-MJDN_TO_CALENDAR_DATE = LAMBDA(MJDN, [JulianCalendar],
-    LET(
-        _JDN, CALENDAR.MODIFIED_TO_JDN(MJDN),
-        CALENDAR.JDN_TO_CALENDAR_DATE(_JDN, JulianCalendar)
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-JDN_TO_WEEKDAY
-
-Returns the ISO weekday number for a given Julian Day Number (JDN).
-
-Array compatible: Yes
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer [1..7] | ISO weekday number
-   |                | Monday..Sunday
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-JDN | integer | Julian Day Number. Fractional numbers will be trunctated.
---------------------------------------------------------------------------------------------------------------*/
-JDN_TO_WEEKDAY = LAMBDA(JDN,
-    LET(
-        _MJDN, CALENDAR.JDN_TO_MODIFIED(JDN),
-        CALENDAR.MJDN_TO_WEEKDAY(_MJDN)
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-MJDN_TO_WEEKDAY
-
-Returns the ISO weekday number for a given Modified Julian Day Number (MJDN).
-
-Array compatible: Yes
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer [1..7] | ISO weekday number
-   |                | Monday..Sunday
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-MJDN | integer | Modified Julian Day Number. Fractional numbers will be trunctated.
---------------------------------------------------------------------------------------------------------------*/
-MJDN_TO_WEEKDAY = LAMBDA(MJDN,
-    LET(
-        fnISOWeekday, LAMBDA(_MJDN,
-            IF(ISERROR(_MJDN), _MJDN * {1},
-                IF(_MJDN = "", "",
-                    IF(NOT(ISNUMBER(_MJDN)), {#VALUE!},
-                        LET(
-                            _iMJDN, INT(_MJDN),
-                            MOD(_iMJDN + 2, 7) + 1
-                        )
-                    )
-                )
-            )
-        ),
-
-        MAP(FN.NULLIFY(MJDN),
-            LAMBDA(_element,
-                fnISOWeekday(_element)
-            )
-        )
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-GREGORIAN_TO_JULIAN
-
-Translates a date in the Gregorian proleptic calendar to the Julian proleptic calendar.
-
-Array compatible: Date_YMD as column
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer [1..12] | Month
- 3 | integer [1..31] | Day
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Date_YMD         | array   C[2..3]  |
-   YearCE        | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-   [Month]       | integer [1..12]  | Month of year. Can be empty.
-   [Day]         | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
---------------------------------------------------------------------------------------------------------------*/
-GREGORIAN_TO_JULIAN = LAMBDA(Date_YMD,
-    LET(
-        _JDN, CALENDAR.JULIAN_DAY_NUMBER(Date_YMD, 0),
-        CALENDAR.JDN_TO_CALENDAR_DATE(_JDN, 1)
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-JULIAN_TO_GREGORIAN
-
-Translates a date in the Julian proleptic calendar to the Gregorian proleptic calendar.
-
-Array compatible: Date_YMD as column
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
- 2 | integer [1..12] | Month
- 3 | integer [1..31] | Day
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Date_YMD         | array   C[2..3]  |
-   YearCE        | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-   [Month]       | integer [1..12]  | Month of year. Can be empty.
-   [Day]         | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
---------------------------------------------------------------------------------------------------------------*/
-JULIAN_TO_GREGORIAN = LAMBDA(Date_YMD,
-    LET(
-        _JDN, CALENDAR.JULIAN_DAY_NUMBER(Date_YMD, 1),
-        CALENDAR.JDN_TO_CALENDAR_DATE(_JDN, 0)
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-SECULAR_DIFFERENCE
-
-Returns the number of days the Gregorian proleptic calendar is ahead of the Julian proleptic calendar for
-a given date.
-
-Array compatible: Date_YMD as column
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | integer | Days difference. Negative values are when the Julian proleptic calender is ahead.
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Date_YMD             | array   C[1..3]  |
-   YearCE            | integer          | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
-   [Month]           | integer [1..12]  | Month of year. Can be empty.
-   [Day]             | decimal [0..367) | Day. Ordinal day of year if month empty. Can be empty.
-[FromJulianCalendar] | switch           | Provided date is in Julian calendar.
-                     |                  | Default is the Gregorian calendar.
---------------------------------------------------------------------------------------------------------------*/
-SECULAR_DIFFERENCE = LAMBDA(Date_YMD, [FromJulianCalendar],
-    LET(
-        _fromJulianCalendar, FN.COERCE(FromJulianCalendar) <> 0,
-        
-        fnFromGregorian, LAMBDA(_date_YMD,
-            LET(
-                _JDN_G, CALENDAR.JULIAN_DAY_NUMBER(_date_YMD, 0),
-                IF(ISERROR(_JDN_G), _JDN_G * {1},
-                    IF(_JDN_G = "", "",
-                        LET(
-                            _year, INDEX(_date_YMD, 1, 1),
-                            _month, IFERROR(INDEX(_date_YMD, 1, 2), 1),
-                            _day, IFERROR(INDEX(_date_YMD, 1, 3), 1),
-                            _JDN_J, IF((_month = 2) * (_day = 29) * NOT(CALENDAR.IS_LEAP_YEAR(_year, 1)),
-                                CALENDAR.JULIAN_DAY_NUMBER(HSTACK(_year, 2, 28), 1),
-                                CALENDAR.JULIAN_DAY_NUMBER(_date_YMD, 1)
-                            ),
-                            _JDN_J - _JDN_G
-                        )
-                    )
-                )
-            )
-        ),
-        
-        fnFromJulian, LAMBDA(_date_YMD,
-            LET(
-                _date_G, CALENDAR.JULIAN_TO_GREGORIAN(_date_YMD),
-                IF(ISERROR(INDEX(_date_G, 1, 1)), INDEX(_date_G, 1, 1) * {1},
-                    IF(INDEX(_date_G, 1, 1) = "", "",
-                        fnFromGregorian(_date_G)
-                    )
-                )
-            )
-        ),
-
-        IF(_fromJulianCalendar,
-            BYROW(Date_YMD,
-                LAMBDA(_row, fnFromJulian(_row))
-            ),
-            BYROW(Date_YMD,
-                LAMBDA(_row, fnFromGregorian(_row))
-            )
-        )
-    )
-);
 
 
 
@@ -5261,13 +5520,12 @@ SHIFT_TIMEZONE = LAMBDA(MJDate, [ReferenceTZOMinutes], [TranslateTZOMinutes],
 
 
 
-/*##############################################################################################################
-# DATE AND TIME                                                                                                #
-##############################################################################################################*/
+
+
 
 
 /*--------------------------------------------------------------------------------------------------------------
-VALIDATE_DATETIME
+VALIDATE_YMDT
 
 Validate a year, month, day and time representation of a date in a given calendar.
 

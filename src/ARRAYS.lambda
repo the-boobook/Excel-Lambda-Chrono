@@ -1,0 +1,695 @@
+/*##############################################################################################################
+# ARRAYS v3.0                                                                                                  #
+#                                                                                                              #
+# Module for working with arrays.                                                                              #
+#                                                                                                              #
+# Dependencies: FN module                                                                                      #
+#                                                                                                              #
+# LOGICAL                                                                                                      #
+# ------------------------------------------------------------------------------------------------------------ #
+# HAS_VALUE             Tests if an array contains an element equal to the given value. Errors values are      #
+#                       evaluated for equivalence.                                                             #
+# ARE_EQUAL             Tests if two arrays are equivalent. Errors values are evaluated for equivalence.       #
+# IS_EMPTY              Tests if the entire array is empty. Errors return FALSE.                               #
+# HAS_EMPTY             Tests if the entire array has at least one empty value. Errors return FALSE.           #
+# X_EMPTY               Tests if the entire array is exclusively empty or non-empty. Any combination of empty  #
+#                       and non-empty returns FALSE.                                                           #
+# IS_NUMERIC            Tests if the entire array is numeric. Errors return FALSE.                             #
+# IS_NUMERIC_NULL       Tests if the entire array is numeric or empty. Errors return FALSE.                    #
+# IS_INTEGER            Tests if the entire array has integer values. Errors return FALSE.                     #
+# IS_ZERO               Tests if the entire array has zero values. Errors return FALSE.                        #
+# IS_NONZERO            Tests if the entire array has non-zero values. Errors return FALSE.                    #
+# IS_POSITIVE           Tests if the entire array has positive values. Errors return FALSE.                    #
+# IS_NEGATIVE           Tests if the entire array has negative values. Errors return FALSE.                    #
+# HAS_NONZERO           Tests if the entire array has at least one non-zero value. Errors return FALSE.        #
+# HAS_POSITIVE          Tests if the entire array has at least one positive value. Errors return FALSE.        #
+# HAS_NEGATIVE          Tests if the entire array has at least one negative value. Errors return FALSE.        #
+# HAS_DECIMAL           Tests if the entire array has at least one decimal value. Errors return FALSE.         #
+# IS_ERROR              Tests if the entire array has error values.                                            #
+# HAS_ERROR             Tests if the entire array has at least one error value.                                #
+# H_ERROR               Returns the first error value found horizontally on each row of an array.              #
+# V_ERROR               Returns the first error value found verticaly on each column of an array.              #
+#                                                                                                              #
+##############################################################################################################*/
+
+
+
+
+/*##############################################################################################################
+# LOGICAL                                                                                                      #
+##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
+HAS_VALUE
+
+Tests if an array contains an element equal to the given value. Errors values are evaluated for equivalence.
+
+Array compatible: Iterates on Value
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Value | variant | element value for equivalence
+Array | array   | reference array
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+HAS_VALUE(1, {1, 2, 3})
+Returns TRUE
+
+HAS_VALUE(#NUM!, {1, 2, #NUM!})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+HAS_VALUE = LAMBDA(Value, Array,
+    LET(
+        _array, FN.NULLIFY(Array),
+
+        fnCompare, LAMBDA(_a, _b,
+            LET(
+                _errA, ISERROR(_a),
+                _errB, ISERROR(_b),
+                IF(_errA * _errB,
+                    ERROR.TYPE(_a) = ERROR.TYPE(_b),
+                    IF(NOT(_errA) * NOT(_errB),
+                        _a = _b,
+                        FALSE
+                    )
+                )
+            )
+        ),
+
+        _rowIndex, SEQUENCE(ROWS(_array)),
+        _colIndex, SEQUENCE(COLUMNS(_array)),
+        
+        fnHasValue, LAMBDA(_value,
+            REDUCE(FALSE, _rowIndex,
+                LAMBDA(_accR, _row,
+                    IF(_accR, _accR,
+                        REDUCE(FALSE, _colIndex,
+                            LAMBDA(_accC, _col,
+                                IF(_accC, _accC,
+                                    fnCompare(_value, INDEX(_array, _row, _col))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+        
+        MAP(FN.NULLIFY(Value),
+            LAMBDA(_element,
+                fnHasValue(_element)
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+ARE_EQUAL
+
+Tests if two arrays are equivalent. Errors values are evaluated for equivalence.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array1 | variant |
+Array2 | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+ARE_EQUAL({1, 2}, {1; 2})
+Returns FALSE
+
+ARE_EQUAL({1, 2}, {2, 1})
+Returns FALSE
+
+ARE_EQUAL({1, 2}, {1, 2})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+ARE_EQUAL = LAMBDA(Array1, Array2,
+    IF(ROWS(Array1) <> ROWS(Array2), FALSE,
+        IF(COLUMNS(Array1) <> COLUMNS(Array2), FALSE,
+            LET(
+                fnCompare, LAMBDA(_a, _b,
+                    LET(
+                        _isErrA, ISERROR(_a),
+                        _isErrB, ISERROR(_b),
+                        IF(_isErrA * _isErrB,
+                            ERROR.TYPE(_a) = ERROR.TYPE(_b),
+                            IF(NOT(_isErrA) * NOT(_isErrB),
+                                _a = _b,
+                                FALSE
+                            )
+                        )
+                    )
+                ),
+
+                _array1, FN.NULLIFY(Array1),
+                _array2, FN.NULLIFY(Array2),
+                _rowIndex, SEQUENCE(ROWS(Array1)),
+                _colIndex, SEQUENCE(COLUMNS(Array1)),
+            
+                REDUCE(TRUE, _rowIndex,
+                    LAMBDA(_accR, _row,
+                        IF(NOT(_accR), _accR,
+                            REDUCE(TRUE, _colIndex,
+                                LAMBDA(_accC, _col,
+                                    IF(NOT(_accC), _accC,
+                                        fnCompare(INDEX(_array1, _row, _col), INDEX(_array2, _row, _col))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_EMPTY
+
+Tests if the entire array is empty. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_EMPTY({"", ""})
+Returns TRUE
+
+IS_EMPTY({"", ""; "", #N/A})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_EMPTY = LAMBDA(Array,
+    MAX(N(NOT(FN.IS_EMPTY(Array)))) = 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+HAS_EMPTY
+
+Tests if the entire array has at least one empty value. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+HAS_EMPTY({"", ""})
+Returns TRUE
+
+HAS_EMPTY({1, 2; " ", #N/A})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+HAS_EMPTY = LAMBDA(Array,
+    MAX(N(FN.IS_EMPTY(Array))) > 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+X_EMPTY
+
+Tests if the entire array is exclusively empty or non-empty. Any combination of empty and non-empty returns FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+X_EMPTY({"", ""})
+Returns TRUE
+
+X_EMPTY({1, 2})
+Returns TRUE
+
+X_EMPTY({1, 2; "", #N/A})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+X_EMPTY = LAMBDA(Array,
+    IF(NOT(ARRAYS.HAS_EMPTY(Array)), TRUE,
+        ARRAYS.IS_EMPTY(Array)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_NUMERIC
+
+Tests if the entire array is numeric. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_NUMERIC({1, 2})
+Returns TRUE
+
+IS_NUMERIC({"5", 2})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_NUMERIC = LAMBDA(Array,
+    MAX(N(NOT(ISNUMBER(Array)))) = 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_NUMERIC_NULL
+
+Tests if the entire array is numeric or empty. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_NUMERIC_NULL({"", 1})
+Returns TRUE
+
+IS_NUMERIC_NULL({"5", 2})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_NUMERIC_NULL = LAMBDA(Array,
+    MAX(N(NOT(ISNUMBER(Array)) * NOT(FN.IS_EMPTY(Array)))) = 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_INTEGER
+
+Tests if the entire array has integer values. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_INTEGER({1, 2})
+Returns TRUE
+
+IS_INTEGER({1, 2.5})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_INTEGER = LAMBDA(Array,
+    MAX(N(NOT(FN.IS_INTEGER(Array)))) = 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_ZERO
+
+Tests if the entire array has zero values. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_ZERO({1, 2})
+Returns FALSE
+
+IS_ZERO({0, 0})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+IS_ZERO = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(Array <> 0),
+            1
+        ),
+        MAX(_logicalArray) = 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_NONZERO
+
+Tests if the entire array has non-zero values. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_NONZERO({1, 0})
+Returns FALSE
+
+IS_NONZERO({1, 2})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+IS_NONZERO = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(Array = 0),
+            1
+        ),
+        MAX(_logicalArray) = 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_POSITIVE
+
+Tests if the entire array has positive values. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_POSITIVE({1, 0})
+Returns FALSE
+
+IS_POSITIVE({1, 2})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+IS_POSITIVE = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(Array <= 0),
+            1
+        ),
+        MAX(_logicalArray) = 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_NEGATIVE
+
+Tests if the entire array has negative values. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_NEGATIVE({-1, 0})
+Returns FALSE
+
+IS_NEGATIVE({-1, -2})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+IS_NEGATIVE = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(Array >= 0),
+            1
+        ),
+        MAX(_logicalArray) = 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+HAS_NONZERO
+
+Tests if the entire array has at least one non-zero value. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+HAS_NONZERO({1, ""})
+Returns TRUE
+
+HAS_NONZERO({0, ""})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+HAS_NONZERO = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(Array <> 0),
+            0
+        ),
+        MAX(_logicalArray) > 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+HAS_POSITIVE
+
+Tests if the entire array has at least one positive value. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+HAS_POSITIVE({1, 2})
+Returns TRUE
+
+HAS_POSITIVE({0, 0})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+HAS_POSITIVE = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(Array > 0),
+            0
+        ),
+        MAX(_logicalArray) > 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+HAS_NEGATIVE
+
+Tests if the entire array has at least one negative value. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+HAS_NEGATIVE({1, 2})
+Returns FALSE
+
+HAS_NEGATIVE({1, -2.5})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+HAS_NEGATIVE = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(Array < 0),
+            0
+        ),
+        MAX(_logicalArray) > 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+HAS_DECIMAL
+
+Tests if the entire array has at least one decimal value. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+HAS_DECIMAL({1, 2})
+Returns FALSE
+
+HAS_DECIMAL({1, -2.5})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+HAS_DECIMAL = LAMBDA(Array,
+    LET(
+        _logicalArray, IF(ISNUMBER(Array),
+            N(FN.IS_DECIMAL(Array)),
+            0
+        ),
+        MAX(_logicalArray) > 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_ERROR
+
+Tests if the entire array has error values.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_ERROR({1, 2})
+Returns FALSE
+
+IS_ERROR({#VALUE!, #N/A})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+IS_ERROR = LAMBDA(Array,
+    MAX(N(NOT(ISERROR(Array)))) = 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+HAS_ERROR
+
+Tests if the entire array has at least one error value.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+HAS_ERROR({1, 2})
+Returns FALSE
+
+HAS_ERROR({1, #N/A})
+Returns TRUE
+--------------------------------------------------------------------------------------------------------------*/
+HAS_ERROR = LAMBDA(Array,
+    MAX(N(ISERROR(Array))) > 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+H_ERROR
+
+Returns the first error value found horizontally on each row of an array.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | error |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+H_ERROR = LAMBDA(Array,
+    BYROW(Array,
+        LAMBDA(_row,
+            XLOOKUP(1, N(ISERROR(_row)), _row, "", 0, 1)
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+V_ERROR
+
+Returns the first error value found verticaly on each column of an array.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | error |
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+V_ERROR = LAMBDA(Array,
+    BYCOL(Array,
+        LAMBDA(_col,
+            XLOOKUP(1, N(ISERROR(_col)), _col, "", 0, 1)
+        )
+    )
+);
+
+
+/*##############################################################################################################
+# END ARRAYS MODULE                                                                                            #
+##############################################################################################################*/
