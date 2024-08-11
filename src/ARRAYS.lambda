@@ -1,12 +1,14 @@
 /*##############################################################################################################
-# ARRAYS v3.0                                                                                                  #
+# ARRAYS MODULE                                                                                                #
 #                                                                                                              #
+# Shayne Husson 2024-06-15                                                                                     #
 # Module for working with arrays.                                                                              #
 #                                                                                                              #
 # Dependencies: FN module                                                                                      #
 #                                                                                                              #
 # LOGICAL                                                                                                      #
 # ------------------------------------------------------------------------------------------------------------ #
+# IS_ARRAY              Tests if a range is more than 1 x 1 in size.                                           #
 # HAS_VALUE             Tests if an array contains an element equal to the given value. Errors values are      #
 #                       evaluated for equivalence.                                                             #
 # ARE_EQUAL             Tests if two arrays are equivalent. Errors values are evaluated for equivalence.       #
@@ -17,6 +19,7 @@
 # IS_NUMERIC            Tests if the entire array is numeric. Errors return FALSE.                             #
 # IS_NUMERIC_NULL       Tests if the entire array is numeric or empty. Errors return FALSE.                    #
 # IS_INTEGER            Tests if the entire array has integer values. Errors return FALSE.                     #
+# IS_INTEGER_NULL       Tests if the entire array has integer or null values. Errors return FALSE.             #
 # IS_ZERO               Tests if the entire array has zero values. Errors return FALSE.                        #
 # IS_NONZERO            Tests if the entire array has non-zero values. Errors return FALSE.                    #
 # IS_POSITIVE           Tests if the entire array has positive values. Errors return FALSE.                    #
@@ -27,8 +30,30 @@
 # HAS_DECIMAL           Tests if the entire array has at least one decimal value. Errors return FALSE.         #
 # IS_ERROR              Tests if the entire array has error values.                                            #
 # HAS_ERROR             Tests if the entire array has at least one error value.                                #
+# ISNA                  Tests if the entire array has #N/A error values.                                       #
+# S_NA                  Tests if an array has a single element that is #N/A.                                   #
+# H_NA                  Tests if an array has a single row and the first element is #N/A.                      #
+# V_NA                  Tests if an array has a single column and the first element is #N/A.                   #
+# S_ERROR               Tests if an array has a single element that is an error value.                         #
+#                                                                                                              #
+# REFERENCING                                                                                                  #
+# ------------------------------------------------------------------------------------------------------------ #
 # H_ERROR               Returns the first error value found horizontally on each row of an array.              #
 # V_ERROR               Returns the first error value found verticaly on each column of an array.              #
+# KEYLOOKUP             Returns rows of an array with matching keys. The order of the returned rows follows    #
+#                       the order of the keys.                                                                 #
+# X_FILTER              Filters an array to include rows where the reference column matches any element in     #
+#                       another array. The returned order of the array will be unchanged.                      #
+#                                                                                                              #
+# OPERATIONS                                                                                                   #
+# ------------------------------------------------------------------------------------------------------------ #
+# REVERSE_ROWS          Returns rows of an array in reverse order.                                             #
+# REVERSE_COLUMNS       Returns columns of an array in reverse order.                                          #
+# REPEAT                Returns an array repeated to specified number of rows and columns.                     #
+# COMPARE               Compares two arrays by rows, returning a column of booleans. Optionally can specify    #
+#                       column indexes to compare.                                                             #
+# DISTINCT_ROWS         Returns row numbers of the distinct rows of a sorted array. Optionally can specify     #
+#                       column indexes to compare.                                                             #
 #                                                                                                              #
 ##############################################################################################################*/
 
@@ -38,6 +63,28 @@
 /*##############################################################################################################
 # LOGICAL                                                                                                      #
 ##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_ARRAY
+
+Tests if a range is more than 1 x 1 in size.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Value | variant |
+--------------------------------------------------------------------------------------------------------------*/
+IS_ARRAY = LAMBDA(Value,
+    IF(ISOMITTED(Value), FALSE,
+        IF(COLUMNS(Value) > 1, TRUE,
+            ROWS(Value) > 1
+        )
+    )
+);
 
 
 /*--------------------------------------------------------------------------------------------------------------
@@ -228,6 +275,73 @@ HAS_EMPTY = LAMBDA(Array,
     MAX(N(FN.IS_EMPTY(Array))) > 0
 );
 
+/*--------------------------------------------------------------------------------------------------------------
+S_EMPTY
+
+Tests if an array has a single element that is empty.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+S_EMPTY = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        IF(ROWS(Array) > 1, FALSE,
+            IF(COLUMNS(Array) > 1, FALSE,
+                FN.IS_EMPTY(INDEX(Array, 1, 1))
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+H_EMPTY
+
+Tests if an array has a single row and the first element is empty.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+H_EMPTY = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        IF(ROWS(Array) > 1, FALSE,
+            FN.IS_EMPTY(INDEX(Array, 1, 1))
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+V_EMPTY
+
+Tests if an array has a single column and the first element is empty.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+V_EMPTY = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        IF(COLUMNS(Array) > 1, FALSE,
+            FN.IS_EMPTY(INDEX(Array, 1, 1))
+        )
+    )
+);
+
 
 /*--------------------------------------------------------------------------------------------------------------
 X_EMPTY
@@ -335,6 +449,32 @@ Returns FALSE
 --------------------------------------------------------------------------------------------------------------*/
 IS_INTEGER = LAMBDA(Array,
     MAX(N(NOT(FN.IS_INTEGER(Array)))) = 0
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+IS_INTEGER_NULL
+
+Tests if the entire array has integer or null values. Errors return FALSE.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+IS_INTEGER({"", 2})
+Returns TRUE
+
+IS_INTEGER({"", 2.5})
+Returns FALSE
+--------------------------------------------------------------------------------------------------------------*/
+IS_INTEGER_NULL = LAMBDA(Array,
+    MAX(N(NOT(FN.IS_INTEGER_NULL(Array)))) = 0
 );
 
 
@@ -647,6 +787,126 @@ HAS_ERROR = LAMBDA(Array,
 
 
 /*--------------------------------------------------------------------------------------------------------------
+ISNA
+
+Tests if the entire array has #N/A error values.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+ISNA = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        MAX(N(NOT(ISNA(Array)))) > 0
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+S_NA
+
+Tests if an array has a single element that is #N/A.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+S_NA = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        IF(ROWS(Array) > 1, FALSE,
+            IF(COLUMNS(Array) > 1, FALSE,
+                ISNA(INDEX(Array, 1, 1))
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+H_NA
+
+Tests if an array has a single row and the first element is #N/A.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+H_NA = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        IF(ROWS(Array) > 1, FALSE,
+            ISNA(INDEX(Array, 1, 1))
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+V_NA
+
+Tests if an array has a single column and the first element is #N/A.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+V_NA = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        IF(COLUMNS(Array) > 1, FALSE,
+            ISNA(INDEX(Array, 1, 1))
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+S_ERROR
+
+Tests if an array has a single element that is an error value.
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant |
+--------------------------------------------------------------------------------------------------------------*/
+S_ERROR = LAMBDA(Array,
+    IF(ISOMITTED(Array), FALSE,
+        IF(ROWS(Array) > 1, FALSE,
+            IF(COLUMNS(Array) > 1, FALSE,
+                ISERROR(INDEX(Array, 1, 1))
+            )
+        )
+    )
+);
+
+
+
+
+
+/*##############################################################################################################
+# REFERENCING                                                                                                  #
+##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
 H_ERROR
 
 Returns the first error value found horizontally on each row of an array.
@@ -685,6 +945,269 @@ V_ERROR = LAMBDA(Array,
     BYCOL(Array,
         LAMBDA(_col,
             XLOOKUP(1, N(ISERROR(_col)), _col, "", 0, 1)
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+KEYLOOKUP
+
+Returns rows of an array with matching keys. The order of the returned rows follows the order of the keys.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array     | variant C:x,R:y | Array to return rows from.
+Keys      | variant C:1,R:n | Lookup keys in KeyColumn of Array.
+KeyColumn | integer [1..x]  | Defaults to 1.
+--------------------------------------------------------------------------------------------------------------*/
+KEYLOOKUP = LAMBDA(Array, Keys, [KeyColumn], [IgnoreUnmatched],
+    LET(
+        _ignoreUnmatched, FN.COERCE(IgnoreUnmatched) > 0,
+        _na, {#N/A} * SEQUENCE(1, COLUMNS(Array)),
+        _keyColumn, MAX(FN.COERCE(KeyColumn), 1),
+        _keysArray, CHOOSECOLS(Array, _keyColumn),
+        _byRow, REDUCE("", Keys,
+            LAMBDA(_acc, _key,
+                LET(
+                    _match, XMATCH(_key, _keysArray, 0),
+                    IF(ISNA(_match),
+                        IF(_ignoreUnmatched, _acc,
+                            VSTACK(
+                                _acc,
+                                _na
+                            )
+                        ),
+                        VSTACK(
+                            _acc,
+                            CHOOSEROWS(Array, _match)
+                        )
+                    )
+                )
+            )
+        ),
+        IF(ROWS(_byRow) = 1, {#N/A},
+            DROP(_byRow, 1)
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+X_FILTER
+
+Filters an array to include rows where the reference column matches any element in another array. The returned
+order of the array will be unchanged.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array     | variant C:x,R:y | Array to filter.
+FilterBy  | variant C:1,R:n | Elements to match in Index column of Array.
+Index     | integer [1..x]  | Defaults to 1.
+--------------------------------------------------------------------------------------------------------------*/
+X_FILTER = LAMBDA(Array, FilterBy, [Index],
+    LET(
+        _index, MAX(FN.COERCE(Index), 1),
+        _filterBy, CHOOSECOLS(FilterBy, 1),
+        _matches, BYROW(CHOOSECOLS(Array, _index),
+            LAMBDA(_row,
+                NOT(ISNA(XMATCH(_row, _filterBy, 0))) 
+            )
+        ),
+        FILTER(Array, _matches, {#N/A})
+    )
+);
+
+
+
+
+
+/*##############################################################################################################
+# OPERATIONS                                                                                                   #
+##############################################################################################################*/
+
+
+/*--------------------------------------------------------------------------------------------------------------
+REVERSE_ROWS
+
+Returns rows of an array in reverse order.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant C[x]R[y] |
+--------------------------------------------------------------------------------------------------------------*/
+REVERSE_ROWS = LAMBDA(Array,
+    LET(
+        _rowCount, ROWS(Array),
+        _reverseIdx, SEQUENCE(_rowCount, 1, _rowCount, -1),
+        CHOOSEROWS(Array, _reverseIdx)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+REVERSE_COLUMNS
+
+Returns columns of an array in reverse order.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array | variant C[x]R[y] |
+--------------------------------------------------------------------------------------------------------------*/
+REVERSE_COLUMNS = LAMBDA(Array,
+    LET(
+        _colCount, COLUMNS(Array),
+        _reverseIdx, SEQUENCE(_colCount, 1, _colCount, -1),
+        CHOOSECOLS(Array, _reverseIdx)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+REPEAT
+
+Returns an array repeated to specified number of rows and columns.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array     | variant C[x]R[y] |
+[Rows]    | integer          | Number of rows for the resultant array. Defaults to 1. 
+[Columns] | integer          | Number of columns for the resultant array. Defaults to 1.
+--------------------------------------------------------------------------------------------------------------*/
+REPEAT = LAMBDA(Array, [Rows], [Columns],
+    LET(
+        _array, FN.NULLIFY(Array),
+        _rowCount, ROWS(_array),
+        _colCount, COLUMNS(_array),
+        _rows, LET(
+            _r, FN.NULLIFY(Rows),
+            IF(_r = "", 1, INT(_r))
+        ),
+        _cols, LET(
+            _c, FN.NULLIFY(Columns),
+            IF(_c = "", 1, INT(_c))
+        ),
+
+        IF((_rows = 0) + (_cols = 0), {#CALC!},
+            LET(
+                _aRows, ABS(_rows),
+                _aCols, ABS(_cols),
+                IF((_rowCount = 1) * (_colCount = 1),
+                    LET(
+                        _val, INDEX(_array, 1, 1),
+                        EXPAND(_val, _aRows, _aCols, _val)
+                    ),
+                    MAKEARRAY(_aRows, _aCols,
+                        LAMBDA(_r, _c,
+                            LET(
+                                _rIdx, IF(_rows > 0,
+                                    MOD(_r - 1, _rowCount) + 1,
+                                    _rowCount - MOD(_r - 1, _rowCount)
+                                ),
+                                _cIdx, IF(_cols > 0,
+                                    MOD(_c - 1, _colCount) + 1,
+                                    _colCount - MOD(_c - 1, _colCount)
+                                ),
+                                INDEX(_array, _rIdx, _cIdx)
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+COMPARE
+
+Compares two arrays by rows, returning a column of booleans. Optionally can specify column indexes to compare.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array1           | variant C[x]R[y] |
+Array2           | variant C[x]R[y] |
+[CompareColumns] | integer C[1..x]  | Columns of arrays to compare. If omitted all columns compared.
+--------------------------------------------------------------------------------------------------------------*/
+COMPARE = LAMBDA(Array1, Array2, [CompareColumns],
+    IF(ISOMITTED(CompareColumns),
+        LET(
+            _rows1, ROWS(Array1),
+            _rows2, ROWS(Array2),
+            _rowCount, MAX(_rows1, _rows2),
+            _rowIdx, SEQUENCE(_rowCount),
+            BYROW(_rowIdx,
+                LAMBDA(_row,
+                    LET(
+                        _compare1, CHOOSEROWS(Array1, _row),
+                        _compare2, CHOOSEROWS(Array2, _row),
+                        IFERROR(PRODUCT(N(_compare1 = _compare2)) > 0, {#N/A})
+                    )
+                )
+            )
+        ),
+        IF(ROWS(CompareColumns) > 1, {#VALUE!},
+            IF(NOT(ARRAYS.IS_INTEGER(CompareColumns)), {#VALUE!},
+                LET(
+                    _rows1, ROWS(Array1),
+                    _rows2, ROWS(Array2),
+                    _rowCount, MAX(_rows1, _rows2),
+                    _rowIdx, SEQUENCE(_rowCount),
+                    BYROW(_rowIdx,
+                        LAMBDA(_row,
+                            LET(
+                                _compare1, CHOOSECOLS(CHOOSEROWS(Array1, _row), CompareColumns),
+                                _compare2, CHOOSECOLS(CHOOSEROWS(Array2, _row), CompareColumns),
+                                IFERROR(PRODUCT(N(_compare1 = _compare2)) > 0, {#N/A})
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+DISTINCT_ROWS
+
+Returns row numbers of the distinct rows of a sorted array. Optionally can specify column indexes to compare.
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Array            | variant C[x]R[y] |
+[CompareColumns] | integer C[1..x]  | Columns of arrays to compare. If omitted all columns compared.
+[BottomUp]       | switch           | Return the bottom-most distinct rows. Default behaviour is top-most distinct.
+--------------------------------------------------------------------------------------------------------------*/
+DISTINCT_ROWS = LAMBDA(Array, [CompareColumns], [BottomUp],
+    IF(ARRAYS.H_NA(Array), {#N/A},
+        LET(
+            _rowCount, ROWS(Array),
+            IF(_rowCount = 1, 1,
+                LET(
+                    _bottomUp, FN.COERCE(BottomUp) <> 0,
+                    _array1, DROP(Array, -1),
+                    _array2, DROP(Array, 1),
+                    _dedupe, ARRAYS.COMPARE(_array1, _array2, CompareColumns),
+                    _distinct, FILTER(SEQUENCE(_rowCount - 1), NOT(_dedupe), {#N/A}),
+                    IF(_bottomUp,
+                        IF(ARRAYS.H_NA(_distinct), _rowCount,
+                            VSTACK(
+                                _distinct,
+                                _rowCount
+                            )
+                        ),
+                        IF(ARRAYS.H_NA(_distinct), 1,
+                            VSTACK(
+                                1,
+                                _distinct + 1
+                            )
+                        )
+                    )
+                )
+            )
         )
     )
 );

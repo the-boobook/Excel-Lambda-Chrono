@@ -1,7 +1,8 @@
 /*##############################################################################################################
-# FN v3.0                                                                                                      #
+# FN MODULE                                                                                                    #
 #                                                                                                              #
-# Module of general functions.                                                                                 #
+# Shayne Husson 2024-06-09                                                                                     #
+# General functions.                                                                                           #
 #                                                                                                              #
 # Dependencies: None                                                                                           #
 #                                                                                                              #
@@ -20,6 +21,7 @@
 # IS_NUMERIC_NULL       Tests if the parameter has a numeric value or is empty. Errors return FALSE.           #
 # IS_INTEGER            Tests if a number is an integer or very close to an integer. Use in place of MOD(N, 1) #
 #                       where N can be within a large range of magnitudes.                                     #
+# IS_INTEGER_NULL       Tests if the parameter has an integer value or is empty. Errors return FALSE.          #
 # IS_DECIMAL            Tests if a value is a non-integer number.                                              #
 #                                                                                                              #
 # NUMERIC                                                                                                      #
@@ -339,6 +341,37 @@ IS_INTEGER = LAMBDA(N,
 
 
 /*--------------------------------------------------------------------------------------------------------------
+IS_INTEGER_NULL
+
+Tests if the parameter has an integer value or is empty. Errors return FALSE.
+
+Array compatible: Yes
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | boolean | 
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+Expression | variant |
+--------------------------------------------------------------------------------------------------------------*/
+IS_INTEGER_NULL = LAMBDA(Expression,
+    IF(ISOMITTED(Expression), FALSE,
+        IF(ISERROR(Expression), FALSE,
+            IF(Expression = "", TRUE,
+                IF(NOT(ISNUMBER(Expression)), FALSE,
+                    LET(
+                        _integer, INT(N),
+                        ROUNDDOWN(N - _integer, 15) = 0
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
 IS_DECIMAL
 
 Tests if a value is a non-integer number.
@@ -400,7 +433,7 @@ N | decimal |
 --------------------------------------------------------------------------------------------------------------*/
 DECIMALS = LAMBDA(N,
     IF(ISERROR(N), N * {1},
-        IF(FN.IS_EMPTY(N), "",
+        IF(N = "", "",
             IF(NOT(ISNUMBER(N)), {#VALUE!},
                 IF(N = 0, 0,
                     LET(
@@ -454,7 +487,7 @@ Expression | variant | Ordinal representation
 --------------------------------------------------------------------------------------------------------------*/
 ORDINAL_VALUE = LAMBDA(Expression,
     IF(ISERROR(Expression), Expression * {1},
-        IF(FN.IS_EMPTY(Expression), "",
+        IF(Expression = "", "",
             IF(ISNUMBER(Expression), IF(Expression < 0, {#NUM!}, INT(Expression)),
                 IF(NOT(FN.VALIDATE_CHARSET(Expression, "0123456789,.dhnrst")), {#VALUE!},
                     LET(
@@ -510,7 +543,7 @@ N | integer [0..] |
 --------------------------------------------------------------------------------------------------------------*/
 FORMAT_ORDINAL = LAMBDA(N,
     IF(ISERROR(N), N * {1},
-        IF(FN.IS_EMPTY(N), "",
+        IF(N = "", "",
             LET(
                 _nominalNum, IF(ISNUMBER(N), N, VALUE(N)),
                 IF(NOT(ISNUMBER(_nominalNum)), {#VALUE!},

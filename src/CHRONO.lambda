@@ -1,10 +1,12 @@
 /*##############################################################################################################
-# CHRONO v3.0                                                                                                  #
+# CHRONO MODULE                                                                                                #
 #                                                                                                              #
+# Shayne Husson 2024-06-18                                                                                     #
 # Module for working with dates and times in the Gregorian and Julian calendars outside the range of the       #
 # Excel Date/Time type.                                                                                        #
 #                                                                                                              #
-# Dependencies: FN module, ARRAYS module                                                                       #
+# v3.0                                                                                                         #
+# Dependencies: CHRONO_DATA, FN, and ARRAYS modules                                                            #
 #                                                                                                              #
 # TIMESPAN                                                                                                     #
 # ------------------------------------------------------------------------------------------------------------ #
@@ -51,8 +53,32 @@
 # MILITARY_TZO               Returns the time zone offset in minutes of a military time zone designator.       #
 # TZO_TO_MILITARY            Returns the closest military time zone designator, its offset in minutes and the  #
 #                            time adjustment to that time zone for the provided time zone offset in minutes.   #
-# SHIFT_TIMEZONE             Translates a Modified Julian Date from one time zone to another. If a time zone   #
-#                            is omitted it is assumed to be UTC.                                               #
+# TIMEZONE_SHIFT             Translates a Modified Julian Date from one time zone to another.                  #
+# FIND_COUNTRY               Returns country names and ISO3166 codes matching a partial search term.           #
+# TIMEZONE_NAME              Returns the time zone name from the TZ database for the given alias.              #
+# TIMEZONE_COORDINATES       Returns latitude and longitude of the given timezone.                             #
+# TIMEZONE_PROXIMITY         Returns the angular proximity of the capital city for a time zone to the provided #
+#                            latitude and longitude. Use to determine closest timezone of a location.          #
+# FIND_TIMEZONE              Finds a timezone name filtering by name country and location criteria.            #
+# TIMEZONE_INFOS             Returns TimeZone information from the TZ Database.                                #
+# TIMEZONE_INFO_INSTANCE     Returns the timezone information effective at the specified MJDate.               #
+# TIMEZONE_RULES             Returns TimeZone rules for daylight saving from the TZ Database.                  #
+# TIMEZONE_RULES_TRANSN_MJDN Resolves the transition date (MJDN) of a timezone rule for the given year.        #
+
+# TIMEZONE_OBSERVED          Returns the observed local timezone information at a given MJDate.                #
+# TIMEZONE_OBSERVED_OFFSET   Returns the offset from the timezone observed info at a given MJDate.             #
+# TIMEZONE_OBSERVED_NAME     Returns the display name from the timezone observed info at a given MJDate.       #
+# TIMEZONE_OBSERVED_DLS      Returns true if the timezone is observing daylight savings time from the timezone #
+#                            observed info at a given MJDate.                                                  #
+# TIMEZONE_HAS_DLS           Returns true if the timezone uses daylight savings time for the specified year.   #
+#                            If year is omitted the result is true if daylight savings has ever been observed. #
+# TIMEZONE_FOLLOWING_DLS     Returns true if the timezone is observing daylight savings at the specified       #
+#                            MJDate or any future date.                                                        #
+
+# TIMEZONE_PREVIOUS_CHANGE
+# TIMEZONE_NEXT_CHANGE
+# TIMEZONE_CHANGES
+#                                                                                                              #
 #                                                                                                              #
 # YEAR                                                                                                         #
 # ------------------------------------------------------------------------------------------------------------ #
@@ -131,9 +157,13 @@
 # JDATE_TO_JDN               Returns the corresponding Julian Day Number (JDN) of a given Julian Date (JDATE). #
 # JDN_TO_JDATE               Returns the Julian Date (JDATE) at 0:00 of a given Julian Day Number (JDN).       #
 # MJDATE_TO_MJDN             Returns the corresponding Modified Julian Day Number (MJDN) of a given Modified   #
-#                            Julian Date (JDATE).                                                              #
+#                            Julian Date (MJDATE).                                                             #
 # JDATE_TO_YMDT              Converts a Julian Date to a date and time in the specified calendar.              #
 # MJDATE_TO_YMDT             Converts a Modified Julian Date to a date and time in the specified calendar.     #
+# MJDATE_YEAR                Returns the year of a Modified Julian Date in the specified calendar.             #
+# MJDATE_MONTH               Returns the month of a Modified Julian Date in the specified calendar.            #
+# MJDATE_DAY                 Returns the day of month of a Modified Julian Date in the specified calendar.     #
+# MJDATE_TIME                Returns the day of month of a Modified Julian Date in the specified calendar.     #
 # ROUND_JDATE                Returns the decimal JDate value rounded to a low order component.                 #
 # ROUND_MJDATE               Returns the decimal MJDate value rounded to a low order component.                #
 # JDATE_ADDITION             Returns the addition of a timespan complication to a given Julian Date.           #
@@ -173,10 +203,15 @@
 #                            Number (MJDN).                                                                    #
 # MJDN_TO_ISO_WEEK_DATE      Converts a Modified Julian Day Number (MJDN) to an ISO week date in the specified #
 #                            calendar.                                                                         #
-# WEEKDAY_OF_MONTH_TO_MJDN   Returns a Modified Julian Date for a given day of week, relative week for the     #
-#                            year and month of the specified calendar.                                         #
 # PARSE_ISO_WEEK_DATE        Parses an ISO formatted week date into respective parts of year, week and weekday.#
 # FORMAT_ISO_WEEK_DATE       Returns a week date as text in ISO format.                                        #
+# MJDN_DAYS_TO_WEEKDAY       Returns the days between a given Modified Julian Day Number (MJDN) and the next   #
+#                            specified weekday. Optionally can take a number of weeks and set to exclude the   #
+#                            reference date.                                                                   #
+# MJDN_ADJACENT_WEEKDAY      Returns a Modified Julian Day Number (MJDN) for a day of week before or after the #
+#                            given MJDN for the specified calendar.                                            #
+# WEEKDAY_OF_MONTH_TO_MJDATE Returns a Modified Julian Date (MJDATE) for a given week of a month and day of    #
+#                            week for the specified calendar.                                                  #
 #                                                                                                              #
 # QUARTER DATE                                                                                                 #
 # ------------------------------------------------------------------------------------------------------------ #
@@ -199,6 +234,8 @@
 #                                                                                                              #
 # CONVERSIONS                                                                                                  #
 # ------------------------------------------------------------------------------------------------------------ #
+# MJDATE_LOCAL_TO_UTC
+# MJDATE_UTC_TO_LOCAL
 # ISO_DATETIME_TO_MJDATE     Converts an ISO formatted date and time to a Modified Julian Date and time zone   #
 #                            offset.                                                                           #
 # MJDATE_TO_ISO_DATETIME     Converts a Modified Julian Date and time zone offset to an ISO formatted date and #
@@ -213,7 +250,6 @@
 # EXCELDATE_TO_USDATE        Converts an Excel Date/Time to a US format date.                                  #
 #                                                                                                              #
 ##############################################################################################################*/
-
 
 
 
@@ -342,13 +378,13 @@ TIMESPAN = LAMBDA(TimeSpan_C5,
         fnTimeSpan, LAMBDA(_timeSpan,
             LET(
                 _colCount, COLUMNS(_timeSpan),
-                IF(_colCount > 5, {#REF!}, // at most 5 terms
+                IF(_colCount > 5, {#CALC!}, // at most 5 terms
                     IF(ARRAYS.IS_EMPTY(_timeSpan), "",
                         LET(
                             _firstError, ARRAYS.H_ERROR(_timeSpan),
                             IF(ISERROR(_firstError), _firstError * {1},
                                 IF(NOT(ARRAYS.IS_NUMERIC_NULL(_timeSpan)), {#VALUE!},  // any term not numeric or null
-                                    IF(_colCount < 2, {#REF!},  // at least sign and days
+                                    IF(_colCount < 2, {#CALC!},  // at least sign and days
                                         LET(
                                             _sign, IF(INDEX(_timeSpan, 1, 1) < 0, -1, 1),
                                             _days, N(INDEX(_timeSpan, 1, 2)),
@@ -694,6 +730,43 @@ TIMESPAN_TO_DHMS = LAMBDA(TimeSpan_D, [HighOrder], [LowOrder], [Precision], [Rou
     )
 );
 
+SECONDS_TO_TIMESPAN = LAMBDA(Seconds,
+    IF(Seconds = "", "",
+        Seconds / 86400
+    )
+);
+
+MINUTES_TO_TIMESPAN = LAMBDA(Minutes,
+    IF(Minutes = "", "",
+        Minutes / 1440
+    )
+);
+
+HOURS_TO_TIMESPAN = LAMBDA(Hours,
+    IF(Hours = "", "",
+        Hours / 24
+    )
+);
+
+TIMESPAN_ADD_SECONDS = LAMBDA(TimeSpan_D, Seconds,
+    IF(TimeSpan_D = "", "",
+        TimeSpan_D + (N(Seconds) / 86400)
+    )
+);
+
+
+TIMESPAN_ADD_MINUTES = LAMBDA(TimeSpan_D, Minutes,
+    IF(TimeSpan_D = "", "",
+        TimeSpan_D + (Minutes / 1440)
+    )
+);
+
+TIMESPAN_ADD_HOURS = LAMBDA(TimeSpan_D, Hours,
+    IF(TimeSpan_D = "", "",
+        TimeSpan_D + (Hours / 24)
+    )
+);
+
 
 /*--------------------------------------------------------------------------------------------------------------
 RESOLVE_TIMESPAN_DHMS
@@ -842,7 +915,7 @@ PARSE_TIMESPAN_DHMS = LAMBDA(Expression,
                 _terms, INDEX(_split, 1, 1), 
                 _pattern, INDEX(_split, 1, 2),
                 _match, FILTER(_logicTable, (INDEX(_logicTable, , 1) = _terms) * (INDEX(_logicTable, , 2) = _pattern), #N/A),
-                IF(ISNA(INDEX(_match, 1, 1)), {#VALUE!},
+                IF(ARRAYS.H_NA(_match), {#VALUE!},
                     LET(
                         _high, INDEX(_match, 1, 3),
                         _low, INDEX(_match, 1, 4),
@@ -1541,7 +1614,7 @@ DT        | array   C[1..2] |
 VALIDATE_DT = LAMBDA(DT,
     LET(
         fnValidateDT, LAMBDA(_DT,
-            IF(COLUMNS(_DT) > 2, {#REF!, #REF!},
+            IF(COLUMNS(_DT) > 2, {#CALC!, #CALC!},
                 IF(ARRAYS.IS_EMPTY(_DT), {"", ""},
                     LET(
                         _expandDT, EXPAND(_DT, 1, 2, ""),
@@ -1645,7 +1718,7 @@ DT        | array   C[1..2] |
 RESOLVE_DT = LAMBDA(DT,
     LET(
         fnResolveDT, LAMBDA(_DT,
-            IF(COLUMNS(_DT) > 2, {#REF!, #REF!},
+            IF(COLUMNS(_DT) > 2, {#CALC!, #CALC!},
                 IF(ARRAYS.IS_EMPTY(_DT), {"", ""},
                     LET(
                         _combineDT, CHRONO.COMBINE_DT(_DT),
@@ -1698,7 +1771,7 @@ DT        | array   C[1..2] |
 COMBINE_DT = LAMBDA(DT,
     LET(
         fnCombineDT, LAMBDA(_DT,
-            IF(COLUMNS(_DT) > 2, {#REF!},
+            IF(COLUMNS(_DT) > 2, {#CALC!},
                 IF(ARRAYS.IS_EMPTY(_DT), "",
                     LET(
                         _expandDT, EXPAND(_DT, 1, 2, ""),
@@ -1929,7 +2002,7 @@ Time_HMS      | array   C[3]    |
 TIME_OF_DAY = LAMBDA(Time_HMS,
     LET(
         fnTimeSpan, LAMBDA(_hms,
-            IF(COLUMNS(_hms) <> 3, {#REF!},
+            IF(COLUMNS(_hms) <> 3, {#CALC!},
                 IF(ARRAYS.IS_EMPTY(_hms), "",
                     LET(
                         _firstError, ARRAYS.H_ERROR(_hms),
@@ -2231,7 +2304,7 @@ PARSE_TIME_OF_DAY_HMS = LAMBDA(Expression, [RequireISO8601],
                                     * (INDEX(_generalLogicTable, , 2) = _pattern),
                                     #N/A
                                 ),
-                                IF(ISNA(INDEX(_match, 1, 1)), {#VALUE!, #VALUE!, #VALUE!},
+                                IF(ARRAYS.H_NA(_match), {#VALUE!, #VALUE!, #VALUE!},
                                     LET(
                                         _hasDecimal, INDEX(_match, 1, 3),
                                         _ampm, INDEX(_match, 1, 4),
@@ -3281,36 +3354,1501 @@ TZO_TO_MILITARY = LAMBDA(TZOMinutes,
 
 
 /*--------------------------------------------------------------------------------------------------------
-SHIFT_TIMEZONE
+FIND_COUNTRY
 
-Translates a Modified Julian Date from one time zone to another. If a time zone is omitted it is assumed
-to be UTC.
+Returns country names and ISO3166 codes matching a partial search term.
 
-Array compatible: MJDate
+Array compatible: SearchName as column
 
-Output
+Output C[2]
 ----------------------------------------------------------------------------------------------------------
- 1 | decimal | MJDate
+ 1 | text L:2 | ISO3166 country code
+ 2 | text     | Country or territory name
 
 Parameters
 ----------------------------------------------------------------------------------------------------------
-MJDate                | decimal     | Modified Julian Date
-[ReferenceTZOMinutes] | decimal     | Time zone offset referenced by the MJDate
-                      | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
-[TranslateTZOMinutes] | decimal     | Time zone offset to translate the MJDate to.
-                      | [-900..900] | Assumed to be UTC if omitted. [-15:00..+15:00]
+SearchName | text | Search for partial country match.
 --------------------------------------------------------------------------------------------------------*/
-SHIFT_TIMEZONE = LAMBDA(MJDate, [ReferenceTZOMinutes], [TranslateTZOMinutes],
+FIND_COUNTRY = LAMBDA(SearchName,
     LET(
-        _MJDate, FN.NULLIFY(MJDate),
-        IF(ISERROR(_MJDate), _MJDate * {1},
-            IF(_MJDate = "", "",
-                IF(NOT(ISNUMBER(_MJDate)), {#VALUE!},
+        fnLookupCountry, LAMBDA(_searchText,
+            IF(_searchText = "", {#N/A},
+                LET(
+                    _ISO_3166, CHRONO_DATA.ISO_3166(),
+                    _matches, IFERROR(SEARCH(_searchText, CHOOSECOLS(_ISO_3166, 1)), 0) > 0,
+                    FILTER(_ISO_3166, _matches, {#N/A})
+                )
+            )
+        ),
+
+        _searchName, CHOOSECOLS(FN.NULLIFY(SearchName), 1),
+        _byRow, REDUCE("", _searchName,
+            LAMBDA(_acc, _curr,
+                LET(
+                    _matches, fnLookupCountry(_curr),
+                    IF(ARRAYS.H_NA(_matches), _acc,
+                        VSTACK(
+                            _acc,
+                            _matches
+                        )
+                    )
+                )
+            )
+        ),
+        IF(ROWS(_byRow) = 1, {#N/A},
+            CHOOSECOLS(SORT(UNIQUE(DROP(_byRow, 1))), {2,1})
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_NAME
+
+Returns the time zone name from the TZ database for the given alias.
+
+Array compatible: TZAlias as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | text | Time zone name
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+TZAlias | text | TZ Database defined timezone name or alias.
+--------------------------------------------------------------------------------------------------------*/
+TIMEZONE_NAME = LAMBDA(TZAlias,
+    LET(
+        _TZname, ARRAYS.KEYLOOKUP(CHRONO_DATA.TIMEZONE_ALIAS_TO_NAME(), TZAlias, 1),
+        DROP(_TZname, , 1)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_COORDINATES
+
+Returns latitude and longitude of the given timezone.
+
+Array compatible: TZName as column
+
+Output C[2]
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal [-90..90]   | Latitude (degrees)
+ 2 | decimal [-180..180] | Longitude (degrees)
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+TZName | text | TZ Database defined timezone name or alias.
+--------------------------------------------------------------------------------------------------------*/
+TIMEZONE_COORDINATES = LAMBDA(TZName,
+    LET(
+        _TZName, CHOOSECOLS(FN.NULLIFY(TZName), 1),
+        _tzCoords, ARRAYS.KEYLOOKUP(CHRONO_DATA.TIMEZONE_COORDS_DATA(), _TZName),
+        IF(ARRAYS.H_NA(_tzCoords), {#N/A},
+            DROP(_tzCoords, , 1)
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_PROXIMITY
+
+Returns the angular proximity of the capital city for a time zone to the provided latitude and longitude.
+Use to determine closest timezone of a location.
+
+Array compatible: TZName as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal | Angular proximity (degrees)
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+TZName          | text                | tz Database defined timezone name.
+[FromLatitude]  | decimal [-90..90]   | Latitude of reference location (degrees)
+[FromLongitude] | decimal [-180..180] | Longitude of reference location (degrees)
+--------------------------------------------------------------------------------------------------------*/
+TIMEZONE_PROXIMITY = LAMBDA(TZName, [FromLatitude], [FromLongitude],
+    LET(
+        _TZName, CHOOSECOLS(FN.NULLIFY(TZName), 1),
+        _rowCount, ROWS(_TZName),
+        _fromLatitude, INDEX(FN.NULLIFY(FromLatitude), 1, 1),
+        _fromLongitude, INDEX(FN.NULLIFY(FromLongitude), 1, 1),
+
+        IF(NOT(ISNUMBER(_fromLatitude)) * NOT(ISNUMBER(_fromLongitude)), {#VALUE!} * SEQUENCE(_rowCount),
+            LET(
+                _TZcoords, CHRONO.TIMEZONE_COORDINATES(_TZName),
+                IF(NOT(ISNUMBER(_fromLongitude)),
                     LET(
-                        _referenceTZ, N(ReferenceTZOMinutes),
-                        _translateTZ, N(TranslateTZOMinutes),
-                        _difference, (_translateTZ - _referenceTZ) / 1440,
-                        _MJDate + _difference
+                        _toCords, HSTACK(CHOOSECOLS(_TZcoords, 1), {0} * SEQUENCE(_rowCount)),
+                        _GIS_ANGULAR_SEPARATION(HSTACK(_fromLatitude, 0), _toCords)
+                    ),
+                    IF(NOT(ISNUMBER(_fromLatitude)),
+                        LET(
+                            _toCords, HSTACK({0} * SEQUENCE(_rowCount), CHOOSECOLS(_TZcoords, 2)),
+                            _GIS_ANGULAR_SEPARATION(HSTACK(0, _fromLongitude), _toCords)
+                        ),
+                        _GIS_ANGULAR_SEPARATION(HSTACK(_fromLatitude, _fromLongitude), _TZcoords)
+                    )
+                )
+            )
+        )
+    )
+);
+
+_GIS_ANGULAR_SEPARATION = LAMBDA(FromCoords, ToCoords,
+    // FromCoords | C[decimal, decimal] | Latitude, Longitude
+    // ToCoords   | C[decimal, decimal] | Latitude, Longitude
+    //
+    // Output
+    // 1 | decimal | Angular proximity (degrees)
+    LET(
+        _fromCoords, FN.NULLIFY(FromCoords),
+        _toCoords, FN.NULLIFY(ToCoords),
+        _method, IF(ROWS(_fromCoords) = ROWS(_toCoords), 1,
+            IF(ROWS(_fromCoords) = 1, 2, 3)
+        ),
+        _coordsA, IF(_method = 3, _toCoords, _fromCoords),
+        _coordsB, IF(_method = 3, _fromCoords, _toCoords),
+
+        _rowCount, ROWS(_coordsB),
+        
+        fnAngularSeparation, LAMBDA(_latA, _longA, _latB, _longB,
+            DEGREES(
+                ACOS(
+                    SIN(RADIANS(_latA)) * SIN(RADIANS(_latB)) +
+                    COS(RADIANS(_latA)) * COS(RADIANS(_latB)) * COS(RADIANS(_longA) - RADIANS(_longB))
+                )
+            )
+        ),
+
+        IF(COLUMNS(_coordsA) <> 2, {#CALC!} * SEQUENCE(_rowCount),
+            IF(COLUMNS(_coordsB) <> 2, {#CALC!} * SEQUENCE(_rowCount),
+                IF(_method = 1,
+                    BYROW(SEQUENCE(_rowCount),
+                        LAMBDA(_idx,
+                            fnAngularSeparation(
+                                INDEX(_coordsA, _idx, 1), INDEX(_coordsA, _idx, 2),
+                                INDEX(_coordsB, _idx, 1), INDEX(_coordsB, _idx, 2)
+                            )
+                        )
+                    ),
+                    BYROW(SEQUENCE(_rowCount),
+                        LAMBDA(_idx,
+                            fnAngularSeparation(
+                                INDEX(_coordsA, 1, 1), INDEX(_coordsA, 1, 2),
+                                INDEX(_coordsB, _idx, 1), INDEX(_coordsB, _idx, 2)
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+FIND_TIMEZONE_NAME
+
+Finds a timezone name filtering by name, country and location criteria.
+
+Array compatible: SearchName and CountryCodes as columns
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | text | TZ Database defined timezone name.
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+[SearchName]        | text                | Partial timezone name
+[CountryCodes]      | text L:2            | ISO3166 country codes
+[Latitude]          | decimal [-90..90]   | Latitude (degrees)
+[Longitude]         | decimal [-180..180] | Longitude (degrees)
+[ExcludeHistorical] | switch              | Return only active timezone names. Defaults to all timezones.
+[ReturnMax]         | integer             | Defaults to 1. 0 for no limit.
+--------------------------------------------------------------------------------------------------------*/
+FIND_TIMEZONE_NAME = LAMBDA([SearchName], [CountryCodes], [Latitude], [Longitude], [ExcludeHistorical], [ReturnMax],
+    LET(
+        _searchName, CHOOSECOLS(FN.NULLIFY(SearchName), 1),
+        _findCountryCodes, UNIQUE(CHOOSECOLS(FN.NULLIFY(CountryCodes), 1)),
+        _latitude, INDEX(FN.NULLIFY(Latitude), 1, 1),
+        _longitude, INDEX(FN.NULLIFY(Longitude), 1, 1),
+        _excludeHistorical, INDEX(FN.COERCE(ExcludeHistorical), 1, 1) <> 0,
+        _returnMax, IF(ISOMITTED(ReturnMax), 1, INT(INDEX(FN.COERCE(ReturnMax), 1, 1))),
+        
+        IF(ARRAYS.IS_EMPTY(_searchName) * ARRAYS.IS_EMPTY(_findCountryCodes) * (_latitude = "") * (_longitude = ""), {#N/A},
+            LET(
+                _timeZoneAliasToName, CHRONO_DATA.TIMEZONE_ALIAS_TO_NAME(),
+                _TZsearchSet, IF(ARRAYS.IS_EMPTY(_findCountryCodes), _timeZoneAliasToName,
+                    LET(
+                        _countryCodeMatched, UNIQUE(
+                            DROP(
+                                ARRAYS.X_FILTER(CHRONO_DATA.COUNTRY_TO_TZNAME(), _findCountryCodes, 1)
+                                ,, 1
+                            )
+                        ),
+                        ARRAYS.X_FILTER(_timeZoneAliasToName, _countryCodeMatched, 2)
+                    )
+                ),
+                
+                IF(ARRAYS.H_NA(_TZsearchSet), {#N/A},
+                    LET(
+                        _fTZsearchSet, IF(_excludeHistorical,
+                            ARRAYS.X_FILTER(_TZsearchSet, CHRONO_DATA.TIMEZONE_NAMES_ACTIVE(), 2),
+                            _TZsearchSet
+                        ),
+                        
+                        IF(ARRAYS.H_NA(_fTZsearchSet), {#N/A},
+                            LET(
+                                _filterByName, LET(
+                                    _tzNames, CHOOSECOLS(_fTZsearchSet, 2),
+                                    IF(_searchName = "", _tzNames,
+                                        LET(
+                                            _tzSearchAlias, CHOOSECOLS(_fTZsearchSet, 1),
+                                            _searchMatches, IFERROR(SEARCH(_searchName, _tzSearchAlias), 0) > 0,
+                                            FILTER(_tzNames, _searchMatches, {#N/A})
+                                        )
+                                    )
+                                ),
+                                _unique, UNIQUE(_filterByName),
+                                _uniqueNA, FILTER(_unique, NOT(ISNA(_unique)), {#N/A}), 
+                                        
+                                IF(ARRAYS.H_NA(_uniqueNA), {#N/A},
+                                    LET(
+                                        _result, IF(NOT(ISNUMBER(_latitude)) * NOT(ISNUMBER(_longitude)),
+                                            SORT(_uniqueNA),
+                                            LET(
+                                                _TZproximity, CHRONO.TIMEZONE_PROXIMITY(_uniqueNA, _latitude, _longitude),
+                                                SORTBY(_uniqueNA, _TZproximity, 1, _uniqueNA, 1)
+                                            )
+                                        ),
+                                        IF(_returnMax <= 0, _result,
+                                            TAKE(_result, _returnMax)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+_TZONE_EFFECTIVE_IDX = LAMBDA(TZones, MJDate, FromKind,
+    // integer | Index of TZones
+    //
+    // Parameters
+    // TZones   | C[14]R[n] | Dataset from CHRONO_DATA.TIMEZONE_INFOS(TZName)
+    // MJDate   | decimal   | Date and time (MJDate) for which to return zone instance
+    // FromKind | integer   | Kind. Reference timezone for provided MJDate
+    //          | [0,1,2]   |  0 : Local observed
+    //          |           |  1 : Local standard
+    //          |           |  2 : UTC
+
+    IF(ARRAYS.H_NA(TZones), {#N/A},
+        IF(ARRAYS.IS_ARRAY(MJDate), {#CALC!},
+            IF(NOT(ISNUMBER(MJDate)), {#VALUE!},
+                LET(
+                    _untilMJDate, CHOOSECOLS(TZones, 3),
+                    
+                    _seekMJDatesInKind, IF(_untilMJDate = "", "",
+                        SWITCH(FromKind,
+                            0, _untilMJDate,
+                            1, _untilMJDate - CHOOSECOLS(TZones, 5),
+                            _untilMJDate - CHOOSECOLS(TZones, 4) - CHOOSECOLS(TZones, 5)
+                        )
+                    ),
+
+                    _matches, N(_seekMJDatesInKind > MJDate),
+                    XMATCH(1, _matches, 0, 1)
+                )
+            )
+        )
+    )
+);
+
+_TZONE_PREVIOUS_IDX = LAMBDA(TZones, TZoneIdx,
+    // integer | Index of TZones
+    //
+    // Parameters
+    // TZones   | C[14]R[n] | Dataset from CHRONO_DATA.TIMEZONE_INFOS(TZName)
+    // TZoneIdx | integer   | Index of reference TZone instance. If empty then last TZone index is returned.
+    
+    IF(ARRAYS.S_NA(TZones), {#N/A},
+        IF(ISERROR(TZoneIdx), TZoneIdx * {1},
+            IF(TZoneIdx = "", ROWS(TZones),
+                LET(
+                    _prevIdx, TZoneIdx - 1,
+                    IF(_prevIdx = 0, {#N/A}, _prevIdx)
+                )
+            )
+        )
+    )
+);
+
+_TZONE_NEXT_IDX = LAMBDA(TZones, TZoneIdx,
+    // integer | Index of TZones
+    //
+    // Parameters
+    // TZones   | C[14]R[n] | Dataset from CHRONO_DATA.TIMEZONE_INFOS(TZName)
+    // TZoneIdx | integer   | Index of reference TZone instance. If empty then first TZone index is returned.
+
+    IF(ARRAYS.S_NA(TZones), {#N/A},
+        IF(ISERROR(TZoneIdx), TZoneIdx * {1},
+            IF(TZoneIdx = "", 1,
+                LET(
+                    _nextIdx, TZoneIdx + 1,
+                    IF(_nextIdx > ROWS(TZones), {#N/A}, _nextIdx)
+                )
+            )
+        )
+    )
+);
+
+
+_TZ_RULE_TRANSITION_MJDATE = LAMBDA(TZRule, Year,
+    // decimal | Modifed Julian Date of the transition in Kind of the rule.
+    //
+    // Parameter
+    // TZRule | C[12]R[1] | Timezone rule
+    // Year   | integer   | The year at which to resolve the timezone transition as a MJDate
+    
+    LET(
+        _fromYear, INDEX(TZRule, 1, 2),
+        _toYear, INDEX(TZRule, 1, 3),
+        _inRange, IF(_fromYear = "",
+            _toYear >= Year,
+            (_fromYear <= Year) * (_toYear >= Year) > 0
+        ),
+        IF(NOT(_inRange), {#N/A},
+            LET(
+                _month, INDEX(TZRule, 1, 4),
+                _ruleType, INDEX(TZRule, 1, 5),
+                _weekday, INDEX(TZRule, 1, 6),
+                _dayOfMonth, INDEX(TZRule, 1, 7),
+                _timeOfDay, INDEX(TZRule, 1, 8),
+            
+                _MJDN, IF(_ruleType = -1,
+                    // last weekday of month
+                    CHRONO.WEEKDAY_OF_MONTH_TO_MJDATE(Year, _month, -1, _weekday, 0, 0),
+                    LET(
+                        _refMJDN, CHRONO.MJDN(HSTACK(Year, _month, _dayOfMonth), 0),
+                        IF(_ruleType = 0, _refMJDN, // day of month
+                            LET(
+                                // weekday after or before
+                                _weekShift, IF(_ruleType = 2, -1, 0),
+                                CHRONO.MJDN_ADJACENT_WEEKDAY(_refMJDN, _weekday, _weekShift, 0)
+                            )
+                        )
+                    )
+                ),
+
+                _MJDN + _timeOfDay
+            )
+        )
+    )
+);
+
+
+_TZ_RULE_PREVIOUS_RECURRENCES = LAMBDA(TZRules, LocalMJDate, TZFromYear, N,
+    //   | C[2]R[n] | TZRuleRecurrence.
+    // 1 | integer  | Index of TZRules.
+    // 2 | integer  | Year of recurrence.
+    //
+    // Parameters
+    // TZRules     | C[12]R[n] | Timezone rules filtered for a specific timezone info.
+    // LocalMJDate | decimal   | Modifed Julian Date expressed as local time.
+    // TZFromYear  | integer   | From year of timezone. Empty for establishing timezone.
+    // N           | integer   | Number of yearly recurrences to enumerate.
+    //
+    // Note if LocalMJDate falls last day of a year, last returned recurrence may be year following LocalMJDate.
+    // More than N recurrences will be returned if multiple rules apply at each year.
+
+    LET(
+        _refYear, CHRONO.MJDATE_YEAR(LocalMJDate + 1),
+        _fromYears, CHOOSECOLS(TZRules, 2),
+        _toYears, CHOOSECOLS(TZRules, 3),
+        _ruleCount, ROWS(TZRules),
+        _idx, SEQUENCE(_ruleCount), 
+        _minYear, MIN(_fromYears),
+        
+        IF(_minYear > _refYear, {#N/A},
+            LET(
+                _init, VSTACK(
+                    0,
+                    HSTACK(0, _refYear + 1)
+                ),
+                
+                _seq, SEQUENCE(N),
+                _yearList, REDUCE(_init, _seq,
+                    LAMBDA(_acc, _i,
+                        IF(INDEX(_acc, 1, 1) = -1, _acc,
+                            LET(
+                                _lastRow, ROWS(_acc),
+                                _lastYear, INDEX(_acc, _lastRow, 2),
+                                _prevYear, _lastYear - 1,
+                                _inRange, (_fromYears <= _prevYear) * (_toYears >= _prevYear),
+                                _fIdx, FILTER(_idx, _inRange, {#N/A}),
+                                IF(NOT(ARRAYS.S_NA(_fIdx)),
+                                    LET(
+                                        _fCount, ROWS(_fIdx),
+                                        _ny, ARRAYS.REPEAT(_prevYear, _fCount),
+                                        VSTACK(
+                                            _acc,
+                                            HSTACK(_fIdx, _ny)
+                                        )
+                                    ),
+                                    LET(
+                                        _prevIdx, XMATCH(1, N(_fromYears < _prevYear), 0, 1),
+                                        IF(ISNA(_prevIdx),
+                                            VSTACK(
+                                                -1,
+                                                DROP(_acc, 1)
+                                            ),
+                                            LET(
+                                                _prevYear2, INDEX(_fromYears, _prevIdx, 1),
+                                                _inRange2, (_fromYears <= _prevYear2) * (_toYears >= _prevYear2),
+                                                _fIdx2, FILTER(_idx, _inRange2, {#N/A}),
+                                                _fCount2, ROWS(_fIdx2),
+                                                _ny2, ARRAYS.REPEAT(_prevYear2, _fCount2),
+                                                VSTACK(
+                                                    _acc,
+                                                    HSTACK(_fIdx2, _ny2)
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+                IF(ROWS(_yearList) <= 2, {#N/A},
+                    LET(
+                        _yl, DROP(_yearList, 2),
+                        IF(TZFromYear = "", _yl,
+                            FILTER(_yl, CHOOSECOLS(_yl, 2) >= TZFromYear, {#N/A})
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+_TZ_RULE_NEXT_RECURRENCES = LAMBDA(TZRules, LocalMJDate, TZUntilYear, N,
+    //   | C[2]R[n] | TZRuleRecurrence.
+    // 1 | integer  | Index of TZRules.
+    // 2 | integer  | Year of recurrence.
+    //
+    // Parameters
+    // TZRules     | C[12]R[n] | Timezone rules filtered for a specific timezone info.
+    // LocalMJDate | decimal   | Modifed Julian Date expressed as local time.
+    // TZUntilYear | integer   | Until year of timezone. Empty for active timezone.
+    // N           | integer   | Number of yearly recurrences to enumerate.
+    //
+    // Note if LocalMJDate falls first day of a year, first returned recurrence may be year preceding LocalMJDate.
+    // More than N recurrences will be returned if multiple rules apply at each year.
+
+    LET(
+        _refYear, CHRONO.MJDATE_YEAR(LocalMJDate - 1),
+        _fromYears, CHOOSECOLS(TZRules, 2),
+        _toYears, CHOOSECOLS(TZRules, 3),
+        _rowCount, ROWS(TZRules),
+        _idx, SEQUENCE(_rowCount), 
+        _maxYear, TAKE(SORT(_toYears, 1, -1), 1),
+        
+        IF(ISNUMBER(_maxYear) * (_maxYear < _refYear), {#N/A},
+            LET(
+                _init, VSTACK(
+                    0,
+                    HSTACK(0, _refYear - 1)
+                ),
+                
+                _seq, SEQUENCE(N),
+                _yearList, REDUCE(_init, _seq,
+                    LAMBDA(_acc, _i,
+                        IF(INDEX(_acc, 1, 1) = -1, _acc,
+                            LET(
+                                _lastRow, ROWS(_acc),
+                                _lastYear, INDEX(_acc, _lastRow, 2),
+                                _nextYear, _lastYear + 1,
+                                _inRange, (_fromYears <= _nextYear) * (_toYears >= _nextYear),
+                                _fIdx, FILTER(_idx, _inRange, {#N/A}),
+                                IF(NOT(ARRAYS.S_NA(_fIdx)),
+                                    LET(
+                                        _fCount, ROWS(_fIdx),
+                                        _ny, ARRAYS.REPEAT(_nextYear, _fCount),
+                                        VSTACK(
+                                            _acc,
+                                            HSTACK(_fIdx, _ny)
+                                        )
+                                    ),
+                                    LET(
+                                        _nextIdx, XMATCH(1, N(_fromYears > _nextYear), 0, 1),
+                                        IF(ISNA(_nextIdx),
+                                            VSTACK(
+                                                {-1, "EoF"},
+                                                DROP(_acc, 1)
+                                            ),
+                                            LET(
+                                                _nextYear2, INDEX(_fromYears, _nextIdx, 1),
+                                                _inRange2, (_fromYears <= _nextYear2) * (_toYears >= _nextYear2),
+                                                _fIdx2, FILTER(_idx, _inRange2, {#N/A}),
+                                                _fCount2, ROWS(_fIdx2),
+                                                _ny2, ARRAYS.REPEAT(_nextYear2, _fCount2),
+                                                VSTACK(
+                                                    _acc,
+                                                    HSTACK(_fIdx2, _ny2)
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+                IF(ROWS(_yearList) <= 2, {#N/A},
+                    LET(
+                        _yl, DROP(_yearList, 2),
+                        IF(TZUntilYear = "", _yl,
+                            FILTER(_yl, CHOOSECOLS(_yl, 2) <= TZUntilYear, {#N/A})
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+_TZ_RULE_ADJACENT_RECURRENCES = LAMBDA(TZRules, LocalMJDate, TZFromYear, TZUntilYear, N,
+    //   | C[2]R[n] | TZRuleRecurrence.
+    // 1 | integer  | Index of TZRules.
+    // 2 | integer  | Year of recurrence.
+    //
+    // Parameters
+    // TZRules     | C[12]R[n] | Timezone rules filtered for a specific timezone info.
+    // LocalMJDate | decimal   | Modifed Julian Date expressed as local time.
+    // TZFromYear  | integer   | From year of timezone. Empty for establishing timezone.
+    // TZUntilYear | integer   | Until year of timezone. Empty for active timezone.
+    // N           | integer   | Number of yearly recurrences to enumerate.
+    //
+    // Note if LocalMJDate falls near end of a year, first returned recurrence may be year preceding LocalMJDate.
+    // More than N recurrences will be returned if multiple rules apply at each year.
+
+    LET(
+        _prevTZRuleRecurrences, _TZ_RULE_PREVIOUS_RECURRENCES(TZRules, LocalMJDate, TZFromYear, N),
+        _nextTZRuleRecurrences, _TZ_RULE_NEXT_RECURRENCES(TZRules, LocalMJDate, TZUntilYear, N),
+        
+        _TZRuleRecurrences, UNIQUE(VSTACK(_prevTZRuleRecurrences, _nextTZRuleRecurrences)),
+        IF(ARRAYS.H_NA(_TZRuleRecurrences), {#N/A},
+            LET(
+                _noNA, FILTER(_TZRuleRecurrences, NOT(ISNA(CHOOSECOLS(_TZRuleRecurrences, 1))), {#N/A}),
+                SORTBY(
+                    _noNA,
+                    CHOOSECOLS(_noNA, 2), 1,
+                    CHOOSECOLS(_noNA, 1), 1
+                )
+            )
+        )
+    )
+);
+
+
+_TZRULE_INSTANCES = LAMBDA(TZoneEffective, TZRules, TZRuleRecurrences,
+    //   | C[6]R[n] | TZ Rule Instance
+    // 1 | integer  | Index of TZRules
+    // 2 | decimal  | From date (MJDate) in local observed time. Empty for establishing TZone.
+    // 3 | decimal  | Until date (MJDate) in local observed time. Empty for continuing TZone.
+    // 4 | decimal  | Daylight saving time offset (TimeSpan)
+    // 5 | decimal  | Daylight offset delta from previous change (TimeSpan). Empty on first row.
+    // 6 | decimal  | Daylight offset delta to next change (TimeSpan). Empty on last row.
+    //
+    // Parameters
+    // TZoneEffective   | C[14]R[1] | Timezone info in effect
+    // TZRules          | C[12]R[n] | Timezone rules filtered for a specific timezone info.
+    // TZRuleOccurances | C[2]R[n]  | Result from _TZRULE_ADJACENT_N_RECURRENCES()
+    
+    LET(
+        _TZFromMJDate, INDEX(TZoneEffective, 1, 2),
+        _TZUntilMJDate, INDEX(TZoneEffective, 1, 3),
+        _stdOffset, INDEX(TZoneEffective, 1, 4),
+        
+        _transMJDates, BYROW(TZRuleRecurrences,
+            LAMBDA(_TZRuleRecurrence,
+                LET(
+                    _idx, INDEX(_TZRuleRecurrence, 1, 1),
+                    _rule, INDEX(TZRules, _idx, ),
+                    _year, INDEX(_TZRuleRecurrence, 1, 2),
+                    _TZ_RULE_TRANSITION_MJDATE(_rule, _year)
+                )
+            )
+        ),
+        
+        _instances, HSTACK(CHOOSECOLS(TZRuleRecurrences, 1), _transMJDates),
+        IF(ARRAYS.H_NA(_instances), {#N/A},
+            LET(
+                _sorted, SORT(_instances, 2, 1),
+                _transIdx, CHOOSECOLS(_sorted, 1),
+                _trans, CHOOSECOLS(_sorted, 2),
+                _transKind, INDEX(TZRules, _transIdx, 9),
+                _DLSoffset, INDEX(TZRules, _transIdx, 10),
+                _prevDLS, IF(ROWS(_DLSoffset) = 1, 0,
+                    VSTACK(0, DROP(_DLSoffset, -1))
+                ),
+        
+                _fromObserved, LET(
+                    _fObs, _trans + SWITCH(_transKind,
+                        0, _DLSoffset - _prevDLS,
+                        1, _DLSoffset,
+                        _stdOffset + _DLSoffset
+                    ),
+                    VSTACK(_TZFromMJDate, _fObs)
+                ),
+        
+                _untilObserved, LET(
+                    _uObs, _trans + SWITCH(_transKind, 0, 0,
+                        1, _prevDLS,
+                        _stdOffset + _prevDLS
+                    ),
+                    VSTACK(_uObs, _TZUntilMJDate)
+                ),
+
+                _effectiveRuleIdx, VSTACK(0, _transIdx),
+                _effectiveDLSoffset, VSTACK(0, _DLSoffset),
+                _deltaDLS, VSTACK(_DLSoffset, 0) - VSTACK(0, _DLSoffset),
+                _deltaPrevDLS, VSTACK("", DROP(_deltaDLS, -1)),
+                _deltaNextDLS, VSTACK(DROP(_deltaDLS, -1), ""),
+                HSTACK(_effectiveRuleIdx, _fromObserved, _untilObserved, _effectiveDLSoffset, _deltaPrevDLS, _deltaNextDLS)
+            )
+        )
+    )
+);
+
+
+_TZ_INSTANCE = LAMBDA(TZoneEffectiveIdx, TZoneEffective, MJDate, FromKind,
+    //    | C[16]R[1] | TZ Instance
+    //  1 | text      | TZ Database defined zone name.
+    //  2 | integer   | Index of TZones
+    //  3 | integer   | Boundary condition of timezone rules. 
+    //    | [-1,0,1]  |  -1 : Before first timezone rule recurrance.
+    //    |           |   0 : Bounded by timezone rule recurrances.
+    //    |           |   1 : After last timezone rule recurrance.
+    //  4 | text      | Timezone rules name for daylight saving. Empty if no applicable daylight rules. 
+    //  5 | integer   | Index of TZRules
+    //  6 | decimal   | From date (MJDate) in local observed time.
+    //  7 | decimal   | Until date (MJDate) in local observed time.
+    //  8 | decimal   | Timezone standard offset (TimeSpan).
+    //  9 | decimal   | Daylight saving time offset (TimeSpan).
+    // 10 | decimal   | Standard offset delta from previous change (TimeSpan).
+    // 11 | decimal   | Daylight offset delta from previous change (TimeSpan).
+    // 12 | decimal   | Standard offset delta to next change (TimeSpan).
+    // 13 | decimal   | Daylight offset delta to next change (TimeSpan).
+    // 14 | boolean   | Flag daylight saving time in effect.
+    // 15 | text      | Abbreviated display name.
+    // 16 | text      | Full display name.
+    //
+    // Parameters
+    // TZoneEffectiveIdx | integer   | Index of timezone infos for timezone in effect
+    // TZoneEffective    | C[14]R[1] | Timezone info in effect
+    // MJDate            | decimal   | Date and time (MJDate) for which to return timezone instance
+    // FromKind          | integer   | Kind. Reference timezone for provided MJDate
+    //                   | [0,1,2]   |  0 : Local observed
+    //                   |           |  1 : Local standard
+    //                   |           |  2 : UTC
+    
+    LET(
+        
+        fnTZInstanceNoRules, LAMBDA(
+            LET(
+                _DLSoffset, INDEX(TZoneEffective, 1, 5),
+                _isDLS, _DLSoffset <> 0,
+                _displayNameCols, IF(_isDLS, {12, 14}, {11, 13}),
+                HSTACK(
+                    INDEX(TZoneEffective, 1, 1),
+                    TZoneEffectiveIdx,
+                    "", "", "",
+                    TAKE(DROP(TZoneEffective,, 1), 1, 8),
+                    _isDLS,
+                    INDEX(TZoneEffective, 1, _displayNameCols)
+                )
+            )
+        ),
+
+        _TZRuleName, INDEX(TZoneEffective, 1, 10),
+        IF(_TZRuleName = "", fnTZInstanceNoRules(),
+            LET(
+                _TZFromYear, CHRONO.MJDATE_YEAR(INDEX(TZoneEffective, 1, 2)),
+                _TZUntilYear, CHRONO.MJDATE_YEAR(INDEX(TZoneEffective, 1, 3)),
+                _stdOffset, INDEX(TZoneEffective, 1, 4),
+                _TZRules, CHRONO_DATA.TIMEZONE_RULES(_TZRuleName),
+                _localMJDate, MJDate + IF(FromKind < 2, 0, _stdOffset),
+                _TZRuleRecurrences, _TZ_RULE_ADJACENT_RECURRENCES(_TZRules, _localMJDate, _TZFromYear, _TZUntilYear, 2),
+                IF(ARRAYS.H_NA(_TZRuleRecurrences), fnTZInstanceNoRules(),
+                    LET(
+                        _TZRuleInstances, _TZRULE_INSTANCES(TZoneEffective, _TZRules, _TZRuleRecurrences),
+                        _untilObserved, CHOOSECOLS(_TZRuleInstances, 3),
+                        _ruleDLSoffset, CHOOSECOLS(_TZRuleInstances, 4),
+                
+                        _untilInKind, IF(_untilObserved = "", "",
+                            _untilObserved - SWITCH(FromKind, 0, 0,
+                                1, _ruleDLSoffset,
+                                _stdOffset + _ruleDLSoffset
+                            )
+                        ),
+                        _endsAfter, N(_untilInKind > MJDate),
+                        _effectiveInstanceRow, XMATCH(1, _endsAfter, 0, 1),
+                        IF(ISNA(_effectiveInstanceRow), {#CALC!},
+                            LET(
+                                _lastRow, ROWS(_TZRuleInstances),
+                                _effectiveInstance, CHOOSEROWS(_TZRuleInstances, _effectiveInstanceRow),
+                                _TZoneName, INDEX(TZoneEffective, 1, 1),
+                                _isDLS, CHOOSECOLS(_effectiveInstance, 4) <> 0,
+
+                                fnDisplayNames, LAMBDA(TZRuleIdx,
+                                    LET(
+                                        _abbrevToken, INDEX(_TZRules, TZRuleIdx, 11),
+                                        _fullToken, INDEX(_TZRules, TZRuleIdx, 12),
+                                        
+                                        _abbrevFormat, IF(NOT(_isDLS), INDEX(TZoneEffective, 1, 11),
+                                            IF(INDEX(TZoneEffective, 1, 12) = "",
+                                                INDEX(TZoneEffective, 1, 11),
+                                                INDEX(TZoneEffective, 1, 12)
+                                            )
+                                        ),
+                                        _abbrevName, IF(_abbrevToken = "", _abbrevFormat,
+                                            SUBSTITUTE(_abbrevFormat, "%", _abbrevToken)
+                                        ),
+                                        
+                                        _fullFormat, IF(NOT(_isDLS), INDEX(TZoneEffective, 1, 13),
+                                            IF(INDEX(TZoneEffective, 1, 14) = "",
+                                                INDEX(TZoneEffective, 1, 13),
+                                                INDEX(TZoneEffective, 1, 14)
+                                            )
+                                        ),
+                                        _fullName, IF(_fullToken = "", _fullFormat,
+                                            SUBSTITUTE(_fullFormat, "%", _fullToken)
+                                        ),
+
+                                        HSTACK(_abbrevName, _fullName)
+                                    )
+                                ),
+
+                                fnTZInstanceBeforeRules, LAMBDA(
+                                    LET(
+                                        _ruleIdx, XMATCH(1, N(INDEX(_TZRules,, 10) = 0), 0, 1),
+                                        _displayNames, fnDisplayNames(_ruleIdx),
+                                        
+                                        _DLSoffset, INDEX(_effectiveInstance, 1, 4), 
+                                        _deltaPrevStd, INDEX(TZoneEffective, 1, 6),
+                                        _deltaPrevDLS, INDEX(TZoneEffective, 1, 7),
+                                        _deltaNextStd, 0, 
+                                        _deltaNextDLS, INDEX(_effectiveInstance, 1, 6),
+                                        
+                                        HSTACK(
+                                            _TZoneName,
+                                            TZoneEffectiveIdx,
+                                            -1, _TZRuleName,
+                                            TAKE(_effectiveInstance, 1, 3),
+                                            _stdOffset,
+                                            _DLSoffset,
+                                            _deltaPrevStd,
+                                            _deltaPrevDLS,
+                                            _deltaNextStd,
+                                            _deltaNextDLS,
+                                            _isDLS,
+                                            _displayNames
+                                        )
+                                    )
+                                ),
+
+                                fnTZInstanceAfterRules, LAMBDA(
+                                    LET(
+                                        _ruleIdx, INDEX(_effectiveInstance, 1, 1),
+                                        _displayNames, fnDisplayNames(_ruleIdx),
+                                        _DLSoffset, INDEX(_effectiveInstance, 1, 4),
+                                        _deltaPrevStd, 0,
+                                        _deltaPrevDLS, INDEX(_effectiveInstance, 1, 5),
+                                        _deltaNextStd, INDEX(TZoneEffective, 1, 8), 
+                                        _deltaNextDLS, LET(
+                                            _TZdeltaNextDLS, INDEX(TZoneEffective, 1, 9), 
+                                            IF(_TZdeltaNextDLS = "", "",
+                                                _TZdeltaNextDLS - _DLSoffset
+                                            )
+                                        ),
+                                        
+                                        HSTACK(
+                                            _TZoneName,
+                                            TZoneEffectiveIdx,
+                                            1, _TZRuleName,
+                                            TAKE(_effectiveInstance, 1, 3),
+                                            _stdOffset,
+                                            _DLSoffset,
+                                            _deltaPrevStd,
+                                            _deltaPrevDLS,
+                                            _deltaNextStd,
+                                            _deltaNextDLS,
+                                            _isDLS,
+                                            _displayNames
+                                        )
+                                    )
+                                ),
+
+                                fnTZInstanceBounded, LAMBDA(
+                                    LET(
+                                        _ruleIdx, INDEX(_effectiveInstance, 1, 1),
+                                        _displayNames, fnDisplayNames(_ruleIdx),
+                                        _DLSoffset, INDEX(_effectiveInstance, 1, 4),
+                                        _deltaPrevStd, 0,
+                                        _deltaPrevDLS, INDEX(_effectiveInstance, 1, 5),
+                                        _deltaNextStd, 0,
+                                        _deltaNextDLS, INDEX(_effectiveInstance, 1, 6),
+                                        
+                                        HSTACK(
+                                            _TZoneName,
+                                            TZoneEffectiveIdx,
+                                            0, _TZRuleName,
+                                            TAKE(_effectiveInstance, 1, 3),
+                                            _stdOffset,
+                                            _DLSoffset,
+                                            _deltaPrevStd,
+                                            _deltaPrevDLS,
+                                            _deltaNextStd,
+                                            _deltaNextDLS,
+                                            _isDLS,
+                                            _displayNames
+                                        )
+                                    )
+                                ),
+                                
+                                SWITCH(_effectiveInstanceRow,
+                                    1, fnTZInstanceBeforeRules(),
+                                    _lastRow, fnTZInstanceAfterRules(),
+                                    fnTZInstanceBounded()
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_OBSERVED
+
+Returns observed timeone for a provided MJDate.
+
+Array compatible: MJDate as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+   | C[6]R[n] | TZ Observed
+ 1 | decimal  | MJDate in local observed time.
+ 2 | decimal  | From date/time in local observed time (MJDate). Empty for establishing timezone.
+ 3 | decimal  | Until date/time in local observed time (MJDate). Empty for active timezone.
+ 4 | decimal  | Timezone standard offset (TimeSpan).
+ 5 | decimal  | Timezone daylight offset (TimeSpan).
+ 6 | integer  | Boundary condition.
+   | [-2..2]  |  -2 : Timespan where observed time repeats and is indeterminate. (Clock winds back)
+   |          |  -1 : Boundary at end of repeated observed time.
+   |          |   0 : Boundary of timezone where there is no offset difference.
+   |          |   1 : Boundary of timezone where observed time leaps forward.
+   |          |   2 : Timespan where observed time is undefined. (Clock winds forward)
+ 7 | boolean  | Daylight saving time in effect.
+ 8 | text     | Abbreviated display name.
+ 9 | text     | Full display name.
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+TZName | text    | TZ Database defined timezone name.
+MJDate | decimal | Date and time (MJDate) for which to return zone instance.
+[Kind] | integer | Source time zone kind for MJDate
+       | [0,1,2] |  0 : Local observed time (includes daylight savings)
+       |         |  1 : Local standard time (does not include daylight savings)
+       |         |  2 : UTC (Universal Time Coordinated)
+--------------------------------------------------------------------------------------------------------*/
+TIMEZONE_OBSERVED = LAMBDA(TZName, MJDate, [Kind],
+    LET(
+        _TZones, CHRONO_DATA.TIMEZONE_INFOS(TZName),
+        IF(ARRAYS.H_NA(_TZones), {#N/A} * SEQUENCE(ROWS(MJDate)),
+            LET(
+                _MJDates, FN.NULLIFY(INDEX(MJDate,,1)),
+                
+                _kind, LET(
+                    _k, INT(FN.COERCE(INDEX(Kind, 1, 1))),
+                    IF(_k <= 0, 0,
+                        IF(_k >= 2, 2, _k)
+                    )
+                ),
+
+                fnTZObserved, LAMBDA(_MJDate,
+                    IF(ISERROR(_MJDate), _MJDate * {1},
+                        IF(_MJDate = "", "",
+                            IF(NOT(ISNUMBER(_MJDate)), {#VALUE!},
+                                LET(
+                                    _TZoneEffectiveIdx, _TZONE_EFFECTIVE_IDX(_TZones, _MJDate, _kind),
+                                    _TZoneEffective, INDEX(_TZones, _TZoneEffectiveIdx, ),
+                                    _TZ_OBSERVED(_TZoneEffectiveIdx, _TZoneEffective, _MJDate, _kind)
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                _byRow, REDUCE("", _MJDates,
+                    LAMBDA(_acc, _MJDate,
+                        VSTACK(_acc, fnTZObserved(_MJDate))
+                    )
+                ),
+                DROP(_byRow, 1)
+            )
+        )
+    )
+);
+
+
+_TZ_OBSERVED = LAMBDA(TZoneEffectiveIdx, TZoneEffective, MJDate, Kind,
+    LET(
+        _TZInstance, _TZ_INSTANCE(TZoneEffectiveIdx, TZoneEffective, MJDate, Kind),
+        _lowerBound, INDEX(_TZInstance, 1, 6),
+        _upperBound, INDEX(_TZInstance, 1, 7),
+        _stdOffset, INDEX(_TZInstance, 1, 8),
+        _DLSoffset, INDEX(_TZInstance, 1, 9),
+        _deltaPrev, N(INDEX(_TZInstance, 1, 10)) + N(INDEX(_TZInstance, 1, 11)),
+        _deltaNext, N(INDEX(_TZInstance, 1, 12)) + N(INDEX(_TZInstance, 1, 13)),
+        
+        _observedMJDate, MJDate + SWITCH(Kind, 0, 0,
+            1, _DLSoffset,
+            _stdOffset + _DLSoffset
+        ),
+
+        _lowOutOfBound, IF(NOT(ISNUMBER(_lowerBound)), "",
+            IF(_observedMJDate = _lowerBound, SIGN(_deltaPrev),
+                IF(_deltaPrev = 0, "",
+                    IF(_deltaPrev < 0,
+                        IF(_observedMJDate = N(_lowerBound) - _deltaPrev, -1, ""),
+                        IF(_observedMJDate < _lowerBound, 2, "")
+                    )
+                )
+            )
+        ),
+
+        _outOfBound, IF(ISNUMBER(_lowOutOfBound), _lowOutOfBound,
+            IF(NOT(ISNUMBER(_upperBound)), "",
+                IF(_deltaNext >= 0, "",
+                    IF(_observedMJDate >= _upperbound + _deltaNext, -2, "")
+                )
+            )
+        ),
+
+        HSTACK(
+            _observedMJDate, _lowerBound, _upperBound, _outOfBound,
+            _stdOffset, _DLSoffset,
+            TAKE(_TZInstance, 1, -3)
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_HAS_DLS
+
+Returns true if the timezone uses daylight savings time, and optionally within a specified year range.
+
+Array compatible: TZName as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+TZName     | text    | TZ Database defined timezone name.
+[FromYear] | integer | Filter from the given year.
+[ToYear]   | integer | Filter to the given year.
+--------------------------------------------------------------------------------------------------------*/
+TIMEZONE_HAS_DLS = LAMBDA(TZName, [FromYear], [ToYear],
+    LET(
+        _TZNames, FN.NULLIFY(CHOOSECOLS(TZName, 1)),
+        _fromYear, INDEX(FN.NULLIFY(FromYear), 1, 1),
+        _toYear, INDEX(FN.NULLIFY(ToYear), 1, 1),
+        IF(ISNUMBER(_fromYear) * ISNUMBER(_toYear) * (_toYear < _fromYear), {#VALUE!},
+            LET(
+                _noYearFilter, ISNUMBER(_fromYear) + ISNUMBER(_toYear) = 0,
+                _fromMJDate, CHRONO.MODIFIED_JULIAN_DATE(_fromYear),
+                _toMJDate, IF(ISNUMBER(_toYear),
+                    CHRONO.MODIFIED_JULIAN_DATE(_toYear + 1) - 0.000001,
+                    ""
+                ),
+                
+                BYROW(_TZNames,
+                    LAMBDA(_TZName,
+                        LET(
+                            _TZInfos, CHRONO_DATA.FILTER_TIMEZONE_INFOS(_TZName, _fromMJDate, _toMJDate),
+                            IF(ARRAYS.H_NA(_TZInfos), {#N/A},
+                                LET(
+                                    _DLSoffset, CHOOSECOLS(_TZInfos, 5),
+                                    _DLSrow, XMATCH(1, N(_DLSoffset <> 0), 0),
+                                    IF(ISNUMBER(_DLSrow), TRUE,
+                                        LET(
+                                            _TZRuleNames, CHOOSECOLS(_TZInfos, 10),
+                                            _fTZRuleNames, UNIQUE(FILTER(_TZRuleNames, _TZRuleNames <> "", {#N/A})),
+                                            IF(ARRAYS.H_NA(_fTZRuleNames), FALSE,
+                                                IF(_noYearFilter, TRUE,
+                                                    LET(
+                                                        _TZRules, CHRONO_DATA.FILTER_TIMEZONE_RULES(_fTZRuleNames, _fromYear, _toYear),
+                                                        NOT(ARRAYS.H_NA(_TZRules))
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_FOLLOWING_DLS
+
+Returns true if the timezone is observing daylight savings at the specified MJDate or any future date.
+
+Array compatible: MJDate as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+MJDate | decimal | Modified Julian Date.
+TZName | text    | TZ Database defined timezone name.
+[Kind] | integer | Source time zone kind for MJDate
+       | [0,1,2] |   0 : Local observed time (includes daylight savings)
+       |         |   1 : Local standard time (does not include daylight savings)
+       |         |   2 : UTC (Universal Time Coordinated)
+--------------------------------------------------------------------------------------------------------*/
+TIMEZONE_FOLLOWING_DLS = LAMBDA(MJDate, TZName, [Kind],
+    LET(
+        _kind, LET(
+            _k, INT(FN.COERCE(INDEX(Kind, 1, 1))),
+            IF(_k <= 0, 0,
+                IF(_k >= 2, 2, _k)
+            )
+        ),
+
+        _TZones, CHRONO_DATA.TIMEZONE_INFOS(INDEX(TZName, 1, 1)),
+        IF(ARRAYS.H_NA(_TZones), {#N/A} * SEQUENCE(ROWS(MJDate)),
+            LET(
+                fnFollowingTZoneHasDLSoffset, LAMBDA(TZoneEffectiveIdx,
+                    LET(
+                        _idx, SEQUENCE(ROWS(_TZones)),
+                        _hasDLS, N((_idx >= TZoneEffectiveIdx) * (CHOOSECOLS(_TZones, 5) <> 0) <> 0),
+                        NOT(ISNA(XMATCH(1, _hasDLS, 0, 1)))
+                    )
+                ),
+
+                fnFutureTZoneHasRules, LAMBDA(TZoneEffectiveIdx,
+                    LET(
+                        _idx, SEQUENCE(ROWS(_TZones)),
+                        _hasRules, N((_idx > TZoneEffectiveIdx) * (CHOOSECOLS(_TZones, 10) <> "") <> 0),
+                        NOT(ISNA(XMATCH(1, _hasRules, 0, 1)))
+                    )
+                ),
+
+                fnFollowingDLSinTZone, LAMBDA(TZoneEffectiveIdx,
+                    LET(
+                        _TZoneEffective, CHOOSEROWS(_TZones, TZoneEffectiveIdx),
+                        _ruleName, CHOOSECOLS(_TZoneEffective, 10),
+                        IF(_ruleName = "", FALSE,
+                            LET(
+                                _localMJDate, MJDate + IF(_kind = 2, CHOOSECOLS(_TZoneEffective, 5), 0),
+                                _TZFrom, CHOOSECOLS(_TZoneEffective, 2),
+                                _TZUntil, CHOOSECOLS(_TZoneEffective, 3),
+                                _TZFromYear, CHRONO.MJDATE_YEAR(_TZFrom),
+                                _TZUntilYear, CHRONO.MJDATE_YEAR(_TZUntil),
+                                _TZRules, CHRONO_DATA.TIMEZONE_RULES(_ruleName),
+                                _ruleRecurrences, _TZ_RULE_ADJACENT_RECURRENCES(_TZRules, _localMJDate, _TZFromYear, _TZUntilYear, 3),
+                                IF(ARRAYS.H_NA(_ruleRecurrences), FALSE,
+                                    LET(
+                                        _ruleInstances, _TZRULE_INSTANCES(_TZoneEffective, _TZRules, _ruleRecurrences),
+                                        _ruleUntil, CHOOSECOLS(_ruleInstances, 3),
+                                        _DLSoffset, CHOOSECOLS(_ruleInstances, 4),
+                                        _followingDLS, N((ISNUMBER(_ruleUntil) * (_ruleUntil > _localMJDate) * (_DLSoffset <> 0)) <> 0),
+                                        NOT(ISNA(XMATCH(1, _followingDLS, 0, 1)))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                fnFollowingDLS, LAMBDA(_MJDate,
+                    IF(ISERROR(_MJDate), _MJDate * {1},
+                        IF(_MJDate = "", "",
+                            IF(NOT(ISNUMBER(_MJDate)), {#VALUE!},
+                                LET(
+                                    _TZoneEffectiveIdx, _TZONE_EFFECTIVE_IDX(_TZones, _MJDate, _kind),
+                                    IF(ISNA(_TZoneEffectiveIdx), {#N/A},
+                                        IF(fnFollowingTZoneHasDLSoffset(_TZoneEffectiveIdx), TRUE,
+                                            IF(fnFutureTZoneHasRules(_TZoneEffectiveIdx), TRUE,
+                                                fnFollowingDLSinTZone(_TZoneEffectiveIdx)
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                _MJDates, CHOOSECOLS(FN.NULLIFY(MJDate), 1),
+                BYROW(_MJDates,
+                    LAMBDA(_MJDate,
+                        fnFollowingDLS(_MJDate)
+                    )
+                )
+            )
+        )
+    )
+); 
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_PREVIOUS_CHANGE
+
+Returns true if the timezone is observing daylight savings at the specified MJDate or any future date.
+
+Array compatible: MJDate as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+MJDate | decimal | Modified Julian Date.
+TZName | text    | TZ Database defined timezone name.
+[Kind] | integer | Source time zone kind for MJDate
+       | [0,1,2] |   0 : Local observed time (includes daylight savings)
+       |         |   1 : Local standard time (does not include daylight savings)
+       |         |   2 : UTC (Universal Time Coordinated)
+--------------------------------------------------------------------------------------------------------*/
+TIMEZONE_PREVIOUS_CHANGE = LAMBDA(MJDate, TZName, [Kind], [AnyChange],
+    LET(
+        _TZones, CHRONO_DATA.TIMEZONE_INFOS(INDEX(TZName, 1, 1)),
+        IF(ARRAYS.H_NA(_TZones), {#N/A} * SEQUENCE(ROWS(MJDate)),
+            LET(
+                _MJDates, FN.NULLIFY(CHOOSECOLS(MJDate, 1 )),
+                _kind, LET(
+                    _k, INT(INDEX(FN.COERCE(Kind), 1, 1)),
+                    IF(_k <= 0, 0,
+                        IF(_k >= 2, 2, _k)
+                    )
+                ),
+                _anyChange, INDEX(FN.COERCE(AnyChange), 1 ,1) <> 0,
+
+                fnPreviousChange, LAMBDA(_MJDate,
+                    IF(ISERROR(_MJDate), _MJDate * {1},
+                        IF(_MJDate = "", "",
+                            IF(NOT(ISNUMBER(_MJDate)), {#VALUE!},
+                                _TZ_PREVIOUS_INSTANCE(_TZones, _MJDate, _kind, _anyChange)
+                            )
+                        )
+                    )
+                ),
+                
+                _byRow, REDUCE("", _MJDates,
+                    LAMBDA(_acc, _MJDate,
+                        VSTACK(
+                            _acc,
+                            fnPreviousChange(_MJDate)
+                        )
+                    )
+                ),
+                DROP(_byRow, 1)
+            )
+        )
+    )
+);
+
+
+_TZ_PREVIOUS_INSTANCE = LAMBDA(TZones, MJDate, Kind, AnyChange, [PreCalcTZInstance],
+    LET(
+        _thisTZInstance, IF(NOT(ISOMITTED(PreCalcTZInstance)), PreCalcTZInstance,
+            LET(
+                _TZoneEffectiveIdx, _TZONE_EFFECTIVE_IDX(TZones, MJDate, Kind),
+                IF(ISNA(_TZoneEffectiveIdx), {#N/A},
+                    LET(
+                        _TZoneEffective, CHOOSEROWS(TZones, _TZoneEffectiveIdx),
+                        _TZ_INSTANCE(_TZoneEffectiveIdx, _TZoneEffective, MJDate, Kind)
+                    )
+                )
+            )
+        ),
+        IF(ARRAYS.H_NA(_thisTZInstance), {#N/A},
+            LET(
+                _establishingTZ, IF(CHOOSECOLS(_thisTZInstance, 2) > 1, FALSE,
+                    IF(CHOOSECOLS(_thisTZInstance, 3) = "", TRUE,
+                        CHOOSECOLS(_thisTZInstance, 3) = -1
+                    )
+                ),
+                
+                IF(_establishingTZ, _thisTZInstance,
+                    LET(
+                        _deltaPrev, N(CHOOSECOLS(_thisTZInstance, 10)) + N(CHOOSECOLS(_thisTZInstance, 11)),
+                        IF(_deltaPrev <> 0, _thisTZInstance,
+                            LET(
+                                _prevTZMJDate, CHOOSECOLS(_thisTZInstance, 6) - _deltaPrev - 0.00001,
+                                IF(NOT(AnyChange), _TZ_PREVIOUS_INSTANCE(TZones, _prevTZMJDate, 0, FALSE),
+                                    LET(
+                                        _prevTZoneEffectiveIdx, _TZONE_EFFECTIVE_IDX(TZones, _prevTZMJDate, 0),
+                                        IF(ISNA(_prevTZoneEffectiveIdx), {#N/A},
+                                            LET(
+                                                _prevTZoneEffective, CHOOSEROWS(TZones, _prevTZoneEffectiveIdx),
+                                                _prevTZInstance, _TZ_INSTANCE(_prevTZoneEffectiveIdx, _prevTZoneEffective, _prevTZMJDate, 0),
+                                                IF(ARRAYS.H_NA(_prevTZInstance), {#N/A},
+                                                    IF(CHOOSECOLS(_thisTZInstance, 16) <> CHOOSECOLS(_prevTZInstance, 16), _thisTZInstance,
+                                                        _TZ_PREVIOUS_INSTANCE(TZones, _prevTZMJDate, 0, TRUE, _prevTZInstance)
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+
+/*_TIMEZONE_PREVIOUS_CHANGE = LAMBDA(TZones, MJDate, Kind,
+    // TZones | C[10]R[n] | Timezone zone entries from TZ database filtered to a specific timezone name
+    // MJDate | decimal   | Modified Julian Date.
+    // Kind   | integer   | Source time zone kind for MJDate
+    //        | [-1..2]   |   0 : Local observed time (includes daylight savings)
+    //        |           |   1 : Local standard time (does not include daylight savings)
+    //        |           |  -1 : UTC (Universal Time Coordinated)
+    //
+    // Output C[6]
+    // 1 | integer | Index of TZRules
+    // 2 | decimal | MJDate of previous timezone change.
+    // 3 | integer | Standard offset in minutes.
+    // 4 | integer | Daylight savings offset in minutes.
+    // 5 | text    | Condensed timezone display name.
+    // 6 | text    | Full timezone display name.
+    LET(
+        _TZinstanceIdx, _TIMEZONE_INSTANCE_IDX(TZones, MJDate, (Kind = -1)),
+        IF(ISNA(_TZinstanceIdx), {#N/A},
+            LET(
+                _TZinstance, _TIMEZONE_INSTANCE(TZones, _TZinstanceIdx),
+                _TZruleName, CHOOSECOLS(_TZinstance, 6),
+                _TZrules, CHRONO.TIMEZONE_RULES(_TZruleName),
+                _TZStdOffset, CHOOSECOLS(_TZinstance, 4),
+                _localMJDate, IF(Kind = -1, CHRONO.TIMEZONE_SHIFT(MJDate, 0, _TZStdOffset), MJDate),
+                _thisTZprevChange, _TIMEZONE_INSTANCE_PREVIOUS_CHANGE(_TZinstance, _TZrules, _localMJDate, (Kind <> 0)),
+                IF(ARRAYS.H_NA(_thisTZprevChange), {#N/A},
+                    LET(
+                        _TZRuleIdx, CHOOSECOLS(_thisTZprevChange, 1),
+                        _displayNames, _TIMEZONE_DISPLAY_NAMES(_TZinstance, _TZrules, _TZRuleIdx),
+                        HSTACK(_thisTZprevChange, _displayNames)
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+_TIMEZONE_INSTANCE_PREVIOUS_CHANGE = LAMBDA(TZInstance, TZRules, LocalMJDate, InStandardTime,
+    // TZInstance     | C[10]R[1] | Timezone instance
+    // TZRules        | C[12]R[n] | Timezone rules for the specific timezone info instance
+    // LocalMJDate    | decimal   | Modified Julian Date expressed as observed time unless InStandardTime switch used.
+    // InStandardTime | switch    | Express transition MJDate as standard time. Default is local observed time.
+    //
+    // Output C[4]
+    // 1 | integer | Index of TZRules
+    // 2 | decimal | MJDate of previous timezone change
+    // 3 | integer | Standard offset in minutes
+    // 4 | integer | Daylight savings offset in minutes
+    LET(
+        _TZfromMJDate, CHOOSECOLS(TZInstance, 2),
+        _TZtoMJDate, CHOOSECOLS(TZInstance, 3),
+        _TZStdOffset, CHOOSECOLS(TZInstance, 4),
+        _TZDLSoffset, CHOOSECOLS(TZInstance, 5),
+        _thisTZRuleName, CHOOSECOLS(TZInstance, 6),
+        _hasTZRule, IF(_thisTZRuleName = "", FALSE,
+            _thisTZRuleName <> "*"
+        ),
+                        
+        fnTZoneNoRule, LAMBDA(
+            HSTACK(
+                "",
+                _TZfromMJDate,
+                _TZStdOffset,
+                _TZDLSoffset
+            )
+        ),
+                
+        IF(NOT(_hasTZRule), fnTZoneNoRule(),
+            LET(
+                _prevRuleTransition, _TIMEZONE_RULE_PREVIOUS_INSTANCE(_TZfromMJDate, _TZStdOffset, _TZDLSoffset, LocalMJDate, InStandardTime, TZRules),
+                IF(ARRAYS.H_NA(_prevRuleTransition), fnTZoneNoRule(),
+                    LET(
+                        _TZRuleIdx, CHOOSECOLS(_prevRuleTransition, 1),
+                        _transMJDate, CHOOSECOLS(_prevRuleTransition, 2),
+                        _DLSoffset, _TZDLSoffset + CHOOSECOLS(_prevRuleTransition, 3),
+                        HSTACK(
+                            _TZRuleIdx,
+                            _transMJDate,
+                            _TZStdOffset,
+                            _DLSoffset
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+_TIMEZONE_NEXT_CHANGE = LAMBDA(TZones, MJDate, Kind,
+    // TZones | C[10]R[n] | Timezone zone entries from TZ database filtered to a specific timezone name
+    // MJDate | decimal   | Modified Julian Date.
+    // Kind   | integer   | Source time zone kind for MJDate
+    //        | [-1..2]   |   0 : Local observed time (includes daylight savings)
+    //        |           |   1 : Local standard time (does not include daylight savings)
+    //        |           |  -1 : UTC (Universal Time Coordinated)
+    //
+    // Output C[6]
+    // 1 | integer | Index of TZRules
+    // 2 | decimal | MJDate of next timezone change.
+    // 3 | integer | Standard offset in minutes.
+    // 4 | integer | Daylight savings offset in minutes.
+    // 5 | text    | Condensed timezone display name.
+    // 6 | text    | Full timezone display name.
+    LET(
+        _TZinstanceIdx, _TIMEZONE_INSTANCE_IDX(TZones, MJDate, (Kind = -1)),
+        IF(ISNA(_TZinstanceIdx), {#N/A},
+            LET(
+                _TZinstance, _TIMEZONE_INSTANCE(TZones, _TZinstanceIdx),
+                _TZruleName, CHOOSECOLS(_TZinstance, 6),
+                _TZrules, CHRONO.TIMEZONE_RULES(_TZruleName),
+                _TZStdOffset, CHOOSECOLS(_TZinstance, 4),
+                _localMJDate, IF(Kind = -1, CHRONO.TIMEZONE_SHIFT(MJDate, 0, _TZStdOffset), MJDate),
+                _thisTZnextChange, _TIMEZONE_INSTANCE_NEXT_CHANGE(_TZinstance, _TZrules, _localMJDate, (Kind <>0)),
+                IF(ARRAYS.H_NA(_thisTZnextChange),
+                    IF(_TZinstanceIdx = ROWS(TZones), {#N/A}, // last entry, no future changes
+                        LET(
+                            _nextTZinstanceIdx, _TZinstanceIdx + 1,
+                            _nextTZinstance, _TIMEZONE_INSTANCE(TZones, _nextTZinstanceIdx),
+                            _nextTZfromMJDate, CHOOSECOLS(_nextTZInstance, 2),
+                            _nextTZStdOffset, CHOOSECOLS(_nextTZinstance, 4),
+                            _nextTZDLSoffset, CHOOSECOLS(_nextTZInstance, 5),
+                            _nextTZruleName, CHOOSECOLS(_nextTZinstance, 6),
+                            _nextTZrules, CHRONO.TIMEZONE_RULES(_nextTZruleName),
+                            _nextTZfirstChange, _TIMEZONE_INSTANCE_PREVIOUS_CHANGE(_nextTZinstance, _nextTZrules, _nextTZfromMJDate, FALSE),
+                            IF(ARRAYS.H_NA(_nextTZfirstChange), {#N/A},
+                                LET(
+                                    _nextTZRuleIdx, CHOOSECOLS(_nextTZfirstChange, 1),
+                                    _displayNames2, _TIMEZONE_DISPLAY_NAMES(_nextTZinstance, _nextTZrules, _nextTZRuleIdx),
+                                    _localMJDate2, IF(Kind = -1, CHRONO.TIMEZONE_SHIFT(MJDate, 0, _nextTZStdOffset), MJDate),
+                                    HSTACK(
+                                        "",
+                                        _nextTZfromMJDate,
+                                        _nextTZStdOffset,
+                                        _nextTZDLSoffset,
+                                        _displayNames2
+                                    )
+                                ),
+                                LET(
+                                    _nextDLSoffset, _nextTZDLSoffset + CHOOSECOLS(_nextTZnextChange, 4),
+                                    _nextTransObserved, IF(Kind = 0, CHOOSECOLS(_nextTZnextChange, 2),
+                                        CHRONO.TIMEZONE_SHIFT(CHOOSECOLS(_nextTZnextChange, 2), _nextDLSoffset)
+                                    ),
+                                    IF(_nextTZfromMJDate = _nextTransObserved,
+                                        HSTACK() )
+
+                                )
+                                IF()
+        ),
+                                
+                                     {#N/A},
+                                
+                                
+                                
+                                LET(
+                                    _TZRuleIdx2, CHOOSECOLS(_nextChange2, 1),
+                                    HSTACK(_nextChange2, _displayNames2)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+_TIMEZONE_INSTANCE_NEXT_CHANGE = LAMBDA(TZInstance, TZRules, LocalMJDate, InStandardTime,
+    // TZInstance     | C[10]R[1] | Timezone instance
+    // TZRules        | C[12]R[n] | Timezone rules for the specific timezone info instance
+    // LocalMJDate    | decimal   | Modified Julian Date expressed as observed time unless InStandardTime switch used.
+    // InStandardTime | switch    | Express transition MJDate as standard time. Default is local observed time.
+    //
+    // Output C[4]
+    // 1 | integer | Index of TZRules
+    // 2 | decimal | MJDate of next timezone change for this instance
+    // 3 | integer | Standard offset in minutes
+    // 4 | integer | Daylight savings offset in minutes
+    LET(
+        _TZfromMJDate, CHOOSECOLS(TZInstance, 2),
+        _TZtoMJDate, CHOOSECOLS(TZInstance, 3),
+        _TZStdOffset, CHOOSECOLS(TZInstance, 4),
+        _TZDLSoffset, CHOOSECOLS(TZInstance, 5),
+        _thisTZRuleName, CHOOSECOLS(TZInstance, 6),
+        _hasTZRule, IF(_thisTZRuleName = "", FALSE,
+            _thisTZRuleName <> "*"
+        ),
+                
+        IF(NOT(_hasTZRule), {#N/A},
+            LET(
+                _nextRuleTransition, _TIMEZONE_RULE_NEXT_INSTANCE(_TZfromMJDate, _TZStdOffset, _TZDLSoffset, LocalMJDate, InStandardTime, TZRules),
+                IF(ARRAYS.H_NA(_nextRuleTransition), {#N/A},
+                    LET(
+                        _TZRuleIdx, CHOOSECOLS(_nextRuleTransition, 1),
+                        _transMJDate, CHOOSECOLS(_nextRuleTransition, 2),
+                        _DLSoffset, _TZDLSoffset + CHOOSECOLS(_nextRuleTransition, 3),
+                        HSTACK(
+                            _TZRuleIdx,
+                            _transMJDate,
+                            _TZStdOffset,
+                            _DLSoffset
+                        )
                     )
                 )
             )
@@ -3322,6 +4860,894 @@ SHIFT_TIMEZONE = LAMBDA(MJDate, [ReferenceTZOMinutes], [TranslateTZOMinutes],
 
 
 
+/*
+_TIMEZONE_RULES_INSTANCES = LAMBDA(TZRules, LocalMJDate,
+    // TZRules     | C[10]R[n] | Timezone rules from TZ database filtered to a specific timezone rule name
+    // LocalMJDate | decimal   | Modified Julian Date in local time.
+    //
+    // Output C[2]R[n]  n can be multiple. Rules active in current year and previous.
+    // 1 | integer | Index of the timezone rule observed.
+    // 2 | decimal | Transition date as MJDate in local standard time of the timezone rule instance
+    IF(ARRAYS.H_NA(TZRules), {#N/A},
+        LET(
+            fnTransitions, LAMBDA(_year,
+                LET(
+                    _yearTZRuleMatches, (CHOOSECOLS(TZRules, 2) <= _year) * (CHOOSECOLS(TZRules, 3) >= _year),
+                    _yearTZRulesIdx, FILTER(SEQUENCE(ROWS(TZRules)), _yearTZRuleMatches, {#N/A}),
+                    IF(ARRAYS.H_NA(_yearTZRulesIdx), {#N/A},
+                        LET(
+                            _yearTZrules, CHOOSEROWS(TZRules, _yearTZRulesIdx),
+                            _transMJDN, CHRONO.TIMEZONE_RULE_TRANSN_MJDN(_yearTZrules, _year),
+
+                            
+                            
+                            SORT(HSTACK(_yearTZRulesIdx, _transition), 2, 1)
+                        )
+                    )
+                )
+            ),
+
+            _thisYear, CHRONO.MJDATE_YEAR(LocalMJDate),
+            _lastYearTransitions, fnTransitions(_thisYear - 1),
+            _thisYearTransitions, fnTransitions(_thisYear),
+            IF(ARRAYS.H_NA(_lastYearTransitions),
+                IF(ARRAYS.H_NA(_thisYearTransitions), {#N/A}, _thisYearTransitions),
+                IF(ARRAYS.H_NA(_thisYearTransitions), _lastYearTransitions,
+                    VSTACK(_lastYearTransitions, _thisYearTransitions)
+                )
+            )
+        )
+    )
+);
+
+_TIMEZONE_RULE_EFFECTIVE = LAMBDA(TZRules, TZRulesInstances, LocalMJDate, FromLST,
+    // TZRules          | C[10]R[n] | Timezone rules from TZ database filtered to a specific timezone rule name
+    // TZRulesInstances | C[10]R[m] | Index of the observed rule and transition date as MJDate in local standard time
+    // LocalMJDate      | decimal   | Modified Julian Date in local time.
+    // FromLST          | boolean   | LocalMJDate is in local standard time, otherwise local observed time (includes daylight savings)
+    //
+    // Output    
+    // 1 | integer  | Index of effective instance of timezone rule
+    // 2 | decimal  | Local MJDate of the rule transition date
+    // 3 | decimal  | Effective daylight savings offset in minutes
+    // 4 | integer  | Out-of-bound flag. The given local observed time occurs:
+    //   | [-1,0,1] |   0 : outside of any daylight savings time change interval
+    //   |          |  -1 : the transition from daylight savings to standard time (clock winds back)
+    //   |          |   1 : the transition from standard to daylight savings time (clock winds forward)
+    // 5 | integer  | Index of previous instance of timezone rule
+    // 6 | decimal  | Previous daylight savings offset in minutes
+    IF(ARRAYS.H_NA(TZRulesInstances), {#N/A},
+        LET(
+            _transitions, CHOOSECOLS(TZRulesInstances, 2),
+            _beforeMatch, N(_transitions <= LocalMJDate),
+            _beforeRow, XMATCH(1, _beforeMatch, 0, -1),
+            IF(ISNA(_beforeRow), {#N/A},
+                LET(
+                    _effectiveIdx, INDEX(TZRulesInstances, _beforeRow, 1),
+                    _effectiveTransition, INDEX(TZRulesInstances, _beforeRow, 2),
+                    _effectiveDLS, INDEX(TZRules, _effectiveIdx, 8),
+                    _previousIdx, IF(_beforeRow = 1, "", INDEX(TZRulesInstances, _beforeRow -  1, 1)),
+                    _previousDLS, IF(_previousIdx = "", 0, INDEX(TZRules, _previousIdx, 8)),
+                    _outOfBound, IF(FromLST, 0, // if from local standard time there are no transition intervals
+                        // if on different days cannot be during a transition interval
+                        IF(INT(_effectiveTransition) <> INT(LocalMJDate), 0,
+                            LET(
+                                _deltaDLS, CHRONO.ROUND_TIMESPAN(CHRONO.TZO_TO_TIMESPAN(_effectiveDLS - _previousDLS), 4, 3),
+                                _directionOfChange, SIGN(_deltaDLS),
+                                IF(_directionOfChange = 0, 0,
+                                    IF(CHRONO.ROUND_TIMESPAN(LocalMJDate - _effectiveTransition, 4, 3) < ABS(_deltaDLS), _directionOfChange, 0)
+                                )
+                            )
+                        )
+                    ),
+                    HSTACK(_effectiveIdx, _effectiveTransition, _effectiveDLS, _outOfBound, _previousIdx, _previousDLS)
+                )
+            )
+        )
+    )
+);
+
+
+
+
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_DIFFERENCE
+
+Returns the time difference between timezones at an instance in time.
+
+Array compatible: MJDate
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal | MJDate
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+MJDate               | decimal     | Modified Julian Date
+[ReferenceTZName]    | decimal     | Time zone referenced by the MJDate
+                     | [-900..900] | [-15:00..+15:00]
+[CompareTZName]      | decimal     | Time zone to which to compare time difference
+                     | [-900..900] | [-15:00..+15:00]
+[ReferenceLST]       | switch      | MJDate is expressed as local standard time. Otherwise is assumed local observed time.
+[CompareLST]         | switch      | Compare time difference to local standard time of the comparison time zone.
+                     |             | If empty defaults to same as ReferenceLST.
+[SuppressOutOfBound] | switch      | Applicable where ReferenceLST is not set and if MJDate falls within a daylight savings transition.
+--------------------------------------------------------------------------------------------------------*/
+/*TIMEZONE_DIFFERENCE = LAMBDA(MJDate, [ReferenceTZName], [CompareTZName], [ReferenceLST], [CompareLST], [SuppressOutOfBound],
+    LET(
+        _MJDate, CHOOSECOLS(FN.NULLIFY(MJDate), 1),
+        _r_TZName, INDEX(FN.NULLIFY(ReferenceTZName), 1, 1),
+        _c_TZName, INDEX(FN.NULLIFY(CompareTZName), 1, 1),
+        _refLST, INDEX(FN.COERCE(ReferenceLST), 1, 1) <> 0,
+        _compLST, LET(
+            _c_LST, INDEX(FN.NULLIFY(CompareLST), 1, 1),
+            IF(_c_LST = "", _refLST, FN.COERCE(_c_LST) <> 0)
+        ),
+        _suppressOutOfBound, FN.COERCE(SuppressOutOfBound) <> 0,
+        
+        _refTZName, IF(_r_TZName = "", "Etc/UTC", CHRONO.TIMEZONE_NAME(_r_TZName)),
+        _compTZName, IF(_c_TZName = "", "Etc/UTC", CHRONO.TIMEZONE_NAME(_c_TZName)),
+
+        fnNoDifference, LAMBDA(
+            IF(ISERROR(_MJDate), _MJDate * {1},
+                IF(_MJDate = "", "",
+                    IF(NOT(ISNUMBER(_MJDate)), {#VALUE!}, 0)
+                )
+            )
+        ),
+                        
+        IF(ISNA(_refTZName) + ISNA(_compTZName), EXPAND({#N/A}, ROWS(_MJDate),, #N/A),
+            IF(_refTZName = _compTZName,
+                IF(_refLST = _compLST,
+                    // TZ and LST/LOT match, no translation required
+                    fnNoDifference(),
+                    // TZ match with differing LST/LOT
+                    LET(
+                        _hasDLS, CHRONO.TIMEZONE_HAS_DLS(_refTZName),
+                        IF(NOT(_hasDLS),
+                            // TZ always has been LST, no translation required
+                            fnNoDifference(),
+                            _TIMEZONE_DIFFERENCE_LST_TO_OBSERVED(_MJDate, _refTZName, _refLST, _suppressOutOfBound)
+                        )
+                    )
+                ),
+                _TIMEZONE_DIFFERENCE_TZ(_MJDate, _refTZName, _compTZName, _refLST, _compLST, _suppressOutOfBound)
+            )
+        )
+    )
+);
+
+                
+/*_TIMEZONE_DIFFERENCE_LST_TO_OBSERVED = LAMBDA(MJDate, ReferenceTZName, ReferenceLST, SuppressOutOfBoundError,
+    LET(
+        _LSTtoObserved, IF(ReferenceLST, 1, -1),
+        _TZInfos, CHRONO.TIMEZONE_INFOS(ReferenceTZName),
+        BYROW(MJDate,
+            LAMBDA(_MJDate,
+                IF(ISERROR(_MJDate), _MJDate * {1},
+                    IF(_MJDate = "", "",
+                        IF(NOT(ISNUMBER(_MJDate)), {#VALUE!},
+                            LET(
+                                _TZobserved, _TIMEZONE_OBSERVED(_TZInfos, _MJDate, N(_LSTtoObserved < 0)),
+                                _outOfBound, CHOOSECOLS(_TZobserved, 5),
+                                _err, IF(SuppressOutOfBoundError, "",
+                                    SWITCH(N(_outOfBound),
+                                        -1, {#NUM!},
+                                        1, {#NULL!},
+                                        ""
+                                    )
+                                ),
+                                IF(ISERROR(_err), _err,
+                                    LET(
+                                        _DLSoffset, N(CHOOSECOLS(_TZobserved, 4)),
+                                        CHRONO.TZO_TO_TIMESPAN(_LSTtoObserved * _DLSoffset)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+_TIMEZONE_DIFFERENCE_TZ = LAMBDA(MJDate, ReferenceTZName, CompareTZName, ReferenceLST, CompareLST, SuppressOutOfBoundError,
+    LET(
+        _refTZInfos, CHRONO.TIMEZONE_INFOS(ReferenceTZName),
+        _compTZInfos, CHRONO.TIMEZONE_INFOS(CompareTZName),
+                
+        BYROW(MJDate,
+            LAMBDA(_MJDate,
+                IF(ISERROR(_MJDate), _MJDate * {1},
+                    IF(_MJDate = "", "",
+                        IF(NOT(ISNUMBER(_MJDate)), {#VALUE!},
+                            LET(
+                                _refTZobserved, _TIMEZONE_OBSERVED(_refTZInfos, _MJDate, N(ReferenceLST)),
+                                _outOfBound, CHOOSECOLS(_refTZobserved, 5),
+                                _err, IF(SuppressOutOfBoundError, "",
+                                    SWITCH(N(_outOfBound),
+                                        -1, {#NUM!},
+                                        1, {#NULL!},
+                                        ""
+                                    )
+                                ),
+                                IF(ISERROR(_err), _err,
+                                    LET(
+                                        _refTZO, N(CHOOSECOLS(_refTZobserved, 3)) + IF(ReferenceLST, 0, N(CHOOSECOLS(_refTZobserved, 4))),
+                                        _refTZshift, CHRONO.TZO_TO_TIMESPAN(_refTZO),
+                                        _refUTC, _MJDate - _refTZshift,
+                                        _compTZobserved, _TIMEZONE_OBSERVED(_compTZInfos, _MJDate, -1),
+                                        _compTZO, N(CHOOSECOLS(_compTZobserved, 3)) + IF(CompareLST, 0, N(CHOOSECOLS(_compTZobserved, 4))),
+                                        _diffTZO, _compTZO - _refTZO,
+                                        CHRONO.TZO_TO_TIMESPAN(_diffTZO)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+
+
+//kind 0 std observed time, 1 local std time, 2, utc, 3 year
+// YEar           0
+// Observed local time 1
+// LST local standard  2
+// UTC                     -1
+/*TIMEZONE_CHANGES = LAMBDA(TZName, [From], [To], [Kind], [ExcludeDaylightSavings],
+    IF(ARRAYS.IS_ARRAY(TZName), {#CALC!},
+        LET(
+            _kind, LET(
+                _k, LEFT(FN.COERCE(Kind)),
+                SWITCH(_k,
+                    "", 2,
+                    "O", 0,
+                    "L", 1,
+                    "U", -1,
+                    "Y", 2,
+                    2
+                )
+            ),
+            
+            _TZInfos, CHRONO.TIMEZONE_INFOS(TZName),
+            
+            _from, FN.NULLIFY(From),
+            _fromLST, IF(_from = "", "",
+                SWITCH(_kind,
+                    0, _from - CHRONO.TZO_TO_TIMESPAN(N(CHOOSECOLS(_TIMEZONE_OBSERVED(_TZInfos, _from, 0), 4))),
+                    1, _from,
+                    2, CHRONO.MODIFIED_JULIAN_DATE(_from),
+                    -1, CHROM
+            _toYear, FN.NULLIFY(ToYear),
+            _excludeDLS, FN.COERCE(ExcludeDaylightSavings) <> 0,
+            
+            _fromMJDate, CHRONO.MODIFIED_JULIAN_DATE(_fromYear),
+            _toMJDate, IF(_toYear = "", "", CHRONO.MODIFIED_JULIAN_DATE(_toYear + 1) - 0.00001),
+            _fTZInfosIdx, _TIMEZONE_INFOS_RANGE_IDX(_TZInfos, _fromMJDate, _toMJDate, FALSE),
+            _TZchanges, _TIMEZONE_TZ_CHANGES(_TZInfos, _fTZInfosIdx),
+            _TZchanges
+            //IF(_excludeDLS,
+            //    LET(
+
+        )
+    )
+);
+
+_TIMEZONE_TZ_CHANGES = LAMBDA(TZInfos, TZInfosIdx,
+    IF(ARRAYS.H_NA(TZInfosIdx), {#N/A},
+        LET(
+            _prevTZInfoUntil, LET(
+                _firstIdx, INDEX(TZInfosIdx, 1, 1),
+                IF(_firstIdx = 1, "",
+                    INDEX(TZInfos, _firstIdx - 1, 2)
+                )
+            ),
+            
+            _fTZInfos, CHOOSEROWS(TZInfos, TZInfosIdx),
+            _displayNames, _TIMEZONE_INFOS_FORMAT_NAMES(_fTZInfos),
+            _fmtTZInfos, HSTACK(DROP(_fTZInfos,, -2), _displayNames),
+            _idx, ARRAYS.DISTINCT_ROWS(_fmtTZInfos, {4, 6, 7}, TRUE),
+            _firstRow, LET(
+                _f, INDEX(_idx, 1, 1),
+                HSTACK(_prevTZInfoUntil, INDEX(_fmtTZInfos, _f, 4), 0, INDEX(_fmtTZInfos, _f, {6, 7}))
+            ),
+            IF(ROWS(_idx) = 1, _firstRow,
+                LET(
+                    _remainRows, DROP(_idx, 1),
+                    _prevRows, DROP(_idx, -1),
+                    _transition, INDEX(_fmtTZInfos, _prevRows, 2),
+                    VSTACK(
+                        _firstRow,
+                        HSTACK(_transition, INDEX(_fmtTZInfos, _remainRows, 4), 0, INDEX(_fmtTZInfos, _remainRows, {6, 7}))
+                    )
+                )
+            )
+        )
+    )
+);
+
+
+_TIMEZONE_RULE_CHANGES = LAMBDA(TZInfos, fTZInfosIdx, FromMJDate, ToMJDate, FromYear, ToYear,
+    IF(ARRAYS.H_NA(fTZInfosIdx), {#N/A},
+        LET(
+            fnTZInfoRuleTransitions, LAMBDA(_TZInfoIdx,
+                LET(
+                    _TZInfo, CHOOSEROWS(TZInfos, _TZInfoIdx),
+                    _TZRuleName, CHOOSECOLS(_TZInfo, 1, 5),
+                    IF(_TZRuleName = "", {#N/A},
+                        LET(
+                            _TZRules, CHRONO.TIMEZONE_RULES(_TZRuleName),
+                            _fTZRulesIdx, _TIMEZONE_RULES_RANGE(_TZRules, FromYear, ToYear),
+                            _fTZRulesIdxToDisplayName, _TIMEZONE_RULE_FORMAT_NAMES(_TZInfo, _TZRules, _fTZRulesIdx),
+                    
+                            _transitions, _TIMEZONE_ENUM_RULE_TRANSITIONS(_TZRules, _fTZRulesIdx, FromYear, ToYear),
+                            IF(ARRAYS.H_NA(_transitions), {#N/A},
+                                LET(
+                                    _transitionNames, DROP(ARRAYS.KEYLOOKUP(_fTZRulesIdxToDisplayName, CHOOSECOLS(_transitions, 2), 1), , 1),
+                                    _DLSoffset, INDEX(_TZRules, CHOOSECOLS(_transitions, 2), 8),
+                                    HSTACK(
+                                        _transitions,
+                                        _DLSoffset,
+                                        _transitionNames
+                                    )
+                                )
+                            )
+                        )            
+                    )
+                )
+            ),
+
+            _byRow, REDUCE("", fTZInfosIdx,
+                LAMBDA(_acc, _TZInfoIdx,
+                    LET(
+                        _TZInfoRuleTransitions, fnTZInfoRuleTransitions(_TZInfoIdx),
+                        IF(ARRAYS.H_NA(_TZInfoRuleTransitions), _acc,
+                            VSTACK(
+                                _acc,
+                                _TZInfoRuleTransitions
+                            )
+                        )
+                    )
+                )
+            ),
+
+            IF(ROWS(_byRow) = 1, {#N/A}, DROP(_byRow, 1))
+        )
+    )
+);
+
+_TIMEZONE_RULE_FORMAT_NAMES = LAMBDA(TZInfo, TZRules, TZRulesIdx,
+    IF(ARRAYS.H_NA(TZRulesIdx), {#N/A},
+        DROP(
+            REDUCE("", TZRulesIdx,
+                LAMBDA(_acc, _idx,
+                    LET(
+                        _shortToken, INDEX(TZRules, _idx, 9),
+                        _longToken, INDEX(TZRules, _idx, 10),
+                        _shortName, SUBSTITUTE(CHOOSECOLS(TZInfo, 6), "%", _shortToken),
+                        _longName, SUBSTITUTE(CHOOSECOLS(TZInfo, 7), "%", _longToken),
+                        HSTACK(
+                            _idx,
+                            _shortName,
+                            _longName
+                        )
+                    )
+                )
+            ), 1
+        )
+    )
+),
+
+/*
+_TZRuleName, INDEX(TZInfo, 1, 5),
+            _TZRules, CHRONO.TIMEZONE_RULES(TZRuleName),
+            
+            IF(ARRAYS.H_NA(_transitions), {#N/A},
+                LET(
+                    _displayNameTbl, DROP(
+                        REDUCE("", _TZRulesIdx,
+                            LAMBDA(_acc, _idx,
+                                LET(
+                                    _shortToken, INDEX(_TZRules, _idx, 9),
+                                    _longToken, INDEX(_TZRules, _idx, 10),
+                                    _name, _TIMEZONE_INFOS_FORMAT_NAMES(TZInfo, _shortToken, _longToken),
+                                    VSTACK(
+                                        _acc,
+                                        HSTACK(_idx, _name)
+                                    )
+                                )
+                            )
+                        ),
+                        1
+                    ),
+                    _transitionNames, DROP(ARRAYS.KEYLOOKUP(_displayNameTbl, CHOOSECOLS(_transitions, 2), 1), , 1),
+                    HSTACK(_transitions, _transitionNames)
+                )
+
+*/
+
+/*
+_TIMEZONE_INFO_RULE_TRANSITIONS = LAMBDA(TZInfo, TZRules, FromYear, ToYear,
+    IF(NOT(ISNUMBER(ToYear)), {#VALUE!},
+        LET(
+            _TZRulesIdx, _TIMEZONE_RULES_RANGE(TZRules, FromYear, ToYear),
+            _transitions, _TIMEZONE_ENUM_RULE_TRANSITIONS(TZRules, _TZRulesIdx, FromYear, ToYear),
+            IF(ARRAYS.H_NA(_transitions), {#N/A},
+                LET(
+                    _displayNameTbl, DROP(
+                        REDUCE("", _TZRulesIdx,
+                            LAMBDA(_acc, _idx,
+                                LET(
+                                    _shortToken, INDEX(TZRules, _idx, 9),
+                                    _longToken, INDEX(TZRules, _idx, 10),
+                                    _name, _TIMEZONE_INFOS_FORMAT_NAMES(TZInfo, _shortToken, _longToken),
+                                    VSTACK(
+                                        _acc,
+                                        HSTACK(_idx, _name)
+                                    )
+                                )
+                            )
+                        ),
+                        1
+                    ),
+                    _transitionNames, DROP(ARRAYS.KEYLOOKUP(_displayNameTbl, CHOOSECOLS(_transitions, 2), 1), , 1),
+                    HSTACK(_transitions, _transitionNames)
+                )
+            )
+        )
+    )
+);
+
+
+_TIMEZONE_RULES_RANGE = LAMBDA(TZRules, FromYear, ToYear,
+    IF(ARRAYS.H_NA(TZRules), {#N/A},
+        IF(NOT(ISNUMBER(ToYear)), {#VALUE!},
+            LET(
+                _rulesBeginYear, CHOOSECOLS(TZRules, 2),
+                _rulesEndYear, CHOOSECOLS(TZRules, 3),
+                _rangeMatch, IF(FromYear = "",
+                    N(_rulesBeginYear <= ToYear),
+                    N((_rulesBeginYear <= ToYear) * (_rulesEndYear >= FromYear) > 0)
+                ),
+                IF(MAX(_rangeMatch) = 0, {#N/A},
+                    FILTER(SEQUENCE(ROWS(TZRules)), _rangeMatch, {#N/A})
+                )
+            )
+        )
+    )
+);
+
+/*
+_TIMEZONE_ENUM_RULE_TRANSITIONS = LAMBDA(TZRules, TZRulesIdx, FromYear, ToYear,
+    IF(ARRAYS.H_NA(TZRuleSIdx), {#N/A},
+        IF(NOT(ISNUMBER(ToYear)), {#VALUE!},
+            LET(
+                fnEnumTransitions, LAMBDA(_ruleIdx, _years,
+                    DROP(
+                        REDUCE("", _years,
+                            LAMBDA(_acc, _year,
+                                LET(
+                                    _transitionMJdate, IF(ISNUMBER(INDEX(TZRules, _ruleIdx, 5)),
+                                        CHRONO.WEEKDAY_OF_MONTH_TO_MJDATE(
+                                            HSTACK(_year, INDEX(TZRules, _ruleIdx, {4, 5, 6, 7}))
+                                        ),
+                                        CHRONO.MODIFIED_JULIAN_DATE(
+                                            HSTACK(_year, INDEX(TZRules, _ruleIdx, {4, 6, 7}))
+                                        )
+                                    ),
+                                    VSTACK(
+                                        _acc,
+                                        HSTACK(INDEX(TZRules, _ruleIdx, 1), _ruleIdx, _year, _transitionMJdate)
+                                    )
+                                )
+                            )
+                        ),
+                        1
+                    )
+                ),
+
+                fnEnumRuleYears, LAMBDA(_ruleIdx,
+                    LET(
+                        _ruleBeginYear, INDEX(TZRules, _ruleIdx, 2),
+                        _ruleEndYear, INDEX(TZRules, _ruleIdx, 3),
+                        _inRange, IF(_ruleEndYear = "",
+                            (ToYear >= _ruleBeginYear),
+                            ((ToYear >= _ruleBeginYear) * ((FromYear  <= _ruleEndYear) + (FromYear = ""))) > 0
+                        ),
+                        IF(NOT(_inRange), {#N/A},
+                            LET(
+                                _enumBeginYear, IF(FromYear = "", _ruleBeginYear, MAX(FromYear, _ruleBeginYear)),
+                                _enumEndYear, IF(_ruleEndYear = "", ToYear, MIN(_ruleEndYear, ToYear)),
+                                _enumYearCount, _enumEndYear - _enumBeginYear + 1,
+                                IF(_enumYearCount < 1, {#N/A},
+                                    SEQUENCE(_enumYearCount, 1, _enumBeginYear)
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                _byRow, REDUCE("", TZRulesIdx,
+                    LAMBDA(_acc, _ruleIdx,
+                        LET(
+                            _thisRuleEnumYears, fnEnumRuleYears(_ruleIdx),
+                            _thisRuleTransitions, fnEnumTransitions(_ruleIdx, _thisRuleEnumYears),
+                            IF(ARRAYS.H_NA(_thisRuleTransitions), _acc,
+                                VSTACK(
+                                    _acc,
+                                    _thisRuleTransitions
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                IF(ROWS(_byRow) = 1, {#N/A}, DROP(_byRow, 1))
+            )
+        )
+    )
+);
+
+
+
+
+/* @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+TIMEZONE_CHANGES = LAMBDA(TZName, [FromYear], [ToYear], [IncludeDLS],
+    IF(ARRAYS.IS_ARRAY(TZName), {#CALC!},
+        LET(
+            _TZInfos, CHRONO.TIMEZONE_INFOS(TZName),
+            _ignoreDLS, FN.COERCE(IncludeDLS) = 0,
+            IF(_ignoreDLS,
+                LET(
+                    _TIMEZONE_TZ_CHANGES(_TZInfos),
+                     )
+
+
+    )
+);*/
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+TIMEZONE_PREVIOUS_CHANGE = LAMBDA(MJDate, TZName, [Kind],
+    IF(ARRAYS.IS_ARRAY(TZName), {#CALC!} * SEQUENCE(ROWS(MJDate)),
+        LET(
+            _TZInfos, CHRONO.TIMEZONE_INFOS(TZName),
+            
+            _kind, LET(
+                _k, INT(INDEX(FN.COERCE(Kind), 1, 1)),
+                IF(_k = 1, 1,
+                    IF(_k >=  2, 2, 0)
+                )
+            ),
+
+            fnPreviousChange, LAMBDA(_MJDate,
+                LET(
+                    x,0,
+                    x
+                    
+                    
+                )
+            ),
+
+            _MJDates, CHOOSECOLS(FN.NULLIFY(MJDate), 1),
+            BYROW(_MJDates,
+                LAMBDA(_MJDate,
+                    fnPreviousChange(_MJDate)
+                )
+            )
+        )
+    )
+);
+
+
+
+
+_TIMEZONE_TZ_CHANGE1 = LAMBDA(_MJDate, _TZInfos, _FromUTC, _Next,
+    IF(ARRAYS.H_NA(_TZInfos), {#N/A},
+        LET(
+            _count, ROWS(_TZInfos),
+            _untilCol, IF(_FromUTC, 3, 2),
+            _TZuntil, CHOOSECOLS(_TZInfos, _untilCol),
+            _TZinfoMatches, N(_TZuntil > _MJDate),
+            _TZinfoIdx, _TIMEZONE_INFO_INSTANCE_IDX(_MJDate, _TZInfos, _FromUTC) + _Next,
+            IF(ISNA(_TZinfoIdx), {#N/A},
+                IF(_TZinfoIdx = 1,
+                    LET(
+                        _MJDN1800, -21504,
+                        _thisObserved, _TIMEZONE_OBSERVED(_MJDN1800, _TZInfos, 1),
+                        _thisOffset, SUM(CHOOSECOLS(_thisObserved, 1, 2)),
+
+                        HSTACK("TZ", "", _thisOffset, CHOOSECOLS(_thisObserved, 4, 5), "", "", "")
+                    ),
+                    IF(_TZinfoIdx > _count,
+                        LET(
+                            _kind, IF(_FromUTC, 2, 1),
+                            _thisObserved, _TIMEZONE_OBSERVED(_MJDate, _TZInfos, _kind),
+                            _thisOffset, SUM(CHOOSECOLS(_thisObserved, 1, 2)),
+
+                            HSTACK("TZ", "", _thisOffset, CHOOSECOLS(_thisObserved, 4, 5), "", "", "")
+                        ),
+                        LET(
+                            _prevTZinfoIdx, _TZinfoIdx - 1,
+                            _TZfrom, INDEX(_TZInfos, _prevTZinfoIdx, 2),
+                            _TZuntil, INDEX(_TZInfos, _TZinfoIdx, 2),
+                            _thisObserved, _TIMEZONE_OBSERVED(_TZfrom, _TZInfos, 1),
+                            _prevObserved, _TIMEZONE_OBSERVED(_TZfrom - 0.5, _TZInfos, 1),
+                            _thisOffset, SUM(CHOOSECOLS(_thisObserved, 1, 3)),
+                            _prevOffset, SUM(CHOOSECOLS(_prevObserved, 1, 3)),
+                            _noChange, ARRAYS.ARE_EQUAL(CHOOSECOLS(_thisObserved, 1, 2, 5, 6), CHOOSECOLS(_prevObserved, 1, 2, 4, 5)),
+                            IF(_noChange,
+                                IF(_Next,
+                                    IF(_TZuntil = "",
+                                        HSTACK("TZ", "", _thisOffset, CHOOSECOLS(_thisObserved, 4, 5), "", "", ""),
+                                        _TIMEZONE_TZ_CHANGE(_TZuntil, _TZInfos, FALSE, 1)
+                                    ),
+                                    _TIMEZONE_TZ_CHANGE(_TZfrom - 0.5, _TZInfos, FALSE, 0)
+                                ),
+                                HSTACK("TZ", _TZfrom, _thisOffset, CHOOSECOLS(_thisObserved, 4, 5), _prevOffset, CHOOSECOLS(_prevObserved, 4, 5))
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);*/
+
+
+
+/*_TIMEZONE_RULES_PREVIOUS = LAMBDA(_TZRules,
+    IF(ARRAYS.H_NA(_TZRules), {#N/A},
+        LET(
+            fnYearRuleBounds, LAMBDA(_year,
+                LET(
+                    _yearTZRuleMatches, (CHOOSECOLS(_TZRules, 2) <= _year) * (CHOOSECOLS(_TZRules, 3) >= _year),
+                    _yearTZRulesIdx, FILTER(SEQUENCE(ROWS(_TZRules)), _yearTZRuleMatches, {#N/A}),
+                    IF(ARRAYS.H_NA(_yearTZRulesIdx), {#N/A},
+                        LET(
+                            _yearTZrules, CHOOSEROWS(_TZRules, _yearTZRulesIdx),
+                            _yearBounds, _TIMEZONE_RULES_RESOLVE_YEAR_BOUNDARIES(_year, _yearTZrules),
+                            _yearDLS, CHOOSECOLS(_yearTZrules, 8),
+                            SORT(HSTACK(_yearTZRulesIdx, _yearBounds, _yearDLS), 2, 1)
+                        )
+                    )
+                )
+            ),
+
+            _YMDT, CHRONO.MJDATE_TO_YMDT(_LocalMJDate),
+            _thisYear, CHOOSECOLS(_YMDT, 1),
+            _lastYearRuleBounds, fnYearRuleBounds(_thisYear - 1),
+            _thisYearRuleBounds, fnYearRuleBounds(_thisYear),
+            IF(ARRAYS.H_NA(_lastYearRuleBounds),
+                IF(ARRAYS.H_NA(_thisYearRuleBounds), {#N/A}, _thisYearRuleBounds),
+                IF(ARRAYS.H_NA(_thisYearRuleBounds), _lastYearRuleBounds,
+                    VSTACK(_lastYearRuleBounds, _thisYearRuleBounds)
+                )
+            )
+        )
+    )
+);*/
+
+/*
+_TIMEZONE_DLS_PREVIOUS_RECURSE = LAMBDA(_LocalMJDate, _TZRules, _Year,
+    LET(
+        _prevTZRuleMatches, N(CHOOSECOLS(_TZRules, 2) <= _Year),
+        IF(MAX(_prevTZRuleMatches) = 0, {#N/A}, // no rule prior to this year
+            LET(
+                _currentTZRuleMatches, _prevTZRuleMatches * N(CHOOSECOLS(_TZRules, 3) >= _Year),
+                IF(MAX(_currentTZRuleMatches) = 0,
+                    LET(
+                        // no rules for this year, determine latest year that does have a rule
+                        _prevTZRules, FILTER(_TZRules, _prevTZRuleMatches),
+                        _prevYear, MAX(CHOOSECOLS(_prevTZRules, 3)),
+                        // recursion
+                        _TIMEZONE_DLS_PREVIOUS_RECURSE(_LocalMJDate, _TZRules, _prevYear)
+                    ),
+                    LET(
+                        // rules found for this year, resolve previous boundaries
+                        _yearTZRulesIdx, FILTER(SEQUENCE(ROWS(_TZRules)), _currentTZRuleMatches),
+                        _yearTZRules, CHOOSEROWS(_TZRules, _yearTZRulesIdx),
+                        _yearBounds, TIMEZONE_RULES_TRANSITION(_yearTZrules, _year),
+                        _yearBoundsMatch, N(_yearBounds <= _LocalMJDate),
+                        IF(MAX(_yearBoundsMatch) = 0,
+                            // local date is earlier, go recursion
+                            _TIMEZONE_DLS_PREVIOUS_RECURSE(_LocalMJDate, _TZRules, _Year - 1),
+                            LET(
+                                // return the last
+                                _filterYearTZRules, FILTER(HSTACK(_yearTZRulesIdx, _yearBounds), _yearBoundsMatch),
+                                _last_of_YearTZRules, TAKE(SORT(_filterYearTZRules, 2, -1), 1),
+                                _idx, CHOOSECOLS(_last_of_YearTZRules, 1),
+                                HSTACK(
+                                    _last_of_YearTZRules,
+                                    INDEX(_TZRules, _idx, {8, 9, 10})
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+                            
+_TIMEZONE_DLS_PREVIOUS_CHANGE = LAMBDA(_LocalMJDate, _TZidx, _TZInfos,
+    IF(ISNA(_TZidx), {#N/A},
+        IF(_TZidx < 1, {#N/A},
+            LET(
+                _thisRuleName, INDEX(_TZInfos, _TZidx, 5),
+                // if no TZ rule, try an earlier timezone info
+                IF(_thisRuleName = "", _TIMEZONE_DLS_PREVIOUS_CHANGE(_LocalMJDate, _TZidx - 1, _TZInfos),
+                    LET(
+                        _YMDT, CHRONO.MJDATE_TO_YMDT(_LocalMJDate),
+                        _thisYear, CHOOSECOLS(_YMDT, 1),
+                        _TZRules, TIMEZONE_RULES(_thisRuleName),
+                        _last_Rule, _TIMEZONE_DLS_PREVIOUS_RECURSE(_LocalMJDate, _TZRules, _thisYear),
+                        IF(ARRAYS.H_NA(_last_Rule),
+                            // no previous rules for this timezone info, try an earlier timezone info
+                            _TIMEZONE_DLS_PREVIOUS_CHANGE(_LocalMJDate, _TZidx - 1, _TZInfos),
+                            LET(
+                                _prev_RuleMark, CHOOSECOLS(_last_Rule, 2) - 0.5,
+                                _prev_RuleYear, CHOOSECOLS(CHRONO.MJDATE_TO_YMDT(_prev_RuleMark), 1),
+                                _prev_Rule, _TIMEZONE_DLS_PREVIOUS_RECURSE(_prev_RuleMark, _TZRules, _prev_RuleYear),
+                                
+                                _shortNameFmt, INDEX(_TZInfos, _TZidx, 6),
+                                _longNameFmt, INDEX(_TZInfos, _TZidx, 7),
+                                _last_shortName, SUBSTITUTE(_shortNameFmt, "%", CHOOSECOLS(_last_Rule, 4)),
+                                _last_longName, SUBSTITUTE(_longNameFmt, "%", CHOOSECOLS(_last_Rule, 5)),
+                                _last_Out, HSTACK(_thisRuleName, TAKE(_last_Rule, 1, 3), _last_shortName, _last_longName),
+                                IF(ARRAYS.H_NA(_prev_Rule),
+                                    // no preceding rule, must be first of the series
+                                    HSTACK(_last_Out, "", "", "", "", ""),
+                                    // preceding rule found
+                                    LET(
+                                        _prev_shortName, SUBSTITUTE(_shortNameFmt, "%", CHOOSECOLS(_prev_Rule, 4)),
+                                        _prev_longName, SUBSTITUTE(_longNameFmt, "%", CHOOSECOLS(_prev_Rule, 5)),
+                                        HSTACK(_last_Out, TAKE(_prev_Rule, 1, 3), _prev_shortName, _prev_longName)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+        */                        
+
+
+
+
+//###############################???????
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_NEXT_CHANGE
+
+Returns true if the TimeZone uses Daylight Saving Time for the specified year. If year is omitted he result
+is true if Daylight Saving Time has ever been used.
+
+Array compatible: TZName as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+[TZName] | text    | TZ Database defined timezone name.
+[Year]   | integer | Filter to the given year. Not applicable if TZName omitted.
+--------------------------------------------------------------------------------------------------------*/
+/*TIMEZONE_NEXT_CHANGE = LAMBDA(TZName, [Year],
+    LET(
+        _TZNames, CHOOSECOLS(FN.NULLIFY(TZName), 1),
+        _year, FN.NULLIFY(Year),
+        _rowCount, ROWS(TZName),
+        IF(ARRAYS.IS_ARRAY(_year), {#CALC!} * SEQUENCE(_rowCount),
+            IF(NOT(FN.IS_NUMERIC_NULL(_year)), {#VALUE!} * SEQUENCE(_rowCount),
+                BYROW(_TZNames,
+                    LAMBDA(_TZName,
+                        LET(
+                            _TZInfos, CHRONO.TIMEZONE_INFOS(_TZName, _year),
+                            IF(ARRAYS.H_NA(_TZInfos), {#N/A},
+                                LET(
+                                    _TZRuleNames, CHOOSECOLS(_TZInfos, 5),
+                                    NOT(ARRAYS.IS_EMPTY(_TZRuleNames))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);*/
+
+
+/*--------------------------------------------------------------------------------------------------------
+TIMEZONE_PREVIOUS_CHANGE
+
+Returns true if the TimeZone uses Daylight Saving Time for the specified year. If year is omitted he result
+is true if Daylight Saving Time has ever been used.
+
+Array compatible: TZName as column
+
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | boolean |
+
+Parameters
+----------------------------------------------------------------------------------------------------------
+[TZName] | text    | TZ Database defined timezone name.
+[Year]   | integer | Filter to the given year. Not applicable if TZName omitted.
+--------------------------------------------------------------------------------------------------------*/
+/*TIMEZONE_PREVIOUS_CHANGE = LAMBDA(TZName, [Year],
+    LET(
+        _TZNames, CHOOSECOLS(FN.NULLIFY(TZName), 1),
+        _year, FN.NULLIFY(Year),
+        _rowCount, ROWS(TZName),
+        IF(ARRAYS.IS_ARRAY(_year), {#CALC!} * SEQUENCE(_rowCount),
+            IF(NOT(FN.IS_NUMERIC_NULL(_year)), {#VALUE!} * SEQUENCE(_rowCount),
+                BYROW(_TZNames,
+                    LAMBDA(_TZName,
+                        LET(
+                            _TZInfos, CHRONO.TIMEZONE_INFOS(_TZName, _year),
+                            IF(ARRAYS.H_NA(_TZInfos), {#N/A},
+                                LET(
+                                    _TZRuleNames, CHOOSECOLS(_TZInfos, 5),
+                                    NOT(ARRAYS.IS_EMPTY(_TZRuleNames))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
+*/
 
 
 /*##############################################################################################################
@@ -4144,7 +6570,7 @@ VALIDATE_CALENDAR_DATE = LAMBDA(Date_YMD, [JulianCalendar],
         _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
         
         fnValidateDate, LAMBDA(_date_YMD,
-            IF(COLUMNS(_date_YMD) > 3, {#REF!, #REF!, #REF!},
+            IF(COLUMNS(_date_YMD) > 3, {#CALC!, #CALC!, #CALC!},
                 LET(
                     _YMD, EXPAND(_date_YMD, 1, 3, ""),
                     IF(ARRAYS.IS_EMPTY(_YMD), {"", "", ""},
@@ -4289,7 +6715,7 @@ RESOLVE_CALENDAR_DATE = LAMBDA(Date_YMD, [JulianCalendar],
         _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
        
         fnResolveDate, LAMBDA(_date_YMD,
-            IF(COLUMNS(_date_YMD) > 3, {#REF!, #REF!, #REF!},
+            IF(COLUMNS(_date_YMD) > 3, {#CALC!, #CALC!, #CALC!},
                 IF(ARRAYS.IS_EMPTY(_date_YMD), {"", "", ""},
                     LET(
                         _YMD, EXPAND(_date_YMD, 1, 3, ""),
@@ -5074,7 +7500,7 @@ FORMAT_LITERARY_DATE = LAMBDA(Date_YMDW, [Options], [LanguageCode], [JulianCalen
         ),
         
         fnFormatLiteraryDate, LAMBDA(_date_YMDW,
-            IF(COLUMNS(_date_YMDW) > 4, {#REF!},
+            IF(COLUMNS(_date_YMDW) > 4, {#CALC!},
                 LET(
                     _expandYMDW, EXPAND(_date_YMDW, 1, 4, ""),
                     _YMD, TAKE(_expandYMDW, 1, 3),
@@ -5535,7 +7961,7 @@ MODIFIED_JULIAN_DATE = LAMBDA(Date_YMDT, [JulianCalendar],
         _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
         
         fnModifiedJulianDate, LAMBDA(_date_YMDT,
-            IF(COLUMNS(_date_YMDT) > 4, {#REF!},
+            IF(COLUMNS(_date_YMDT) > 4, {#CALC!},
                 IF(ARRAYS.IS_EMPTY(_date_YMDT), "",
                     LET(
                         _firstError, ARRAYS.H_ERROR(_date_YMDT),
@@ -5683,7 +8109,7 @@ JDN_TO_JDATE = LAMBDA(JDN,
 /*--------------------------------------------------------------------------------------------------------------
 MJDATE_TO_MJDN
 
-Returns the corresponding Modified Julian Day Number (MJDN) of a given Modified Julian Date (JDATE).
+Returns the corresponding Modified Julian Day Number (MJDN) of a given Modified Julian Date (MJDATE).
 Note that the decimal time component of MJDATE is based from midnight.
 
 Array compatible: Yes
@@ -5830,6 +8256,108 @@ MJDATE_TO_YMDT = LAMBDA(MJDate, [LowOrder], [SecondPrecision], [RoundingOverride
             )
         ),
         DROP(_byRow, 1)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDATE_YEAR
+
+Returns the year of a Modified Julian Date in the specified calendar.
+
+Array compatible: MJDate as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDate             | decimal | Modified Julian Date
+[JulianCalendar]   | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                   |         | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+MJDATE_YEAR = LAMBDA(MJDate, [JulianCalendar],
+    LET(
+        _YMDT, CHRONO.MJDATE_TO_YMDT(MJDate, JulianCalendar),
+        CHOOSECOLS(_YMDT, 1)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDATE_MONTH
+
+Returns the month of a Modified Julian Date in the specified calendar.
+
+Array compatible: MJDate as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer [1..12] | Month
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDate             | decimal | Modified Julian Date
+[JulianCalendar]   | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                   |         | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+MJDATE_MONTH = LAMBDA(MJDate, [JulianCalendar],
+    LET(
+        _YMDT, CHRONO.MJDATE_TO_YMDT(MJDate, JulianCalendar),
+        CHOOSECOLS(_YMDT, 2)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDATE_DAY
+
+Returns the day of month of a Modified Julian Date in the specified calendar.
+
+Array compatible: MJDate as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer [1..31] | Day of month
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDate             | decimal | Modified Julian Date
+[JulianCalendar]   | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                   |         | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+MJDATE_DAY = LAMBDA(MJDate, [JulianCalendar],
+    LET(
+        _YMDT, CHRONO.MJDATE_TO_YMDT(MJDate, JulianCalendar),
+        CHOOSECOLS(_YMDT, 3)
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDATE_TIME
+
+Returns the day of month of a Modified Julian Date in the specified calendar.
+
+Array compatible: MJDate as column
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | decimal [0..1)  | Time of day
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDate             | decimal | Modified Julian Date
+[JulianCalendar]   | switch  | Calculate for the Julian proleptic calendar. Default is Gregorian
+                   |         | proleptic calendar.
+--------------------------------------------------------------------------------------------------------------*/
+MJDATE_TIME = LAMBDA(MJDate, [JulianCalendar],
+    LET(
+        _MJDate, FN.NULLIFY(MJDate),
+        IF(_MJDate = "", "",
+            MOD(MJDate, 1)
+        )
     )
 );
 
@@ -6101,11 +8629,72 @@ MJDATE_ADDITION = LAMBDA(LocalMJDate, AddValue, [Component], [JulianCalendar],
 );
 
 
+/*--------------------------------------------------------------------------------------------------------
+MJDATE_SHIFT_TZO
 
+Translates a Modified Julian Date from one time zone offset to another.
 
+Array compatible: MJDate
 
+Output
+----------------------------------------------------------------------------------------------------------
+ 1 | decimal | MJDate
 
+Parameters
+----------------------------------------------------------------------------------------------------------
+MJDate              | decimal     | Modified Julian Date
+ReferenceTZOMinutes | decimal     | Time zone offset referenced by the MJDate
+                    | [-900..900] | [-15:00..+15:00]
+TranslateTZOMinutes | decimal     | Time zone offset to which to translate the MJDate.
+                    | [-900..900] | [-15:00..+15:00]
+--------------------------------------------------------------------------------------------------------*/
+MJDATE_SHIFT_TZO = LAMBDA(MJDate, ReferenceTZOMinutes, TranslateTZOMinutes,
+    LET(
+        _MJDate, CHOOSECOLS(FN.NULLIFY(MJDate), 1),
+        _refTZO, CHOOSECOLS(FN.NULLIFY(ReferenceTZOMinutes), 1),
+        _transTZO, CHOOSECOLS(FN.NULLIFY(TranslateTZOMinutes), 1),
 
+        _rowsMJDate, ROWS(_MJDate),
+        _rowsRefTZO, ROWS(_refTZO),
+        _rowsTransTZO, ROWS(_transTZO),
+        
+        _rowCount, MAX(_rowsMJDate, _rowsRefTZO, _rowsTransTZO),
+        IF(_rowCount = 1, _MJDATE_SHIFT_TZO(_MJDate, _refTZO, _transTZO),
+            LET(
+                _nMJDate, IF(_rowsMJDate = 1, EXPAND(_MJDate, _rowCount,, INDEX(_MJDate, 1, 1)), _MJDate),
+                _nRefTZO, IF(_rowsRefTZO = 1, EXPAND(_refTZO, _rowCount,, INDEX(_refTZO, 1, 1)), _refTZO),
+                _nTransTZO, IF(_rowsTransTZO = 1, EXPAND(_transTZO, _rowCount, 1, INDEX(_transTZO, 1, 1)), _transTZO),
+                
+                _byRow, REDUCE("", SEQUENCE(_rowCount),
+                    LAMBDA(_acc, _idx,
+                        VSTACK(
+                            _acc,
+                            _MJDATE_SHIFT_TZO(
+                                CHOOSEROWS(_nMJDate, _idx),
+                                CHOOSEROWS(_nRefTZO, _idx),
+                                CHOOSEROWS(_nTransTZO, _idx)
+                            )
+                        )
+                    )
+                ),
+                DROP(_byRow, 1)
+            )
+        )
+    )
+);
+
+_MJDATE_SHIFT_TZO = LAMBDA(MJDate, ReferenceTZOMinutes, TranslateTZOMinutes,
+    IF(ISERROR(MJDate), MJDate * {1},
+        IF(MJDate = "", "",
+            IF(NOT(ISNUMBER(MJDate)), {#VALUE!},
+                LET(
+                    _difference, (N(TranslateTZOMinutes) - N(ReferenceTZOMinutes)) / 1440,
+                    MJDate + _difference
+                )
+            )
+        )
+    )
+);
 
 
 
@@ -6146,7 +8735,7 @@ VALIDATE_YMDT = LAMBDA(Date_YMDT, [JulianCalendar],
         _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
         
         fnValidateDateTime, LAMBDA(_date_YMDT,
-            IF(COLUMNS(_date_YMDT) > 4, {#REF!, #REF!, #REF!, #REF!},
+            IF(COLUMNS(_date_YMDT) > 4, {#CALC!, #CALC!, #CALC!, #CALC!},
                 IF(ARRAYS.IS_EMPTY(_date_YMDT), {"", "", "", ""},
                     LET(
                         _expandYMDT, EXPAND(_date_YMDT, 1, 4, ""),
@@ -6258,7 +8847,7 @@ RESOLVE_YMDT = LAMBDA(Date_YMDT, [JulianCalendar],
         _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
 
         fnResolveYMDT, LAMBDA(_date_YMDT,
-            IF(COLUMNS(_date_YMDT) > 4, {#REF!, #REF!, #REF!, #REF!},
+            IF(COLUMNS(_date_YMDT) > 4, {#CALC!, #CALC!, #CALC!, #CALC!},
                 IF(ARRAYS.IS_EMPTY(_date_YMDT), {"", "", "", ""},
                     IF(FN.IS_EMPTY(INDEX(_date_YMDT, 1, 1)), {#VALUE!, #VALUE!, #VALUE!, #VALUE!},
                         LET(
@@ -6590,7 +9179,7 @@ FORMAT_ISO_DATETIME = LAMBDA(Date_YMDT, [TZOMinutes], [Options], [JulianCalendar
         _timeOfDayOptionSet, _FORMAT_TIME_OF_DAY_OPTIONS(_options & "I", TRUE),
 
         fnValidate, LAMBDA(_YMDT,
-            IF(COLUMNS(_YMDT) > 4, {#REF!},
+            IF(COLUMNS(_YMDT) > 4, {#CALC!},
                 IF(ARRAYS.IS_EMPTY(_YMDT), "",
                     LET(
                         _firstError, ARRAYS.H_ERROR(_YMDT),
@@ -6809,7 +9398,7 @@ FORMAT_DATETIME = LAMBDA(Date_YMDT, [Options], [JulianCalendar],
         _timeOfDayOptionSet, _FORMAT_TIME_OF_DAY_OPTIONS(_timeOptions, TRUE),
         
         fnFormatDateTime, LAMBDA(_date_YMDT,
-            IF(COLUMNS(_date_YMDT) > 4, {#REF!},
+            IF(COLUMNS(_date_YMDT) > 4, {#CALC!},
                 LET(
                     _firstError, ARRAYS.H_ERROR(_date_YMDT),
                     IF(ISERROR(_firstError), _firstError * {1},
@@ -6901,19 +9490,19 @@ PARSE_LITERARY_DATETIME = LAMBDA(Expression, [LanguageCode], [JulianCalendar],
                     LAMBDA(_acc, _currChar,
                         LET(
                             _isMinus, N(_currChar = "-"),
-                            _prevIsSpace, INDEX(_acc, 2),
+                            _prevIsSpace, INDEX(_acc, 2, 1),
 
                             IF(NOT(_prevIsSpace) * _isMinus,
-                                VSTACK(INDEX(_acc, 1) & " ", 1),
+                                VSTACK(INDEX(_acc, 1, 1) & " ", 1),
                                 LET(
                                     _isSpace, N(_currChar = " "),
-                                    VSTACK(INDEX(_acc, 1) & _currChar, _isSpace)
+                                    VSTACK(INDEX(_acc, 1, 1) & _currChar, _isSpace)
                                 )
                             )
                         )
                     )
                 ),
-                INDEX(_reduceMinus, 1)
+                INDEX(_reduceMinus, 1, 1)
             )
         ),
 
@@ -6950,13 +9539,13 @@ PARSE_LITERARY_DATETIME = LAMBDA(Expression, [LanguageCode], [JulianCalendar],
                         _parseDelims, fnParseNotation(_parseMinusDelims),
                         _split, FN.SPLIT(_parseDelims, " ", FALSE, TRUE, 6),
                         _countParts, INDEX(_split, 1, 1),
-                        _parts, DROP(_split, 0, 1),
+                        _parts, DROP(_split,, 1),
                         IF(_countParts > 5, {#VALUE!, #VALUE!, #VALUE!, #VALUE!, #VALUE!},
                             LET(
                                 _values, VALUE(_parts),
                                 _testTextParts, N(ISERROR(_values)) + N(IFERROR(FIND(":", _parts), 0) > 0),
-                                _textParts, FILTER(_parts, _testTextParts > 0, #N/A),
-                                _numericParts, FILTER(_values, _testTextParts = 0, #N/A),
+                                _textParts, FILTER(_parts, _testTextParts > 0, {#N/A}),
+                                _numericParts, FILTER(_values, _testTextParts = 0, {#N/A}),
                                 _parseTextParts, _PARSE_LITERARY_DATE_TEXT_PARTS(_textParts, _languageID),
                                 _parsedTextYMD, TAKE(_parseTextParts, 1, 3),
                                 _parseNumericParts, _PARSE_LITERARY_DATE_NUMERIC_PARTS(_numericParts, _parsedTextYMD, _julianCalendar),
@@ -6987,13 +9576,12 @@ PARSE_LITERARY_DATETIME = LAMBDA(Expression, [LanguageCode], [JulianCalendar],
             )
         ),
         
-        _expression, FN.NULLIFY(INDEX(Expression, , 1)),
-        _rowCount, ROWS(_expression),
-        _byRow, REDUCE("", SEQUENCE(_rowCount),
+        _expression, INDEX(FN.NULLIFY(Expression),, 1),
+        _byRow, REDUCE("", _expression,
             LAMBDA(_acc, _curr,
                 VSTACK(
                     _acc,
-                    fnParseLiteraryDate(INDEX(_expression, _curr, 1))
+                    fnParseLiteraryDate(_curr)
                 )
             )
         ),
@@ -7003,7 +9591,7 @@ PARSE_LITERARY_DATETIME = LAMBDA(Expression, [LanguageCode], [JulianCalendar],
 
 _PARSE_LITERARY_DATE_TEXT_PARTS = LAMBDA(_textParts, _languageID,
     // Returns {Year, Month, Day, Time, DayOfWeek}
-    IF(ISNA(INDEX(_textParts, 1, 1)), HSTACK("", "", "", "", ""),
+    IF(ARRAYS.H_NA(_textParts), HSTACK("", "", "", "", ""),
         LET(
             _parseMonthParts, CHRONO.PARSE_MONTH(_textParts, _languageID),
             _isMonth, N(ISNUMBER(_parseMonthParts)),
@@ -7013,8 +9601,8 @@ _PARSE_LITERARY_DATE_TEXT_PARTS = LAMBDA(_textParts, _languageID,
                 1, XLOOKUP(1, _isMonth, _parseMonthParts),
                 {#VALUE!}
             ),
-            _remainParts1, FILTER(_textParts, _isMonth = 0, #N/A),
-            IF(ISNA(INDEX(_remainParts1, 1, 1)), HSTACK("", _month, "", "", ""),
+            _remainParts1, FILTER(_textParts, _isMonth = 0, {#N/A}),
+            IF(ARRAYS.H_NA(_remainParts1), HSTACK("", _month, "", "", ""),
                 LET(
                     _parseDayOfWeekParts, CHRONO.PARSE_WEEKDAY(_remainParts1, _languageID),
                     _isDayOfWeek, N(ISNUMBER(_parseDayOfWeekParts)),
@@ -7024,8 +9612,8 @@ _PARSE_LITERARY_DATE_TEXT_PARTS = LAMBDA(_textParts, _languageID,
                         1, XLOOKUP(1, _isDayOfWeek, _parseDayOfWeekParts),
                         {#VALUE!}
                     ),
-                    _remainParts2, FILTER(_remainParts1, _isDayOfWeek = 0, #N/A),
-                    IF(ISNA(INDEX(_remainParts2, 1, 1)), HSTACK("", _month, "", _dayOfWeek, ""),
+                    _remainParts2, FILTER(_remainParts1, _isDayOfWeek = 0, {#N/A}),
+                    IF(ARRAYS.H_NA(_remainParts2), HSTACK("", _month, "", _dayOfWeek, ""),
                         LET(
                             _parseDayOrdinalParts, FN.ORDINAL_VALUE(_remainParts2),
                             _isDayOrdinal, N(ISNUMBER(_parseDayOrdinalParts)),
@@ -7035,8 +9623,8 @@ _PARSE_LITERARY_DATE_TEXT_PARTS = LAMBDA(_textParts, _languageID,
                                 1, XLOOKUP(1, _isDayOrdinal, _parseDayOrdinalParts),
                                 {#VALUE!}
                             ),
-                            _remainParts3, FILTER(_remainParts2, _isDayOrdinal = 0, #N/A),
-                            IF(ISNA(INDEX(_remainParts3, 1, 1)), HSTACK("", _month, _day, _dayOfWeek, ""),
+                            _remainParts3, FILTER(_remainParts2, _isDayOrdinal = 0, {#N/A}),
+                            IF(ARRAYS.H_NA(_remainParts3), HSTACK("", _month, _day, _dayOfWeek, ""),
                                 LET(
                                     _parseTimeSpanParts, CHRONO.PARSE_TIMESPAN(_remainParts3),
                                     _parseTimeOfDayParts, CHRONO.PARSE_TIME_OF_DAY(_remainParts3),
@@ -7049,8 +9637,8 @@ _PARSE_LITERARY_DATE_TEXT_PARTS = LAMBDA(_textParts, _languageID,
                                         1, XLOOKUP(1, _isTimeOfDay, _parseTimeOfDayParts),
                                         {#VALUE!}
                                     ),
-                                    _remainParts4, FILTER(_remainParts3, (_isTimeSpan = 0) * (_isTimeOfDay = 0), #N/A),
-                                    IF(ISNA(INDEX(_remainParts4, 1, 1)), HSTACK("", _month, _day, _dayOfWeek, _timeOfday),
+                                    _remainParts4, FILTER(_remainParts3, (_isTimeSpan = 0) * (_isTimeOfDay = 0), {#N/A}),
+                                    IF(ARRAYS.H_NA(_remainParts4), HSTACK("", _month, _day, _dayOfWeek, _timeOfday),
                                         LET(
                                             _parseYearParts, CHRONO.PARSE_LITERARY_YEAR(_remainParts4),
                                             _isYear, N(ISNUMBER(_parseYearParts)),
@@ -7079,7 +9667,7 @@ _PARSE_LITERARY_DATE_NUMERIC_PARTS = LAMBDA(_numericParts, _textYMD, _julianCale
         _textYear, INDEX(_textYMD, 1, 1),
         _textMonth, INDEX(_textYMD, 1, 2),
         _textDay, INDEX(_textYMD, 1, 3),
-        _countNumericParts, IF(ISNA(INDEX(_numericParts, 1, 1)), 0, COLUMNS(_numericParts)),
+        _countNumericParts, IF(ARRAYS.V_NA(_numericParts), 0, COLUMNS(_numericParts)),
         _countYD, N(ISNUMBER(_textYear)) + N(ISNUMBER(_textDay)),
         _maxNumericParts, 2 - _countYD,
         
@@ -7198,7 +9786,7 @@ FORMAT_LITERARY_DATETIME = LAMBDA(Date_YMDWT, [Options], [LanguageCode], [Julian
         _timeOfDayOptionSet, _FORMAT_TIME_OF_DAY_OPTIONS(_timeOptions, TRUE),
 
         fnValidate, LAMBDA(_YMDWT,
-            IF(COLUMNS(_YMDWT) > 5, {#REF!},
+            IF(COLUMNS(_YMDWT) > 5, {#CALC!},
                 IF(ARRAYS.IS_EMPTY(_YMDWT), "",
                     LET(
                         _firstError, ARRAYS.H_ERROR(_YMDWT),
@@ -7507,7 +10095,7 @@ FORMAT_MIL_DTG = LAMBDA(Date_YMDT, [TZOMinutes], [Options],
         ),
 
         fnFormatDTG, LAMBDA(_date_YMDT,
-            IF(COLUMNS(_date_YMDT) <> 4, {#REF!},
+            IF(COLUMNS(_date_YMDT) <> 4, {#CALC!},
                 IF(ARRAYS.IS_EMPTY(_date_YMDT), "",
                     LET(
                         _firstError, ARRAYS.H_ERROR(_date_YMDT),
@@ -7661,7 +10249,7 @@ VALIDATE_ISO_WEEK_DATE = LAMBDA(Date_YWD, [JulianCalendar],
         _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
         
         fnValidateWeekDate, LAMBDA(_date_YWD,
-            IF(COLUMNS(_date_YWD) > 3, {#REF!, #REF!, #REF!},
+            IF(COLUMNS(_date_YWD) > 3, {#CALC!, #CALC!, #CALC!},
                 IF(ARRAYS.IS_EMPTY(_date_YWD), {"", "", ""},
                     LET(
                         _YWD, EXPAND(_date_YWD, 1, 3, ""),
@@ -7796,7 +10384,7 @@ RESOLVE_ISO_WEEK_DATE = LAMBDA(Date_YWD, [JulianCalendar],
         _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
        
         fnResolveWeekDate, LAMBDA(_date_YWD,
-            IF(COLUMNS(_date_YWD) > 3, {#REF!, #REF!, #REF!, #REF!},
+            IF(COLUMNS(_date_YWD) > 3, {#CALC!, #CALC!, #CALC!, #CALC!},
                 IF(ARRAYS.IS_EMPTY(_date_YWD), {"", "", "", ""},
                     LET(
                         _firstError, ARRAYS.H_ERROR(_date_YWD),
@@ -7977,94 +10565,6 @@ MJDN_TO_ISO_WEEK_DATE = LAMBDA(MJDN, [JulianCalendar],
             )
         ),
         DROP(_byRow, 1)
-    )
-);
-
-
-/*--------------------------------------------------------------------------------------------------------------
-WEEKDAY_OF_MONTH_TO_MJDN
-
-Returns a Modified Julian Date for a given day of week, relative week for the year and month of the specified calendar.
-
-Array compatible: Date_YMWD as columns
-
-Output
-----------------------------------------------------------------------------------------------------------------
- 1 | decimal | Modified Julian Day Number
-
-Parameters
-----------------------------------------------------------------------------------------------------------------
-Date_YWD         | array   C[1..3] |
-   YearCE        | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE.
-   Month         | integer [1..12] | Month
-   Week          | integer         | Week relative to month.
-   [Weekday]     | decimal [1..8)  | ISO day of week.
-[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
-                 |                 | proleptic calendar.
-    
-Examples
-----------------------------------------------------------------------------------------------------------------
-WEEKDAY_OF_MONTH_TO_MJDN({2023, 6, 0, 7})
-Returns: MJDate 60120.0 (25/06/2023) ie. the last Sunday of June 2023
-
-WEEKDAY_OF_MONTH_TO_MJDN({2023, 1, 2, 2)
-Returns: MJDate 59954.5 (10/01/2023) ie. midday of the second Tuesday of January 2023
---------------------------------------------------------------------------------------------------------------*/
-WEEKDAY_OF_MONTH_TO_MJDN = LAMBDA(Date_YMWD, [JulianCalendar],
-    LET(
-        _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
-       
-        fnWeekdayMonthToMJDN, LAMBDA(_date_YMWD,
-            IF(COLUMNS(_date_YMWD) > 4, {#REF!},
-                IF(ARRAYS.IS_EMPTY(_date_YMWD), "",
-                    LET(
-                        _firstError, ARRAYS.H_ERROR(_date_YMWD),
-                        IF(ISERROR(_firstError), _firstError * {1},
-                            IF(NOT(ARRAYS.IS_NUMERIC_NULL(_date_YMWD)), {#VALUE!},
-                                LET(
-                                    _expandYMWD, EXPAND(_date_YMWD, 1, 4, 1),
-                                    IF(NOT(ARRAYS.IS_INTEGER(TAKE(_expandYMWD, 1, 2))), {#NUM!},
-                                        LET(
-                                            _year, INDEX(_expandYMWD, 1, 1),
-                                            _month, INDEX(_expandYMWD, 1, 2),
-                                            _weekOfMonth, LET(
-                                                _w, INDEX(_expandYMWD, 1, 3),
-                                                IF(_w = "", 1, INT(_w))
-                                            ),
-                                            IF((_weekOfMonth > 5) + (_weekOfMonth < -4), {#NUM!},
-                                                LET(
-                                                    _weekday, LET(
-                                                        _d, INDEX(_expandYMWD, 1, 4),
-                                                        IF(_d = "", 1, INT(_d))
-                                                    ),
-                                                    IF((_weekday < 1) + (_weekday > 7), {#NUM!},
-                                                        LET(
-                                                            _monthOffset, _month + N(_weekOfMonth < 0) - 1,
-                                                            _weekOffset, _weekOfMonth - N(_weekOfMonth >= 0),
-                                                            _firstOfYear, CHRONO.MJDN(HSTACK(_year, 1, 1), _julianCalendar),
-                                                            _firstOfMonth, CHRONO.MJDATE_ADDITION(_firstOfYear, _monthOffset, "L", _julianCalendar),
-                                                            _firstDoW, CHRONO.MJDN_TO_WEEKDAY(_firstOfMonth),
-                                                            _firstOfMonth + (_weekOffset * 7) + MOD(_weekday - _firstDoW, 7)
-                                                        )
-                                                    )
-                                                )
-                                            )
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        ),
-        
-        _date_YMWD, FN.NULLIFY(Date_YMWD),
-        BYROW(_date_YMWD,
-            LAMBDA(_row,
-                fnWeekdayMonthToMJDN(_row)
-            )
-        )
     )
 );
 
@@ -8298,6 +10798,197 @@ FORMAT_ISO_WEEK_DATE = LAMBDA(Date_YWD, [Options], [JulianCalendar],
         )
     )
 );
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDN_DAYS_TO_WEEKDAY
+
+Returns the days between a given Modified Julian Day Number (MJDN) and the next specified weekday.
+Optionally can take a number of weeks and set to exclude the reference date.
+
+Array compatible: MJDN, Weekday, Weeks, Exclusive as columns
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Days difference
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDN        | integer | Modified Julian Day Number. If a decimal MJDate provided, will truncate to MJDN.
+Weekday     | integer | ISO day of week.
+            | [1..7]  |
+[Weeks]     | integer |   0 : this week (default)
+            |         |  -1 : last week
+            |         |  -m : weeks back
+            |         |   n : weeks forward
+[Exclusive] | switch  | Exclude the reference date
+
+Examples
+----------------------------------------------------------------------------------------------------------------
+MJDN_DAYS_TO_WEEKDAY(60317, 7)
+Returns: 0
+2024-01-07 is a Sunday, 0 days difference.
+
+MJDN_DAYS_TO_WEEKDAY(60317, 7, , TRUE)
+Returns: 7
+2024-01-07 is a Sunday, 7 days difference to next Sunday.
+
+MJDN_DAYS_TO_WEEKDAY(60316, 7, -1)
+Returns: -6
+2024-01-06 is a Saturday, -6 days difference to previous Sunday.
+
+MJDN_DAYS_TO_WEEKDAY(60319, 7, 1)
+Returns: 12
+2024-01-09 is a Tuesday, 12 days difference to Sunday-week.
+--------------------------------------------------------------------------------------------------------------*/
+MJDN_DAYS_TO_WEEKDAY = LAMBDA(MJDN, Weekday, [Weeks], [Exclusive],
+    LET(
+        _MJDN, CHOOSECOLS(FN.NULLIFY(MJDN), 1),
+        _weekDay, INT(CHOOSECOLS(FN.NULLIFY(Weekday), 1)),
+        _weeks, INT(CHOOSECOLS(FN.COERCE(Weeks), 1)),
+        _exclusive, CHOOSECOLS(FN.COERCE(Exclusive), 1),
+        
+        _rowCount, ROWS(_MJDN),
+        _rowsWD, ROWS(_weekday),
+        _rowsWeeks, ROWS(_weeks),
+        _rowsExcl, ROWS(_exclusive),
+        
+        _enumErr, IF((_rowsWD < _rowCount) * (_rowsWD > 1), TRUE,
+            IF((_rowsWeeks < _rowCount) * (_rowsWeeks > 1), TRUE,
+                IF((_rowsExcl < _rowCount) * (_rowsExcl > 1), TRUE, FALSE)
+            )
+        ),
+
+        IF(_enumErr, {#CALC!},
+            LET(
+                _enumWD, IF(_rowsWD = _rowCount, _weekDay, SEQUENCE(_rowCount,, 1, 0) * _weekDay),
+                _enumWeeks, IF(_rowsWeeks = _rowCount, _weeks, SEQUENCE(_rowCount,, 1, 0) * _weeks),
+                _enumExcl, IF(_rowsExcl = _rowCount, _exclusive, SEQUENCE(_rowCount,, 1, 0) * _exclusive),
+                BYROW(SEQUENCE(_rowCount),
+                    LAMBDA(_idx,
+                        _MJDN_DAYS_TO_WEEKDAY(CHOOSEROWS(_MJDN, _idx), CHOOSEROWS(_enumWD, _idx), CHOOSEROWS(_enumWeeks, _idx), CHOOSEROWS(_enumExcl, _idx))
+                    )
+                )
+            )
+        )
+    )
+);
+
+_MJDN_DAYS_TO_WEEKDAY = LAMBDA(MJDN, Weekday, Weeks, Exclusive,
+    IF(ISERROR(MJDN), MJDN * {1},
+        IF(MJDN = "", "",
+            IF(NOT(ISNUMBER(MJDN)), {#VALUE!},
+                LET(
+                    _MJDN, INT(MJDN),
+                    _thisDoW, CHRONO.MJDN_TO_WEEKDAY(_MJDN),
+                    _backwards, N(Weeks < 0),
+                    _weekOffset, Weeks + _backwards,
+                    _sign, IF(_backwards, -1, 1),
+                    _exclusive, N(Exclusive <> 0),
+                    _dayDelta, (_sign * (Weekday - _thisDoW)) - _exclusive,
+                    _dayOffset, _sign * (MOD(_dayDelta, 7) + _exclusive),
+                    _dayOffset + (_weekOffset * 7)
+                )
+            )
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+MJDN_ADJACENT_WEEKDAY
+
+Returns a Modified Julian Day Number (MJDN) for a day of week before or after the given MJDN for the specified calendar.
+
+Array compatible: MJDN, Weekday, Weeks, Exclusive as columns
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | integer | Modified Julian Day Number
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+MJDN        | integer | Modified Julian Day Number. If a decimal MJDate provided, will truncate to MJDN.
+Weekday     | integer | ISO day of week.
+            | [1..7]  |
+[Weeks]     | integer |   0 : this week
+            |         |  -1 : last week
+            |         |  -m : weeks back
+            |         |   n : weeks forward
+[Exclusive] | switch  | Exclude the reference date
+--------------------------------------------------------------------------------------------------------------*/
+MJDN_ADJACENT_WEEKDAY = LAMBDA(MJDN, Weekday, [Weeks], [Exclusive],
+    LET(
+        _days, CHRONO.MJDN_DAYS_TO_WEEKDAY(MJDN, Weekday, Weeks, Exclusive),
+        IF(NOT(ISNUMBER(_days)), _days,
+            INT(MJDN) + _days
+        )
+    )
+);
+
+
+/*--------------------------------------------------------------------------------------------------------------
+WEEKDAY_OF_MONTH_TO_MJDATE
+
+Returns a Modified Julian Date (MJDATE) for a given week of a month and day of week for the specified calendar.
+
+Array compatible: No
+
+Output
+----------------------------------------------------------------------------------------------------------------
+ 1 | decimal | Modified Julian Date
+
+Parameters
+----------------------------------------------------------------------------------------------------------------
+YearCE           | integer         | Year in Common Era. Note that 1 BC = 0 CE, 2 BC = -1 CE.
+Month            | integer [1..12] | Month
+Week             | integer [-4..5] | Week relative to month. 0 for week preceding the start of month.
+                 |                 | Negative values reference from end of month back.
+Weekday          | decimal [1..8)  | ISO day of week. If decimal value given will transfer to TimeOfDay if it is empty.
+[TimeOfDay]      | decimal [0..1)  | Time of day. Optional, fractional value of weekday if empty.
+[JulianCalendar] | switch          | Calculate for the Julian proleptic calendar. Default is Gregorian
+                 |                 | proleptic calendar.
+    
+Examples
+----------------------------------------------------------------------------------------------------------------
+WEEKDAY_OF_MONTH_TO_MJDATE({2023, 6, 0, 7})
+Returns: MJDate 60120.0 (25/06/2023) ie. the last Sunday of June 2023
+
+WEEKDAY_OF_MONTH_TO_MJDATE({2023, 1, 2, 2, 0.5})
+Returns: MJDate 59954.5 (10/01/2023) ie. midday of the second Tuesday of January 2023
+--------------------------------------------------------------------------------------------------------------*/
+WEEKDAY_OF_MONTH_TO_MJDATE = LAMBDA(YearCE, Month, Week, Weekday, [TimeOfDay], [JulianCalendar],
+    IF(ARRAYS.IS_ARRAY(YearCE), {#CALC!},
+        IF(NOT(ISNUMBER(YearCE)), {#VALUE!},
+            IF(NOT(ISNUMBER(Month)), {#VALUE!},
+                IF(NOT(ISNUMBER(Week)), {#VALUE!},
+                    IF(NOT(ISNUMBER(Weekday)), {#VALUE!},
+                        IF(NOT(FN.IS_NUMERIC_NULL(TimeOfDay)), {#VALUE!},
+                            LET(
+                                _julianCalendar, FN.COERCE(JulianCalendar) <> 0,
+                                _year, INT(YearCE),
+                                _month, INT(Month),
+                                _week, INT(Week),
+                                _monthOffset, _month + N(_week < 0) - 1,
+                                _dayOffset, 0 - N(_week <= 0),
+                                _firstOfYear, CHRONO.MJDN(HSTACK(_year, 1, 1), _julianCalendar),
+                                _firstOfMonth, CHRONO.MJDATE_ADDITION(_firstOfYear, _monthOffset, "L", _julianCalendar),
+                                _refMJDN, _firstOfMonth + _dayOffset,
+                                
+                                _weekday, INT(Weekday),
+                                _timeOfDay, IF(TimeOfDay = "", MOD(Weekday, 1), TimeOfDay),
+                                _weekOffset, _week - N(_week >= 0),
+                                _dayShift, _MJDN_DAYS_TO_WEEKDAY(_refMJDN, _weekday, _weekOffset, 0),
+                                _refMJDN + _dayShift + _timeOfDay
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+);
+
 
 
 
@@ -9261,7 +11952,6 @@ EXCELDATE_TO_USDATE = LAMBDA(ExcelDate, [Options],
 );
 
 
-
 /*##############################################################################################################
-# END CALENDAR MODULE                                                                                          #
+# END CHRONO MODULE                                                                                            #
 ##############################################################################################################*/
