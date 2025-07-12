@@ -14,6 +14,7 @@ https://www.iana.org/time-zones/repository/tzcode-latest.tar.gz
 https://www.iana.org/time-zones/repository/tzdata-latest.tar.gz
 
 ## TODO
+TIMEZONE_NEXT_CHANGE perfomance, excessive loop?
 MJDATE_TO_ISO_DATETIME(D285) seems to be rounding down minutes unecessaryily
 21229.00069  =   1917-01-01T00:00
 
